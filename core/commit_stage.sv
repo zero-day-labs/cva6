@@ -50,6 +50,7 @@ module commit_stage import ariane_pkg::*; #(
     output logic                                    commit_csr_o,       // commit the pending CSR instruction
     output logic                                    fence_i_o,          // flush I$ and pipeline
     output logic                                    fence_o,            // flush D$ and pipeline
+    output logic [19:0]                             fence_t_o,          // flush microarchitecture
     output logic                                    flush_commit_o,     // request a pipeline flush
     output logic                                    sfence_vma_o,       // flush TLBs and pipeline
     output logic                                    hfence_vvma_o,      // flush TLBs and pipeline
@@ -113,6 +114,7 @@ module commit_stage import ariane_pkg::*; #(
         sfence_vma_o       = 1'b0;
         hfence_vvma_o      = 1'b0;
         hfence_gvma_o      = 1'b0;
+        fence_t_o          = 20'b0;
         csr_write_fflags_o = 1'b0;
         flush_commit_o  = 1'b0;
 
@@ -164,6 +166,16 @@ module commit_stage import ariane_pkg::*; #(
                   commit_ack_o[0] = 1'b0;
                   we_gpr_o[0] = 1'b0;
                 end
+            end
+            // ------------------
+            // FENCE.T Logic
+            // ------------------
+            // fence.t is idempotent so we can safely re-execute it after returning
+            // from interrupt service routine
+            if (commit_instr_i[0].op == FENCE_T) begin
+                commit_ack_o[0] = no_st_pending_i;
+                // tell the controller to flush the D$
+                fence_t_o = no_st_pending_i ? commit_instr_i[0].result[31:12] : 20'b0;
             end
             // ------------------
             // SFENCE.VMA Logic
