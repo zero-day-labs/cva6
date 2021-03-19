@@ -257,6 +257,7 @@ module commit_stage import ariane_pkg::*; #(
             if (commit_ack_o[0] && commit_instr_i[1].valid
                                 && !halt_i
                                 && !(commit_instr_i[0].fu inside {CSR})
+                                && (commit_instr_i[0].op != FENCE_T)
                                 && !flush_dcache_i
                                 && !instr_0_is_amo
                                 && !single_step_i) begin
