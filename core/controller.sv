@@ -16,6 +16,7 @@
 module controller import ariane_pkg::*; (
     input  logic            clk_i,
     input  logic            rst_ni,
+    output logic            rst_uarch_no,
     input  logic            v_i,                    // Virtualization mode
     output logic            set_pc_commit_o,        // Set PC om PC Gen
     output logic            flush_if_o,             // Flush the IF stage
@@ -30,6 +31,9 @@ module controller import ariane_pkg::*; (
     output logic            flush_tlb_vvma_o,       // Flush TLBs
     output logic            flush_tlb_gvma_o,       // Flush TLBs
 
+    input  logic [riscv::VLEN-1:0] boot_addr_i,
+    output logic [riscv::VLEN-1:0] rst_addr_o,
+    input  logic [riscv::VLEN-1:0] pc_commit_i,
     input  logic            halt_csr_i,             // Halt request from CSR (WFI instruction)
     output logic            halt_o,                 // Halt signal to commit stage
     input  logic            eret_i,                 // Return from exception
@@ -50,10 +54,20 @@ module controller import ariane_pkg::*; (
     logic fence_active_d, fence_active_q;
     logic flush_dcache;
 
+    // address to fetch from after coming out of (uarch) reset
+    logic [riscv::VLEN-1:0] rst_addr_d, rst_addr_q;
+    assign rst_addr_o = rst_addr_q;
+
+    // fence.t FSM
+    typedef enum logic[1:0] {IDLE, FLUSH_DCACHE, RST_UARCH} fence_t_state_e;
+    fence_t_state_e fence_t_state_d, fence_t_state_q;
+    logic [3:0]     rst_uarch_cnt_d, rst_uarch_cnt_q;
+
     // ------------
     // Flush CTRL
     // ------------
     always_comb begin : flush_ctrl
+        rst_addr_d             = rst_addr_q;
         fence_active_d         = fence_active_q;
         set_pc_commit_o        = 1'b0;
         flush_if_o             = 1'b0;
@@ -168,7 +182,14 @@ module controller import ariane_pkg::*; (
         // ---------------------------------
         // FENCE.T
         // ---------------------------------
-        set_pc_commit_o        |= |fence_t_i;
+        if (|fence_t_i) begin
+            flush_icache_o = 1'b1;
+            flush_dcache   = 1'b1;
+            fence_active_d = 1'b1;
+
+            // Save PC to continue from after coming out of reset
+            rst_addr_d     = pc_commit_i + {{riscv::VLEN-3{1'b0}}, 3'b100};
+        end
 
         // Set PC to commit stage and flush pipleine
         if (flush_csr_i || flush_commit_i) begin
@@ -204,7 +225,44 @@ module controller import ariane_pkg::*; (
     // ----------------------
     always_comb begin
         // halt the core if the fence is active
-        halt_o = halt_csr_i || fence_active_q;
+        halt_o = halt_csr_i || fence_active_q || (fence_t_state_q != IDLE);
+    end
+
+    always_comb begin : fence_t_fsm
+        // Default assignments
+        fence_t_state_d = fence_t_state_q;
+        rst_uarch_cnt_d = rst_uarch_cnt_q;
+        rst_uarch_no    = 1'b1;
+
+        unique case (fence_t_state_q)
+            // Idle
+            IDLE: begin
+                if (|fence_t_i) fence_t_state_d = FLUSH_DCACHE;
+            end
+
+            // Wait for dcache to acknowledge flush
+            FLUSH_DCACHE: begin
+                if (flush_dcache_ack_i) fence_t_state_d = RST_UARCH;
+            end
+
+            // Reset microarchitecture
+            RST_UARCH: begin
+                rst_uarch_no = 1'b0;
+
+                // Return to IDLE after 16 cycles
+                if (rst_uarch_cnt_q == 4'hf) begin
+                    rst_uarch_cnt_d = 4'b0;
+                    fence_t_state_d = IDLE;
+                end else begin
+                    rst_uarch_cnt_d = rst_uarch_cnt_q + 1;
+                end
+            end
+
+            // We should never reach this state
+            default: begin
+                fence_t_state_d = IDLE;
+            end
+        endcase
     end
 
     // ----------------------
@@ -212,12 +270,18 @@ module controller import ariane_pkg::*; (
     // ----------------------
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (~rst_ni) begin
-            fence_active_q <= 1'b0;
-            flush_dcache_o <= 1'b0;
+            fence_t_state_q <= IDLE;
+            rst_uarch_cnt_q <= 4'b0;
+            fence_active_q  <= 1'b0;
+            flush_dcache_o  <= 1'b0;
+            rst_addr_q      <= boot_addr_i;
         end else begin
-            fence_active_q <= fence_active_d;
+            fence_t_state_q <= fence_t_state_d;
+            fence_active_q  <= fence_active_d;
+            rst_uarch_cnt_q <= rst_uarch_cnt_d;
             // register on the flush signal, this signal might be critical
-            flush_dcache_o <= flush_dcache;
+            flush_dcache_o  <= flush_dcache;
+            rst_addr_q      <= rst_addr_d;
         end
     end
 endmodule
