@@ -80,7 +80,11 @@ package riscv;
 
     typedef struct packed {
         logic         sd;     // signal dirty state - read-only
-        logic [62:36] wpri4;  // writes preserved reads ignored
+        logic [62:40] wpri4;  // writes preserved reads ignored
+        logic         mpv;    // machine previous virtualization mode
+        logic         gva;    // variable set when trap writes to stval
+        logic         mbe;    // endianness memory accesses made from M-mode
+        logic         sbe;    // endianness memory accesses made from S-mode
         xlen_e        sxl;    // variable supervisor mode xlen - hardwired to zero
         xlen_e        uxl;    // variable user mode xlen - hardwired to zero
         logic [8:0]   wpri3;  // writes preserved reads ignored
@@ -106,10 +110,35 @@ package riscv;
     } status_rv_t;
 
     typedef struct packed {
+        logic [63:34] wpri4;  // writes preserved reads ignored
+        xlen_e        vsxl;   // variable virtual supervisor mode xlen - hardwired to zero
+        logic [8:0]   wpri3;  // floating point extension register
+        logic         vtsr;   // virtual trap sret
+        logic         vtw;    // virtual time wait
+        logic         vtvm;   // virtual trap virtual memory
+        logic [1:0]   wpri2;  // writes preserved reads ignored
+        logic [5:0]   vgein;  // virtual guest external interrupt number
+        logic [1:0]   wpri1;  // writes preserved reads ignored
+        logic         hu;     // virtual-machine load/store instructions enable in U-mode
+        logic         spvp;   // supervisor previous virtual privilege
+        logic         spv;    // supervisor previous virtualization mode
+        logic         gva;    // variable set when trap writes to stval
+        logic         vsbe;   // endianness of explicit memory accesses made from VS-mode
+        logic [4:0]   wpri0;  // writes preserved reads ignored
+    } hstatus_rv_t;
+
+    typedef struct packed {
         logic [ModeW-1:0] mode;
         logic [ASIDW-1:0] asid;
         logic [PPNW-1:0]  ppn;
     } satp_t;
+
+    typedef struct packed {
+        logic [ModeW-1:0] mode;
+        logic [1:0]       warl0;
+        logic [VMIDW-1:0] vmid;
+        logic [PPNW-1:0]  ppn;
+    } hgatp_t;
 
     // --------------------
     // Instruction Types
