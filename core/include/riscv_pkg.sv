@@ -342,34 +342,51 @@ package riscv;
     localparam logic [XLEN-1:0] LD_ACCESS_FAULT       = 5;  // Illegal access as governed by PMPs and PMAs
     localparam logic [XLEN-1:0] ST_ADDR_MISALIGNED    = 6;
     localparam logic [XLEN-1:0] ST_ACCESS_FAULT       = 7;  // Illegal access as governed by PMPs and PMAs
-    localparam logic [XLEN-1:0] ENV_CALL_UMODE        = 8;  // environment call from user mode
-    localparam logic [XLEN-1:0] ENV_CALL_SMODE        = 9;  // environment call from supervisor mode
+    localparam logic [XLEN-1:0] ENV_CALL_UMODE        = 8;  // environment call from user mode or virtual user mode
+    localparam logic [XLEN-1:0] ENV_CALL_SMODE        = 9;  // environment call from hypervisor-extended supervisor mode
+    localparam logic [XLEN-1:0] ENV_CALL_VSMODE       = 10; // environment call from virtual supervisor mode
     localparam logic [XLEN-1:0] ENV_CALL_MMODE        = 11; // environment call from machine mode
     localparam logic [XLEN-1:0] INSTR_PAGE_FAULT      = 12; // Instruction page fault
     localparam logic [XLEN-1:0] LOAD_PAGE_FAULT       = 13; // Load page fault
     localparam logic [XLEN-1:0] STORE_PAGE_FAULT      = 15; // Store page fault
+    localparam logic [XLEN-1:0] INSTR_GUEST_PAGE_FAULT= 20; // Instruction guest-page fault
+    localparam logic [XLEN-1:0] LOAD_GUEST_PAGE_FAULT = 21; // Load guest-page fault
+    localparam logic [XLEN-1:0] VIRTUAL_INSTRUCTION   = 22; // virtual instruction
+    localparam logic [XLEN-1:0] STORE_GUEST_PAGE_FAULT= 23; // Store guest-page fault
     localparam logic [XLEN-1:0] DEBUG_REQUEST         = 24; // Debug request
 
-    localparam int unsigned IRQ_S_SOFT  = 1;
-    localparam int unsigned IRQ_M_SOFT  = 3;
-    localparam int unsigned IRQ_S_TIMER = 5;
-    localparam int unsigned IRQ_M_TIMER = 7;
-    localparam int unsigned IRQ_S_EXT   = 9;
-    localparam int unsigned IRQ_M_EXT   = 11;
+    localparam int unsigned IRQ_S_SOFT   = 1;
+    localparam int unsigned IRQ_VS_SOFT  = 2;    
+    localparam int unsigned IRQ_M_SOFT   = 3;
+    localparam int unsigned IRQ_S_TIMER  = 5;
+    localparam int unsigned IRQ_VS_TIMER = 6;
+    localparam int unsigned IRQ_M_TIMER  = 7;
+    localparam int unsigned IRQ_S_EXT    = 9;
+    localparam int unsigned IRQ_VS_EXT   = 10;
+    localparam int unsigned IRQ_M_EXT    = 11;
+    localparam int unsigned IRQ_HS_EXT   = 12;
 
-    localparam logic [XLEN-1:0] MIP_SSIP = 1 << IRQ_S_SOFT;
-    localparam logic [XLEN-1:0] MIP_MSIP = 1 << IRQ_M_SOFT;
-    localparam logic [XLEN-1:0] MIP_STIP = 1 << IRQ_S_TIMER;
-    localparam logic [XLEN-1:0] MIP_MTIP = 1 << IRQ_M_TIMER;
-    localparam logic [XLEN-1:0] MIP_SEIP = 1 << IRQ_S_EXT;
-    localparam logic [XLEN-1:0] MIP_MEIP = 1 << IRQ_M_EXT;
+    localparam logic [XLEN-1:0] MIP_SSIP  = 1 << IRQ_S_SOFT;
+    localparam logic [XLEN-1:0] MIP_VSSIP = 1 << IRQ_VS_SOFT;
+    localparam logic [XLEN-1:0] MIP_MSIP  = 1 << IRQ_M_SOFT;
+    localparam logic [XLEN-1:0] MIP_STIP  = 1 << IRQ_S_TIMER;
+    localparam logic [XLEN-1:0] MIP_VSTIP = 1 << IRQ_VS_TIMER;    
+    localparam logic [XLEN-1:0] MIP_MTIP  = 1 << IRQ_M_TIMER;
+    localparam logic [XLEN-1:0] MIP_SEIP  = 1 << IRQ_S_EXT;
+    localparam logic [XLEN-1:0] MIP_VSEIP = 1 << IRQ_VS_EXT;
+    localparam logic [XLEN-1:0] MIP_MEIP  = 1 << IRQ_M_EXT;
+    localparam logic [XLEN-1:0] MIP_SGEIP = 1 << IRQ_HS_EXT;
 
-    localparam logic [XLEN-1:0] S_SW_INTERRUPT    = (1 << (XLEN-1)) | IRQ_S_SOFT;
-    localparam logic [XLEN-1:0] M_SW_INTERRUPT    = (1 << (XLEN-1)) | IRQ_M_SOFT;
-    localparam logic [XLEN-1:0] S_TIMER_INTERRUPT = (1 << (XLEN-1)) | IRQ_S_TIMER;
-    localparam logic [XLEN-1:0] M_TIMER_INTERRUPT = (1 << (XLEN-1)) | IRQ_M_TIMER;
-    localparam logic [XLEN-1:0] S_EXT_INTERRUPT   = (1 << (XLEN-1)) | IRQ_S_EXT;
-    localparam logic [XLEN-1:0] M_EXT_INTERRUPT   = (1 << (XLEN-1)) | IRQ_M_EXT;
+    localparam logic [XLEN-1:0] S_SW_INTERRUPT     = (1 << (XLEN-1)) | IRQ_S_SOFT;
+    localparam logic [XLEN-1:0] VS_SW_INTERRUPT    = (1 << (XLEN-1)) | IRQ_S_SOFT;
+    localparam logic [XLEN-1:0] M_SW_INTERRUPT     = (1 << (XLEN-1)) | IRQ_M_SOFT;
+    localparam logic [XLEN-1:0] S_TIMER_INTERRUPT  = (1 << (XLEN-1)) | IRQ_S_TIMER;
+    localparam logic [XLEN-1:0] VS_TIMER_INTERRUPT = (1 << (XLEN-1)) | IRQ_S_TIMER;
+    localparam logic [XLEN-1:0] M_TIMER_INTERRUPT  = (1 << (XLEN-1)) | IRQ_M_TIMER;
+    localparam logic [XLEN-1:0] S_EXT_INTERRUPT    = (1 << (XLEN-1)) | IRQ_S_EXT;
+    localparam logic [XLEN-1:0] VS_EXT_INTERRUPT   = (1 << (XLEN-1)) | IRQ_VS_EXT;
+    localparam logic [XLEN-1:0] M_EXT_INTERRUPT    = (1 << (XLEN-1)) | IRQ_M_EXT;
+    localparam logic [XLEN-1:0] HS_EXT_INTERRUPT   = (1 << (XLEN-1)) | IRQ_HS_EXT;
 
     // -----
     // CSRs
