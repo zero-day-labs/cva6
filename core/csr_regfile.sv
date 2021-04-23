@@ -107,6 +107,7 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::csr_t  csr_addr;
     // privilege level register
     riscv::priv_lvl_t   priv_lvl_d, priv_lvl_q;
+    logic v_q, v_d;  // virtualization mode
     // we are in debug
     logic        debug_mode_q, debug_mode_d;
     logic        mtvec_rst_load_q;// used to determine whether we came out of reset
@@ -349,6 +350,7 @@ module csr_regfile import ariane_pkg::*; #(
         fcsr_d                  = fcsr_q;
 
         priv_lvl_d              = priv_lvl_q;
+        v_d                     = v_q;
         debug_mode_d            = debug_mode_q;
         dcsr_d                  = dcsr_q;
         dpc_d                   = dpc_q;
