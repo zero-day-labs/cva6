@@ -231,14 +231,51 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_SSTATUS: begin
                     csr_rdata = mstatus_extended & ariane_pkg::SMODE_STATUS_READ_MASK[riscv::XLEN-1:0];
                 end
-                riscv::CSR_SIE:                csr_rdata = mie_q & mideleg_q;
-                riscv::CSR_SIP:                csr_rdata = mip_q & mideleg_q;
-                riscv::CSR_STVEC:              csr_rdata = stvec_q;
+                riscv::CSR_SIE: begin
+                    if(v_q) begin
+                        csr_rdata = (mie_q & VS_DELEG_INTERRUPTS & hideleg_q) >> 1;
+                    end else begin
+                        csr_rdata = mie_q & mideleg_q & ~HS_DELEG_INTERRUPTS;
+                    end
+                end                
+                riscv::CSR_SIP: begin
+                    if(v_q) begin
+                        csr_rdata = (mip_q & VS_DELEG_INTERRUPTS & hideleg_q) >> 1;
+                    end else begin
+                        csr_rdata = mip_q & mideleg_q & ~HS_DELEG_INTERRUPTS;
+                    end
+                end
+                riscv::CSR_STVEC: begin
+                    if(v_q) begin
+                        csr_rdata = vstvec_q;
+                    end else begin
+                        csr_rdata = stvec_q;
+                    end
                 riscv::CSR_SCOUNTEREN:         csr_rdata = scounteren_q;
-                riscv::CSR_SSCRATCH:           csr_rdata = sscratch_q;
-                riscv::CSR_SEPC:               csr_rdata = sepc_q;
-                riscv::CSR_SCAUSE:             csr_rdata = scause_q;
-                riscv::CSR_STVAL:              csr_rdata = stval_q;
+                riscv::CSR_SSCRATCH: begin
+                    if(v_q) begin
+                        csr_rdata = vsscratch_q;
+                    end else begin
+                        csr_rdata = sscratch_q;
+                    end
+                riscv::CSR_SEPC: begin
+                    if(v_q) begin
+                        csr_rdata = vsepc_q;
+                    end else begin
+                        csr_rdata = sepc_q;
+                    end
+                riscv::CSR_SCAUSE: begin
+                    if(v_q) begin
+                        csr_rdata = vscause_q;
+                    end else begin
+                        csr_rdata = scause_q;
+                    end
+                riscv::CSR_STVAL: begin
+                    if(v_q) begin
+                        csr_rdata = vstval_q;
+                    end else begin
+                        csr_rdata = stval_q;
+                    end
                 riscv::CSR_SATP: begin
                     // intercept reads to SATP if in S-Mode and TVM is enabled
                     if (priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm) begin
@@ -532,12 +569,42 @@ module csr_regfile import ariane_pkg::*; #(
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                 end
 
-                riscv::CSR_STVEC:              stvec_d     = {csr_wdata[riscv::XLEN-1:2], 1'b0, csr_wdata[0]};
+                riscv::CSR_STVEC: begin
+                    if(v_q) begin
+                        vstvec_d  = {csr_wdata[riscv::XLEN-1:2], 1'b0, csr_wdata[0]};
+                    end else begin
+                        stvec_d = {csr_wdata[riscv::XLEN-1:2], 1'b0, csr_wdata[0]};
+                    end
+                end
                 riscv::CSR_SCOUNTEREN:         scounteren_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
-                riscv::CSR_SSCRATCH:           sscratch_d  = csr_wdata;
-                riscv::CSR_SEPC:               sepc_d      = {csr_wdata[riscv::XLEN-1:1], 1'b0};
-                riscv::CSR_SCAUSE:             scause_d    = csr_wdata;
-                riscv::CSR_STVAL:              stval_d     = csr_wdata;
+                riscv::CSR_SSCRATCH: begin
+                    if(v_q) begin
+                        vsscratch_d  = csr_wdata;
+                    end else begin
+                        sscratch_d  = csr_wdata;
+                    end
+                end
+                riscv::CSR_SEPC: begin
+                    if(v_q) begin
+                        vsepc_d     = {csr_wdata[riscv::XLEN-1:1], 1'b0};
+                    end else begin
+                        sepc_d      = {csr_wdata[riscv::XLEN-1:1], 1'b0};
+                    end
+                end
+                riscv::CSR_SCAUSE: begin
+                    if(v_q) begin
+                        vscause_d   = csr_wdata;
+                    end else begin
+                        scause_d    = csr_wdata;
+                    end
+                end
+                riscv::CSR_STVAL: begin
+                    if(v_q) begin
+                        vstval_d    = csr_wdata;
+                    end else begin
+                        stval_d     = csr_wdata;
+                    end
+                end
                 // supervisor address translation and protection
                 riscv::CSR_SATP: begin
                     // intercept SATP writes if in S-Mode and TVM is enabled
