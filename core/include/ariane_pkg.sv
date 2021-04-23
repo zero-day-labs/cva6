@@ -210,6 +210,7 @@ package ariane_pkg;
                                      | (1   <<  2)  // C - Compressed extension
                                      | (RVD <<  3)  // D - Double precsision floating-point extension
                                      | (RVF <<  5)  // F - Single precsision floating-point extension
+                                     | (1   <<  7)  // H - Hypervisor mode implemented
                                      | (1   <<  8)  // I - RV32I/64I/128I base ISA
                                      | (1   << 12)  // M - Integer Multiply/Divide extension
                                      | (0   << 13)  // N - User level interrupts supported
