@@ -219,6 +219,14 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_TDATA1:;  // not implemented
                 riscv::CSR_TDATA2:;  // not implemented
                 riscv::CSR_TDATA3:;  // not implemented
+                riscv::CSR_VSIE:                csr_rdata = (mie_q & VS_DELEG_INTERRUPTS & hideleg_q) >> 1;
+                riscv::CSR_VSIP:                csr_rdata = (mip_q & VS_DELEG_INTERRUPTS & hideleg_q) >> 1;
+                riscv::CSR_VSTVEC:              csr_rdata = vstvec_q;
+                riscv::CSR_VSSCRATCH:           csr_rdata = vsscratch_q;
+                riscv::CSR_VSEPC:               csr_rdata = vsepc_q;
+                riscv::CSR_VSCAUSE:             csr_rdata = vscause_q;
+                riscv::CSR_VSTVAL:              csr_rdata = vstval_q;
+                riscv::CSR_VSATP:               csr_rdata = vsatp_q;
                 // supervisor registers
                 riscv::CSR_SSTATUS: begin
                     csr_rdata = mstatus_extended & ariane_pkg::SMODE_STATUS_READ_MASK[riscv::XLEN-1:0];
@@ -329,6 +337,7 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::xlen_t mask;
     always_comb begin : csr_update
         automatic riscv::satp_t satp;
+        automatic riscv::satp_t vsatp;
         automatic riscv::xlen_t instret;
 
 
@@ -394,6 +403,13 @@ module csr_regfile import ariane_pkg::*; #(
         mtval_d                 = mtval_q;
         dcache_d                = dcache_q;
         icache_d                = icache_q;
+
+        vstatus_d               = vstatus_q; 
+        vstvec_d                = vstvec_q;   
+        vsscratch_d             = vsscratch_q;
+        vsepc_d                 = vsepc_q;    
+        vscause_d               = vscause_q; 
+        vstval_d                = vstval_q;
 
         sepc_d                  = sepc_q;
         scause_d                = scause_q;
@@ -471,6 +487,27 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_TDATA1:;  // not implemented
                 riscv::CSR_TDATA2:;  // not implemented
                 riscv::CSR_TDATA3:;  // not implemented
+                riscv::CSR_VSIE:                mie_d       = (mie_q & ~hideleg_q) | (csr_wdata & hideleg_q);
+                riscv::CSR_VSIP:begin
+                    // only the virtual supervisor software interrupt is write-able, iff delegated
+                    mask = riscv::MIP_VSSIP & hideleg_q;
+                    mip_d = (mip_q & ~mask) | (csr_wdata & mask);
+                end
+                riscv::CSR_VSTVEC:              vstvec_d    = {csr_wdata[riscv::XLEN-1:2], 1'b0, csr_wdata[0]};
+                riscv::CSR_VSSCRATCH:           vsscratch_d = csr_wdata;
+                riscv::CSR_VSEPC:               vsepc_d     = {csr_wdata[riscv::XLEN-1:1], 1'b0};
+                riscv::CSR_VSCAUSE:             vscause_d   = csr_wdata;
+                riscv::CSR_VSTVAL:              vstval_d    = csr_wdata;
+                // virtual supervisor address translation and protection
+                riscv::CSR_VSATP: begin
+                        vsatp      = riscv::satp_t'(csr_wdata);
+                        // only make ASID_LEN - 1 bit stick, that way software can figure out how many ASID bits are supported
+                        vsatp.asid = vsatp.asid & {{(riscv::ASIDW-AsidWidth){1'b0}}, {AsidWidth{1'b1}}};
+                        // only update if we actually support this mode
+                        if (riscv::vm_mode_t'(vsatp.mode) == riscv::ModeOff ||
+                            riscv::vm_mode_t'(vsatp.mode) == riscv::MODE_SV) vsatp_d = vsatp;
+                        end
+                end
                 // sstatus is a subset of mstatus - mask it accordingly
                 riscv::CSR_SSTATUS: begin
                     mask = ariane_pkg::SMODE_STATUS_WRITE_MASK[riscv::XLEN-1:0];
