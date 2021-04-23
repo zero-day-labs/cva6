@@ -101,8 +101,11 @@ module csr_regfile import ariane_pkg::*; #(
     // CSR write causes us to mark the FPU state as dirty
     logic  dirty_fp_state_csr;
     riscv::status_rv_t    mstatus_q,  mstatus_d;
+    riscv::hstatus_rv_t   hstatus_q,  hstatus_d;
+    riscv::status_rv_t    vstatus_q,   vstatus_d;
     riscv::xlen_t         mstatus_extended;
     riscv::satp_t         satp_q, satp_d;
+    riscv::hgatp_t        hgatp_q, hgatp_d;
     riscv::dcsr_t         dcsr_q,     dcsr_d;
     riscv::csr_t  csr_addr;
     // privilege level register
@@ -132,6 +135,16 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::xlen_t sepc_q,      sepc_d;
     riscv::xlen_t scause_q,    scause_d;
     riscv::xlen_t stval_q,     stval_d;
+    riscv::xlen_t hedeleg_q,   hedeleg_d;
+    riscv::xlen_t hideleg_q,   hideleg_d;
+    riscv::xlen_t hgeie_q,     hgeie_d;
+
+    riscv::xlen_t vstvec_q,    vstvec_d;
+    riscv::xlen_t vsscratch_q, vsscratch_d;
+    riscv::xlen_t vsepc_q,     vsepc_d;
+    riscv::xlen_t vscause_q,   vscause_d;
+    riscv::xlen_t vstval_q,    vstval_d;
+
     riscv::xlen_t dcache_q,    dcache_d;
     riscv::xlen_t icache_q,    icache_d;
 
