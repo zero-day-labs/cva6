@@ -54,9 +54,7 @@ package riscv;
     // --------------------
     // Privilege Spec
     // --------------------
-    typedef enum logic[2:0] {
-      PRIV_LVL_VS = 3'b101,
-      PRIV_LVL_VU = 3'b100,
+    typedef enum logic[1:0] {
       PRIV_LVL_M  = 3'b011,
       PRIV_LVL_HS = 3'b010,
       PRIV_LVL_S  = 3'b001,
