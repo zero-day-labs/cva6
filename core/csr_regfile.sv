@@ -102,8 +102,11 @@ module csr_regfile import ariane_pkg::*; #(
     logic  dirty_fp_state_csr;
     riscv::status_rv_t    mstatus_q,  mstatus_d;
     riscv::hstatus_rv_t   hstatus_q,  hstatus_d;
-    riscv::status_rv_t    vstatus_q,   vstatus_d;
+    riscv::status_rv_t    vstatus_q,  vstatus_d;
     riscv::xlen_t         mstatus_extended;
+    riscv::xlen_t         hstatus_extended;
+    riscv::xlen_t         vsstatus_extended;
+    riscv::satp_t         vsatp_q, vsatp_d;
     riscv::satp_t         satp_q, satp_d;
     riscv::hgatp_t        hgatp_q, hgatp_d;
     riscv::dcsr_t         dcsr_q,     dcsr_d;
@@ -169,8 +172,11 @@ module csr_regfile import ariane_pkg::*; #(
     // ----------------
     // CSR Read logic
     // ----------------
-    assign mstatus_extended = riscv::IS_XLEN64 ? mstatus_q[riscv::XLEN-1:0] :
+    assign mstatus_extended  = riscv::IS_XLEN64 ? mstatus_q[riscv::XLEN-1:0] :
                               {mstatus_q.sd, mstatus_q.wpri3[7:0], mstatus_q[22:0]};
+    assign hstatus_extended  = hstatus_q[riscv::XLEN-1:0]
+    assign vsstatus_extended = riscv::IS_XLEN64 ? vstatus_q[riscv::XLEN-1:0] :
+                              {vstatus_q.sd, vstatus_q.wpri3[7:0], vstatus_q[22:0]};
 
     always_comb begin : csr_read_process
         // a read access exception can only occur if we attempt to read a CSR which does not exist
@@ -219,6 +225,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_TDATA1:;  // not implemented
                 riscv::CSR_TDATA2:;  // not implemented
                 riscv::CSR_TDATA3:;  // not implemented
+                riscv::CSR_VSSTATUS:            csr_rdata = vsstatus_extended;
                 riscv::CSR_VSIE:                csr_rdata = (mie_q & VS_DELEG_INTERRUPTS & hideleg_q) >> 1;
                 riscv::CSR_VSIP:                csr_rdata = (mip_q & VS_DELEG_INTERRUPTS & hideleg_q) >> 1;
                 riscv::CSR_VSTVEC:              csr_rdata = vstvec_q;
@@ -284,6 +291,8 @@ module csr_regfile import ariane_pkg::*; #(
                         csr_rdata = satp_q;
                     end
                 end
+                // hypervisor mode registers
+                riscv::CSR_HSTATUS:            csr_rdata = hstatus_extended;
                 // machine mode registers
                 riscv::CSR_MSTATUS:            csr_rdata = mstatus_extended;
                 riscv::CSR_MISA:               csr_rdata = ISA_CODE;
@@ -416,6 +425,8 @@ module csr_regfile import ariane_pkg::*; #(
         dscratch0_d             = dscratch0_q;
         dscratch1_d             = dscratch1_q;
         mstatus_d               = mstatus_q;
+        hstatus_d               = hstatus_q;
+        vsstatus_d              = vsstatus_q;
 
         // check whether we come out of reset
         // this is a workaround. some tools have issues
@@ -524,6 +535,15 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_TDATA1:;  // not implemented
                 riscv::CSR_TDATA2:;  // not implemented
                 riscv::CSR_TDATA3:;  // not implemented
+                // virtual supervisor registers
+                riscv::CSR_VSSTATUS: begin
+                    mask = ariane_pkg::SMODE_STATUS_WRITE_MASK[riscv::XLEN-1:0];
+                    vsstatus_d = (vsstatus_q & ~{{64-riscv::XLEN{1'b0}}, mask}) | {{64-riscv::XLEN{1'b0}}, (csr_wdata & mask)};
+                    // hardwire to zero if floating point extension is not present
+                    if (!FP_PRESENT) begin
+                        vsstatus_d.fs = riscv::Off;
+                    end
+                end
                 riscv::CSR_VSIE:                mie_d       = (mie_q & ~hideleg_q) | (csr_wdata & hideleg_q);
                 riscv::CSR_VSIP:begin
                     // only the virtual supervisor software interrupt is write-able, iff delegated
@@ -548,10 +568,15 @@ module csr_regfile import ariane_pkg::*; #(
                 // sstatus is a subset of mstatus - mask it accordingly
                 riscv::CSR_SSTATUS: begin
                     mask = ariane_pkg::SMODE_STATUS_WRITE_MASK[riscv::XLEN-1:0];
-                    mstatus_d = (mstatus_q & ~{{64-riscv::XLEN{1'b0}}, mask}) | {{64-riscv::XLEN{1'b0}}, (csr_wdata & mask)};
+                    if(v_q) begin
+                        vsstatus_d = (vsstatus_q & ~{{64-riscv::XLEN{1'b0}}, mask}) | {{64-riscv::XLEN{1'b0}}, (csr_wdata & mask)};
+                    end else begin
+                        mstatus_d  = (mstatus_q & ~{{64-riscv::XLEN{1'b0}}, mask}) | {{64-riscv::XLEN{1'b0}}, (csr_wdata & mask)};
+                    end
                     // hardwire to zero if floating point extension is not present
                     if (!FP_PRESENT) begin
-                        mstatus_d.fs = riscv::Off;
+                        mstatus_d.fs  = riscv::Off;
+                        vsstatus_d.fs = riscv::Off;
                     end
                     // this instruction has side-effects
                     flush_o = 1'b1;
@@ -620,6 +645,13 @@ module csr_regfile import ariane_pkg::*; #(
                     end
                     // changing the mode can have side-effects on address translation (e.g.: other instructions), re-fetch
                     // the next instruction by executing a flush
+                    flush_o = 1'b1;
+                end
+                //hypervisor mode registers
+                riscv::HSTATUS: begin
+                    mask = ariane_pkg::HTATUS_WRITE_MASK[riscv::XLEN-1:0];
+                    hstatus_d = (hstatus_q & ~{{64-riscv::XLEN{1'b0}}, mask}) | {{64-riscv::XLEN{1'b0}}, (csr_wdata & mask)};
+                    // this instruction has side-effects
                     flush_o = 1'b1;
                 end
 
