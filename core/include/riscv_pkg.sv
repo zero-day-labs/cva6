@@ -98,7 +98,7 @@ package riscv;
         logic [1:0]   wpri2;  // writes preserved reads ignored
         logic         spp;    // holds the previous privilege mode up to supervisor
         logic         mpie;   // machine interrupts enable bit active prior to trap
-        logic         wpri1;  // writes preserved reads ignored
+        logic         ube;    // endianness memory accesses made from U-mode
         logic         spie;   // supervisor interrupts enable bit active prior to trap
         logic         upie;   // user interrupts enable bit active prior to trap - hardwired to zero
         logic         mie;    // machine interrupts enable
