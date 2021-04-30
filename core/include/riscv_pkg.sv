@@ -564,6 +564,17 @@ package riscv;
     localparam logic [63:0] SSTATUS_UXL  = 64'h0000000300000000;
     localparam logic [63:0] SSTATUS_SD   = {IS_XLEN64, 31'h00000000, ~IS_XLEN64, 31'h00000000};
 
+    localparam logic [63:0] HSTATUS_VSBE = 'h00000020;
+    localparam logic [63:0] HSTATUS_GVA  = 'h00000040;
+    localparam logic [63:0] HSTATUS_SPV  = 'h00000080;
+    localparam logic [63:0] HSTATUS_SPVP = 'h00000100;
+    localparam logic [63:0] HSTATUS_HU   = 'h00000200;
+    localparam logic [63:0] HSTATUS_VGEIN= 'h0003F000;
+    localparam logic [63:0] HSTATUS_VTVM = 'h00100000;
+    localparam logic [63:0] HSTATUS_VTW  = 'h00200000;
+    localparam logic [63:0] HSTATUS_VTSR = 'h00400000;
+    localparam logic [63:0] HSTATUS_VSXL = 64'h0000000300000000;
+
     localparam logic [63:0] MSTATUS_UIE  = 'h00000001;
     localparam logic [63:0] MSTATUS_SIE  = 'h00000002;
     localparam logic [63:0] MSTATUS_HIE  = 'h00000004;
