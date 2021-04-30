@@ -377,10 +377,10 @@ package riscv;
     localparam logic [XLEN-1:0] MIP_SGEIP = 1 << IRQ_HS_EXT;
 
     localparam logic [XLEN-1:0] S_SW_INTERRUPT     = (1 << (XLEN-1)) | IRQ_S_SOFT;
-    localparam logic [XLEN-1:0] VS_SW_INTERRUPT    = (1 << (XLEN-1)) | IRQ_S_SOFT;
+    localparam logic [XLEN-1:0] VS_SW_INTERRUPT    = (1 << (XLEN-1)) | IRQ_VS_SOFT;
     localparam logic [XLEN-1:0] M_SW_INTERRUPT     = (1 << (XLEN-1)) | IRQ_M_SOFT;
     localparam logic [XLEN-1:0] S_TIMER_INTERRUPT  = (1 << (XLEN-1)) | IRQ_S_TIMER;
-    localparam logic [XLEN-1:0] VS_TIMER_INTERRUPT = (1 << (XLEN-1)) | IRQ_S_TIMER;
+    localparam logic [XLEN-1:0] VS_TIMER_INTERRUPT = (1 << (XLEN-1)) | IRQ_VS_TIMER;
     localparam logic [XLEN-1:0] M_TIMER_INTERRUPT  = (1 << (XLEN-1)) | IRQ_M_TIMER;
     localparam logic [XLEN-1:0] S_EXT_INTERRUPT    = (1 << (XLEN-1)) | IRQ_S_EXT;
     localparam logic [XLEN-1:0] VS_EXT_INTERRUPT   = (1 << (XLEN-1)) | IRQ_VS_EXT;
