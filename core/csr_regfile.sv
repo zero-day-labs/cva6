@@ -409,6 +409,7 @@ module csr_regfile import ariane_pkg::*; #(
 
 
         satp = satp_q;
+        vsatp = vstap_q;
         instret = instret_q;
 
         // --------------------
