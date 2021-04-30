@@ -28,6 +28,7 @@ module wt_dcache import ariane_pkg::*; import wt_cache_pkg::*; #(
   input  logic                           flush_i,     // high until acknowledged
   output logic                           flush_ack_o, // send a single cycle acknowledge signal when the cache is flushed
   output logic                           miss_o,      // we missed on a ld/st
+  output logic                           busy_o,
   output logic                           wbuffer_empty_o,
   output logic                           wbuffer_not_ni_o,
 
@@ -102,6 +103,10 @@ module wt_dcache import ariane_pkg::*; import wt_cache_pkg::*; #(
   // wbuffer <-> memory
   wbuffer_t [DCACHE_WBUF_DEPTH-1:0]             wbuffer_data;
 
+  // controllers -> management
+  logic [NumPorts-2:0]                          ctrl_busy;
+
+  assign busy_o = |ctrl_busy | ~wbuffer_empty_o;
 
 ///////////////////////////////////////////////////////
 // miss handling unit
@@ -173,6 +178,7 @@ module wt_dcache import ariane_pkg::*; import wt_cache_pkg::*; #(
       .clk_i           ( clk_i             ),
       .rst_ni          ( rst_ni            ),
       .cache_en_i      ( cache_en          ),
+      .busy_o          ( ctrl_busy     [k] ),
       // reqs from core
       .req_port_i      ( req_ports_i   [k] ),
       .req_port_o      ( req_ports_o   [k] ),
