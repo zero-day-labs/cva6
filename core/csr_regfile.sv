@@ -16,6 +16,7 @@
 module csr_regfile import ariane_pkg::*; #(
     parameter logic [63:0] DmBaseAddress   = 64'h0, // debug module base address
     parameter int          AsidWidth       = 1,
+    parameter int          VmidWidth       = 1,
     parameter int unsigned NrCommitPorts   = 2,
     parameter int unsigned NrPMPEntries    = 8
 ) (
@@ -140,6 +141,7 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::xlen_t stval_q,     stval_d;
     riscv::xlen_t hedeleg_q,   hedeleg_d;
     riscv::xlen_t hideleg_q,   hideleg_d;
+    riscv::xlen_t hcounteren_q,hcounteren_d;
     riscv::xlen_t hgeie_q,     hgeie_d;
 
     riscv::xlen_t vstvec_q,    vstvec_d;
@@ -293,6 +295,24 @@ module csr_regfile import ariane_pkg::*; #(
                 end
                 // hypervisor mode registers
                 riscv::CSR_HSTATUS:            csr_rdata = hstatus_extended;
+                riscv::CSR_HEDELEG:            csr_rdata = hedeleg_q;
+                riscv::CSR_HIDELEG:            csr_rdata = hideleg_q;
+                riscv::CSR_HIE:                csr_rdata = mie_q & HS_DELEG_INTERRUPTS;
+                riscv::CSR_HIP:                csr_rdata = mip_q & HS_DELEG_INTERRUPTS;
+                riscv::CSR_HVIP:               csr_rdata = mip_q & VS_DELEG_INTERRUPTS;
+                riscv::CSR_HCOUNTEREN:         csr_rdata = hcounteren_q;
+                riscv::CSR_HTINST:;            //TODO: implement htinst
+                riscv::CSR_HGEIE:;             //TODO: implement hgeie
+                riscv::CSR_HGEIP:;             //TODO: implement hgeip
+                riscv::CSR_HGATP: begin
+                    // intercept reads to HGATP if in HS-Mode and TVM is enabled
+                    if (priv_lvl_o == riscv::PRIV_LVL_S && !v_q && mstatus_q.tvm) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = hgatp_q;
+                    end
+                end
+
                 // machine mode registers
                 riscv::CSR_MSTATUS:            csr_rdata = mstatus_extended;
                 riscv::CSR_MISA:               csr_rdata = ISA_CODE;
@@ -384,6 +404,7 @@ module csr_regfile import ariane_pkg::*; #(
     always_comb begin : csr_update
         automatic riscv::satp_t satp;
         automatic riscv::satp_t vsatp;
+        automatic riscv::hgatp_t hgatp;
         automatic riscv::xlen_t instret;
 
 
@@ -466,6 +487,10 @@ module csr_regfile import ariane_pkg::*; #(
         sscratch_d              = sscratch_q;
         stval_d                 = stval_q;
         satp_d                  = satp_q;
+        hedeleg_d               = hedeleg_q;
+        hideleg_d               = hideleg_q;
+        hgeie_d                 = hgeie_q;
+        hgatp_d                 = hgatp_q;
 
         en_ld_st_translation_d  = en_ld_st_translation_q;
         dirty_fp_state_csr      = 1'b0;
@@ -654,6 +679,50 @@ module csr_regfile import ariane_pkg::*; #(
                     // this instruction has side-effects
                     flush_o = 1'b1;
                 end
+                riscv::CSR_HEDELEG: begin
+                    mask = (1 << riscv::INSTR_ADDR_MISALIGNED) |
+                           (1 << riscv::BREAKPOINT) |
+                           (1 << riscv::ENV_CALL_UMODE) |
+                           (1 << riscv::INSTR_PAGE_FAULT) |
+                           (1 << riscv::LOAD_PAGE_FAULT) |
+                           (1 << riscv::STORE_PAGE_FAULT);
+                    hedeleg_d = (hedeleg_q & ~mask) | (csr_wdata & mask);   
+                end
+                riscv::CSR_HIDELEG: begin
+                    hideleg_d = (hideleg_q & ~VS_DELEG_INTERRUPTS) | (csr_wdata & VS_DELEG_INTERRUPTS);
+                end
+                riscv::CSR_HIE: begin
+                    mask = HS_DELEG_INTERRUPTS;
+                    mip_d = (mip_q & ~mask) | (csr_wdata & mask);
+                end
+                riscv::CSR_HIP: begin
+                    mask = riscv::MIP_VSSIP;
+                    mip_d = (mip_q & ~mask) | (csr_wdata & mask);
+                    
+                end
+                riscv::CSR_HVIP: begin
+                    mask = VS_DELEG_INTERRUPTS;
+                    mip_d = (mip_q & ~mask) | (csr_wdata & mask);                   
+                end
+                riscv::CSR_HCOUNTEREN:         hcounteren_d = csr_wdata;
+                riscv::HTINST:; //TODO: implement htinst write
+                riscv::HGEIE:; //TODO: implement htinst write
+                riscv::HGATP: begin
+                    // intercept HGATP writes if in HS-Mode and TVM is enabled
+                    if (priv_lvl_o == riscv::PRIV_LVL_S && !v_q && mstatus_q.tvm)
+                        update_access_exception = 1'b1;
+                    else begin
+                        hgatp      = riscv::hgatp_t'(csr_wdata);
+                        // only make VMID_LEN - 1 bit stick, that way software can figure out how many VMID bits are supported
+                        hgatp.vmid = hgatp.vmid & {{(riscv::VMIDW-VMidWidth){1'b0}}, {VMidWidth{1'b1}}};
+                        // only update if we actually support this mode
+                        if (riscv::vm_mode_t'(hgatp.mode) == riscv::ModeOff ||
+                            riscv::vm_mode_t'(hgatp.mode) == riscv::MODE_SV) hgatp_d = hgatp;
+                    end
+                    // changing the mode can have side-effects on address translation (e.g.: other instructions), re-fetch
+                    // the next instruction by executing a flush
+                    flush_o = 1'b1;
+                end  
 
                 riscv::CSR_MSTATUS: begin
                     mstatus_d      = {{64-riscv::XLEN{1'b0}}, csr_wdata};
