@@ -257,6 +257,7 @@ module cva6 import ariane_pkg::*; #(
   logic                     flush_commit;
   logic                     rst_uarch_controller_n;
   logic [riscv::VLEN-1:0]   rst_addr_ctrl_if;
+  logic                     busy_cache_ctrl;
 
   icache_areq_i_t           icache_areq_ex_cache;
   icache_areq_o_t           icache_areq_cache_ex;
@@ -689,6 +690,7 @@ module cva6 import ariane_pkg::*; #(
     .flush_dcache_ack_i     ( dcache_flush_ack_cache_ctrl   ),
     .rst_uarch_no           ( rst_uarch_controller_n        ),
     .rst_addr_o             ( rst_addr_ctrl_if              ),
+    .cache_busy_i           ( busy_cache_ctrl               ),
 
     .halt_csr_i             ( halt_csr_ctrl                 ),
     .halt_o                 ( halt_ctrl                     ),
@@ -724,6 +726,7 @@ module cva6 import ariane_pkg::*; #(
     // to D$
     .clk_i                 ( clk_i                       ),
     .rst_ni                ( rst_uarch_n                 ),
+    .busy_o                ( busy_cache_ctrl             ),
     // I$
     .icache_en_i           ( icache_en_csr               ),
     .icache_flush_i        ( icache_flush_ctrl_cache     ),
@@ -767,6 +770,7 @@ module cva6 import ariane_pkg::*; #(
     .clk_i                 ( clk_i                       ),
     .rst_ni                ( rst_uarch_n                 ),
     .priv_lvl_i            ( priv_lvl                    ),
+    .busy_o                ( busy_cache_ctrl             ),
     // I$
     .icache_en_i           ( icache_en_csr               ),
     .icache_flush_i        ( icache_flush_ctrl_cache     ),

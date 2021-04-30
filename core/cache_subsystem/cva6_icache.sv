@@ -35,6 +35,7 @@ module cva6_icache import ariane_pkg::*; import wt_cache_pkg::*; #(
   input  logic                      flush_i,              // flush the icache, flush and kill have to be asserted together
   input  logic                      en_i,                 // enable icache
   output logic                      miss_o,               // to performance counter
+  output logic                      busy_o,
   // address translation requests
   input  icache_areq_i_t            areq_i,
   output icache_areq_o_t            areq_o,
@@ -91,6 +92,8 @@ module cva6_icache import ariane_pkg::*; import wt_cache_pkg::*; #(
   // cpmtroller FSM
   typedef enum logic[2:0] {FLUSH, IDLE, READ, MISS, KILL_ATRANS, KILL_MISS} state_e;
   state_e state_d, state_q;
+
+  assign busy_o = (state_q != IDLE);
 
 ///////////////////////////////////////////////////////
 // address -> cl_index mapping, interface plumbing

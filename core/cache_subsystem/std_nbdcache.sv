@@ -23,6 +23,7 @@ module std_nbdcache import std_cache_pkg::*; import ariane_pkg::*; #(
     input  logic                           flush_i,     // high until acknowledged
     output logic                           flush_ack_o, // send a single cycle acknowledge signal when the cache is flushed
     output logic                           miss_o,      // we missed on a LD/ST
+    output logic                           busy_o,
     // AMOs
     input  amo_req_t                       amo_req_i,
     output amo_resp_t                      amo_resp_o,
@@ -81,6 +82,8 @@ import std_cache_pkg::*;
     cache_line_t                         wdata_ram;
     cache_line_t [DCACHE_SET_ASSOC-1:0]  rdata_ram;
     cl_be_t                              be_ram;
+
+    assign busy_o = |busy;
 
     // ------------------
     // Cache Controller
