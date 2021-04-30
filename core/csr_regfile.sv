@@ -623,8 +623,8 @@ module csr_regfile import ariane_pkg::*; #(
                     if(v_q) begin
                         mip_d = (mip_q & ~mask) | ((csr_wdata << 1) & mask);
                     end else begin
-                    mip_d = (mip_q & ~mask) | (csr_wdata & mask);
-                end
+                        mip_d = (mip_q & ~mask) | (csr_wdata & mask);
+                    end
                 end
 
                 riscv::CSR_STVEC: begin
@@ -1088,9 +1088,13 @@ module csr_regfile import ariane_pkg::*; #(
             mstatus_d.mpp  = riscv::PRIV_LVL_U;
             // set mpie to 1
             mstatus_d.mpie = 1'b1;
+            // set virtualization mode
+            v_d            = mstatus_q.mpv;
+            //set hstatus spv to false
+            mstatus_d.mpv  = 1'b0;
         end
 
-        if (sret) begin
+        if (sret && !v_q) begin
             // return from exception, IF doesn't care from where we are returning
             eret_o = 1'b1;
             // return the previous supervisor interrupt enable flag
@@ -1101,6 +1105,24 @@ module csr_regfile import ariane_pkg::*; #(
             mstatus_d.spp  = 1'b0;
             // set spie to 1
             mstatus_d.spie = 1'b1;
+            // set virtualization mode
+            v_d            = hstatus_q.spv;
+            //set hstatus spv to false
+            hstatus_d.spv  = 1'b0;
+
+        end
+
+        if (sret && v_q) begin
+            // return from exception, IF doesn't care from where we are returning
+            eret_o = 1'b1;
+            // return the previous supervisor interrupt enable flag
+            vsstatus_d.sie  = vsstatus_q.spie;
+            // restore the previous privilege level
+            priv_lvl_d     = riscv::priv_lvl_t'({1'b0, vsstatus_q.spp});
+            // set spp to user mode
+            vsstatus_d.spp  = 1'b0;
+            // set spie to 1
+            vsstatus_d.spie = 1'b1;
         end
 
         // return from debug mode
@@ -1134,7 +1156,7 @@ module csr_regfile import ariane_pkg::*; #(
                 // the return should not have any write or read side-effects
                 csr_we   = 1'b0;
                 csr_read = 1'b0;
-                sret     = 1'b1; // signal a return from supervisor mode
+                sret = 1'b1; // signal a return from supervisor mode or virtual supervisor mode
             end
             MRET: begin
                 // the return should not have any write or read side-effects
@@ -1243,7 +1265,7 @@ module csr_regfile import ariane_pkg::*; #(
         trap_vector_base_o = {mtvec_q[riscv::VLEN-1:2], 2'b0};
         // output user mode stvec
         if (trap_to_priv_lvl == riscv::PRIV_LVL_S) begin
-            trap_vector_base_o = {stvec_q[riscv::VLEN-1:2], 2'b0};
+            trap_vector_base_o = trap_to_v ? {vstvec_q[riscv::VLEN-1:2], 2'b0} : {stvec_q[riscv::VLEN-1:2], 2'b0};
         end
 
         // if we are in debug mode jump to a specific address
@@ -1258,14 +1280,15 @@ module csr_regfile import ariane_pkg::*; #(
         // activated for _that_ privilege level.
         if (ex_i.cause[riscv::XLEN-1] &&
                 ((trap_to_priv_lvl == riscv::PRIV_LVL_M && mtvec_q[0])
-               || trap_to_priv_lvl == riscv::PRIV_LVL_S && stvec_q[0])) begin
+               ||(trap_to_priv_lvl == riscv::PRIV_LVL_HS && vstvec_q[0])
+               ||(trap_to_priv_lvl == riscv::PRIV_LVL_S && stvec_q[0]))) begin
             trap_vector_base_o[7:2] = ex_i.cause[5:0];
         end
 
         epc_o = mepc_q[riscv::VLEN-1:0];
-        // we are returning from supervisor mode, so take the sepc register
+        // we are returning from supervisor or virtual supervisor mode, so take the sepc register
         if (sret) begin
-            epc_o = sepc_q[riscv::VLEN-1:0];
+            epc_o = v_q ? vsepc_q[riscv::VLEN-1:0] : sepc_q[riscv::VLEN-1:0];
         end
         // we are returning from debug mode, to take the dpc register
         if (dret) begin
