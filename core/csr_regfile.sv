@@ -46,10 +46,11 @@ module csr_regfile import ariane_pkg::*; #(
                                                               // level or to write  a read-only register also
                                                               // raises illegal instruction exceptions.
     // Interrupts/Exceptions
-    output logic  [riscv::VLEN-1:0] epc_o,                    // Output the exception PC to PC Gen, the correct CSR (mepc, sepc) is set accordingly
+    output logic  [riscv::VLEN-1:0] epc_o,                    // Output the exception PC to PC Gen, the correct CSR (mepc, sepc, vsepc) is set accordingly
     output logic                  eret_o,                     // Return from exception, set the PC of epc_o
-    output logic  [riscv::VLEN-1:0] trap_vector_base_o,       // Output base of exception vector, correct CSR is output (mtvec, stvec)
+    output logic  [riscv::VLEN-1:0] trap_vector_base_o,       // Output base of exception vector, correct CSR is output (mtvec, stvec, vstvec)
     output riscv::priv_lvl_t      priv_lvl_o,                 // Current privilege level the CPU is in
+    output logic                  v_o,                        // Current virtualization mode state
     // FPU
     output riscv::xs_t            fs_o,                       // Floating point extension status
     output logic [4:0]            fflags_o,                   // Floating-Point Accured Exceptions
@@ -93,6 +94,7 @@ module csr_regfile import ariane_pkg::*; #(
     logic        csr_we, csr_read;
     riscv::xlen_t csr_wdata, csr_rdata;
     riscv::priv_lvl_t   trap_to_priv_lvl;
+    logic               trap_to_v;
     // register for enabling load store address translation, this is critical, hence the register
     logic        en_ld_st_translation_d, en_ld_st_translation_q;
     logic  mprv;
@@ -895,15 +897,42 @@ module csr_regfile import ariane_pkg::*; #(
             // a m-mode trap might be delegated if we are taking it in S mode
             // first figure out if this was an exception or an interrupt e.g.: look at bit (XLEN-1)
             // the cause register can only be $clog2(riscv::XLEN) bits long (as we only support XLEN exceptions)
-            if ((ex_i.cause[riscv::XLEN-1] && mideleg_q[ex_i.cause[$clog2(riscv::XLEN)-1:0]]) ||
-                (~ex_i.cause[riscv::XLEN-1] && medeleg_q[ex_i.cause[$clog2(riscv::XLEN)-1:0]])) begin
+            if ((ex_i.cause[riscv::XLEN-1] && mideleg_q[ex_i.cause[$clog2(riscv::XLEN)-1:0]] && ~hideleg_q[ex_i.cause[$clog2(riscv::XLEN)-1:0]]) ||
+                (~ex_i.cause[riscv::XLEN-1] && medeleg_q[ex_i.cause[$clog2(riscv::XLEN)-1:0]] && ~hedeleg_q[ex_i.cause[$clog2(riscv::XLEN)-1:0]])) begin
                 // traps never transition from a more-privileged mode to a less privileged mode
                 // so if we are already in M mode, stay there
                 trap_to_priv_lvl = (priv_lvl_o == riscv::PRIV_LVL_M) ? riscv::PRIV_LVL_M : riscv::PRIV_LVL_S;
+                trap_to_v   = 1'b0;
+            end else  begin
+                if ((ex_i.cause[riscv::XLEN-1] && hideleg_q[ex_i.cause[$clog2(riscv::XLEN)-1:0]]) ||
+                    (~ex_i.cause[riscv::XLEN-1] && hedeleg_q[ex_i.cause[$clog2(riscv::XLEN)-1:0]])) begin
+                trap_to_priv_lvl = (priv_lvl_o == riscv::PRIV_LVL_M) ? riscv::PRIV_LVL_M : riscv::PRIV_LVL_S;
+                // trap to VS only if it is  the currently active mode
+                trap_to_v   = v_q;
             end
 
             // trap to supervisor mode
             if (trap_to_priv_lvl == riscv::PRIV_LVL_S) begin
+                if (trap_to_v) begin
+                    // update sstatus
+                    vsstatus_d.sie  = 1'b0;
+                    vsstatus_d.spie = vsstatus_q.sie;
+                    // this can either be user or supervisor mode
+                    vsstatus_d.spp  = priv_lvl_q[0];
+                    // set cause
+                    vscause_d       = ex_i.cause[XLEN-1] ? {ex_i.cause[XLEN-1:2],2'b01} : ex_i.cause; // TODO: transform vscause code into scause codes
+                    // set epc
+                    vsepc_d         = {{riscv::XLEN-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
+                    // set mtval or stval
+                    vstval_d        = (ariane_pkg::ZERO_TVAL
+                                      && (ex_i.cause inside {
+                                        riscv::ILLEGAL_INSTR,
+                                        riscv::BREAKPOINT,
+                                        riscv::ENV_CALL_UMODE,
+                                        riscv::ENV_CALL_SMODE,
+                                        riscv::ENV_CALL_MMODE
+                                      } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tval;  
+                end
                 // update sstatus
                 mstatus_d.sie  = 1'b0;
                 mstatus_d.spie = mstatus_q.sie;
@@ -922,6 +951,11 @@ module csr_regfile import ariane_pkg::*; #(
                                     riscv::ENV_CALL_SMODE,
                                     riscv::ENV_CALL_MMODE
                                   } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tval;
+                v_d            = 1'b0;
+                hstatus_d.spvp = v_q ? priv_lvl_q[0] : hstatus_d.spvp;
+                // TODO: set GVA bit
+                hstatus_d.spv  = v_q;
+
             // trap to machine mode
             end else begin
                 // update mstatus
@@ -944,6 +978,7 @@ module csr_regfile import ariane_pkg::*; #(
             end
 
             priv_lvl_d = trap_to_priv_lvl;
+            v_d        = trap_to_v;
         end
 
         // ------------------------------
