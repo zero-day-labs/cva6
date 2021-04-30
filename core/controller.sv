@@ -36,6 +36,7 @@ module controller import ariane_pkg::*; (
     input  logic [riscv::VLEN-1:0] pc_commit_i,
     input  logic            halt_csr_i,             // Halt request from CSR (WFI instruction)
     output logic            halt_o,                 // Halt signal to commit stage
+    input  logic            cache_busy_i,           // Cache is busy
     input  logic            eret_i,                 // Return from exception
     input  logic            ex_valid_i,             // We got an exception, flush the pipeline
     input  logic            set_debug_pc_i,         // set the debug pc from CSR
@@ -59,7 +60,7 @@ module controller import ariane_pkg::*; (
     assign rst_addr_o = rst_addr_q;
 
     // fence.t FSM
-    typedef enum logic[1:0] {IDLE, FLUSH_DCACHE, RST_UARCH} fence_t_state_e;
+    typedef enum logic[1:0] {IDLE, FLUSH_DCACHE, WAIT_TRANS, RST_UARCH} fence_t_state_e;
     fence_t_state_e fence_t_state_d, fence_t_state_q;
     logic [3:0]     rst_uarch_cnt_d, rst_uarch_cnt_q;
 
@@ -242,7 +243,16 @@ module controller import ariane_pkg::*; (
 
             // Wait for dcache to acknowledge flush
             FLUSH_DCACHE: begin
-                if (flush_dcache_ack_i) fence_t_state_d = RST_UARCH;
+                if (flush_dcache_ack_i) begin
+                    fence_t_state_d = (cache_busy_i) ? WAIT_TRANS : RST_UARCH;
+                end
+            end
+
+            // Wait for all pending (external) transactions to complete,
+            // s.t. we do not violate any handshake protocols.
+            WAIT_TRANS: begin
+                // The cache controls our only handshaked interface.
+                if (!cache_busy_i) fence_t_state_d = RST_UARCH;
             end
 
             // Reset microarchitecture
