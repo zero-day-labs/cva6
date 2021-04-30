@@ -278,6 +278,17 @@ package ariane_pkg;
                                                     | riscv::SSTATUS_FS
                                                     | riscv::SSTATUS_SUM
                                                     | riscv::SSTATUS_MXR;
+
+    localparam logic [63:0] HSTATUS_WRITE_MASK      = riscv::HSTATUS_VSBE
+                                                    | riscv::HSTATUS_GVA
+                                                    | riscv::HSTATUS_SPV
+                                                    | riscv::HSTATUS_SPVP
+                                                    | riscv::HSTATUS_HU
+                                                    | riscv::HSTATUS_VGEIN
+                                                    | riscv::HSTATUS_VTVM
+                                                    | riscv::HSTATUS_VTW
+                                                    | riscv::HSTATUS_VTSR
+                                                    | riscv::HSTATUS_VSXL
     // ---------------
     // Fetch Stage
     // ---------------
