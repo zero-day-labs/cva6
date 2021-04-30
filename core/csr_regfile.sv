@@ -609,14 +609,19 @@ module csr_regfile import ariane_pkg::*; #(
                 // even machine mode interrupts can be visible and set-able to supervisor
                 // if the corresponding bit in mideleg is set
                 riscv::CSR_SIE: begin
+                    mask = v_q ? hideleg_q : mideleg_q & ~HS_DELEG_INTERRUPTS;
                     // the mideleg makes sure only delegate-able register (and therefore also only implemented registers) are written
-                    mie_d = (mie_q & ~mideleg_q) | (csr_wdata & mideleg_q);
+                    mie_d = (mie_q & ~mask) | (csr_wdata & mask);
                 end
 
                 riscv::CSR_SIP: begin
+                    mask = v_q ? riscv::MIP_VSSIP & hideleg_q : riscv::MIP_SSIP & mideleg_q;
                     // only the supervisor software interrupt is write-able, iff delegated
-                    mask = riscv::MIP_SSIP & mideleg_q;
+                    if(v_q) begin
+                        mip_d = (mip_q & ~mask) | ((csr_wdata << 1) & mask);
+                    end else begin
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
+                end
                 end
 
                 riscv::CSR_STVEC: begin
@@ -752,7 +757,7 @@ module csr_regfile import ariane_pkg::*; #(
                 // we do not support user interrupt delegation
                 riscv::CSR_MIDELEG: begin
                     mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP;
-                    mideleg_d = (mideleg_q & ~mask) | (csr_wdata & mask);
+                    mideleg_d = (mideleg_q & ~mask) | (csr_wdata & mask) | HS_DELEG_INTERRUPTS;
                 end
                 // mask the register so that unsupported interrupts can never be set
                 riscv::CSR_MIE: begin
@@ -773,7 +778,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MCAUSE:             mcause_d    = csr_wdata;
                 riscv::CSR_MTVAL:              mtval_d     = csr_wdata;
                 riscv::CSR_MIP: begin
-                    mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP;
+                    mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | HS_DELEG_INTERRUPTS;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                 end
                 // performance counters
