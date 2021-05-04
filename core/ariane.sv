@@ -203,6 +203,7 @@ module ariane import ariane_pkg::*; #(
   logic                     dcache_en_csr_nbdcache;
   logic                     csr_write_fflags_commit_cs;
   logic                     icache_en_csr;
+  logic [31:0]              fence_t_pad_csr_ctrl;
   logic                     debug_mode;
   logic                     single_step_csr_commit;
   riscv::pmpcfg_t [15:0]    pmpcfg;
@@ -606,6 +607,7 @@ module ariane import ariane_pkg::*; #(
     .single_step_o          ( single_step_csr_commit        ),
     .dcache_en_o            ( dcache_en_csr_nbdcache        ),
     .icache_en_o            ( icache_en_csr                 ),
+    .fence_t_pad_o          ( fence_t_pad_csr_ctrl          ),
     .perf_addr_o            ( addr_csr_perf                 ),
     .perf_data_o            ( data_csr_perf                 ),
     .perf_data_i            ( data_perf_csr                 ),
@@ -664,6 +666,7 @@ module ariane import ariane_pkg::*; #(
     .rst_uarch_no           ( rst_uarch_controller_n        ),
     .rst_addr_o             ( rst_addr_ctrl_if              ),
     .cache_busy_i           ( busy_cache_ctrl               ),
+    .fence_t_pad_i          ( fence_t_pad_csr_ctrl          ),
 
     .halt_csr_i             ( halt_csr_ctrl                 ),
     .halt_o                 ( halt_ctrl                     ),
