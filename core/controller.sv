@@ -37,6 +37,8 @@ module controller import ariane_pkg::*; (
     input  logic            halt_csr_i,             // Halt request from CSR (WFI instruction)
     output logic            halt_o,                 // Halt signal to commit stage
     input  logic            cache_busy_i,           // Cache is busy
+    input  logic [31:0]     fence_t_pad_i,          // Pad cycles of fence.t end relative to time interrupt
+    input  logic            time_irq_i,             // Time interrupt
     input  logic            eret_i,                 // Return from exception
     input  logic            ex_valid_i,             // We got an exception, flush the pipeline
     input  logic            set_debug_pc_i,         // set the debug pc from CSR
@@ -55,12 +57,16 @@ module controller import ariane_pkg::*; (
     logic fence_active_d, fence_active_q;
     logic flush_dcache;
 
+    // Pad counter
+    logic [31:0] pad_cnt;
+    logic time_irq_q;
+
     // address to fetch from after coming out of (uarch) reset
     logic [riscv::VLEN-1:0] rst_addr_d, rst_addr_q;
     assign rst_addr_o = rst_addr_q;
 
     // fence.t FSM
-    typedef enum logic[1:0] {IDLE, FLUSH_DCACHE, WAIT_TRANS, RST_UARCH} fence_t_state_e;
+    typedef enum logic[1:0] {IDLE, FLUSH_DCACHE, WAIT, RST_UARCH} fence_t_state_e;
     fence_t_state_e fence_t_state_d, fence_t_state_q;
     logic [3:0]     rst_uarch_cnt_d, rst_uarch_cnt_q;
 
@@ -229,6 +235,9 @@ module controller import ariane_pkg::*; (
         halt_o = halt_csr_i || fence_active_q || (fence_t_state_q != IDLE);
     end
 
+    // ----------------------
+    // Microreset Logic
+    // ----------------------
     always_comb begin : fence_t_fsm
         // Default assignments
         fence_t_state_d = fence_t_state_q;
@@ -244,15 +253,16 @@ module controller import ariane_pkg::*; (
             // Wait for dcache to acknowledge flush
             FLUSH_DCACHE: begin
                 if (flush_dcache_ack_i) begin
-                    fence_t_state_d = (cache_busy_i) ? WAIT_TRANS : RST_UARCH;
+                    fence_t_state_d = WAIT;
                 end
             end
 
             // Wait for all pending (external) transactions to complete,
             // s.t. we do not violate any handshake protocols.
-            WAIT_TRANS: begin
+            // Also wait for the padding to complete.
+            WAIT: begin
                 // The cache controls our only handshaked interface.
-                if (!cache_busy_i) fence_t_state_d = RST_UARCH;
+                if (!cache_busy_i && pad_cnt == '0) fence_t_state_d = RST_UARCH;
             end
 
             // Reset microarchitecture
@@ -275,6 +285,21 @@ module controller import ariane_pkg::*; (
         endcase
     end
 
+    counter #(
+        .WIDTH           ( 32 ),
+        .STICKY_OVERFLOW ( 0  )
+    ) i_pad_cnt (
+        .clk_i,
+        .rst_ni,
+        .clear_i    ( 1'b0                     ),
+        .en_i       ( |pad_cnt                 ),  // Count until 0
+        .load_i     ( time_irq_i & ~time_irq_q ),  // Start counting on positive edge of time irq
+        .down_i     ( 1'b1                     ),  // Always count down
+        .d_i        ( fence_t_pad_i            ),  // Start counting from FENCE_T_CSR value
+        .q_o        ( pad_cnt                  ),
+        .overflow_o (                          )
+    );
+
     // ----------------------
     // Registers
     // ----------------------
@@ -285,6 +310,7 @@ module controller import ariane_pkg::*; (
             fence_active_q  <= 1'b0;
             flush_dcache_o  <= 1'b0;
             rst_addr_q      <= boot_addr_i;
+            time_irq_q      <= 1'b0;
         end else begin
             fence_t_state_q <= fence_t_state_d;
             fence_active_q  <= fence_active_d;
@@ -292,6 +318,7 @@ module controller import ariane_pkg::*; (
             // register on the flush signal, this signal might be critical
             flush_dcache_o  <= flush_dcache;
             rst_addr_q      <= rst_addr_d;
+            time_irq_q      <= time_irq_i;
         end
     end
 endmodule
