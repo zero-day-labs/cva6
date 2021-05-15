@@ -715,7 +715,13 @@ module csr_regfile import ariane_pkg::*; #(
                 end
                 riscv::CSR_HEDELEG: begin
                     mask = (1 << riscv::INSTR_ADDR_MISALIGNED) |
+                           (1 << riscv::INSTR_ACCESS_FAULT) |
+                           (1 << riscv::ILLEGAL_INSTR) |
                            (1 << riscv::BREAKPOINT) |
+                           (1 << riscv::LD_ADDR_MISALIGNED) |
+                           (1 << riscv::LD_ACCESS_FAULT) |
+                           (1 << riscv::ST_ADDR_MISALIGNED) |
+                           (1 << riscv::ST_ACCESS_FAULT) |
                            (1 << riscv::ENV_CALL_UMODE) |
                            (1 << riscv::INSTR_PAGE_FAULT) |
                            (1 << riscv::LOAD_PAGE_FAULT) |
@@ -774,11 +780,22 @@ module csr_regfile import ariane_pkg::*; #(
                 // 0 - 15 exceptions supported
                 riscv::CSR_MEDELEG: begin
                     mask = (1 << riscv::INSTR_ADDR_MISALIGNED) |
+                           (1 << riscv::INSTR_ACCESS_FAULT) |
+                           (1 << riscv::ILLEGAL_INSTR) |
                            (1 << riscv::BREAKPOINT) |
+                           (1 << riscv::LD_ADDR_MISALIGNED) |
+                           (1 << riscv::LD_ACCESS_FAULT) |
+                           (1 << riscv::ST_ADDR_MISALIGNED) |
+                           (1 << riscv::ST_ACCESS_FAULT) |
                            (1 << riscv::ENV_CALL_UMODE) |
+                           (1 << riscv::ENV_CALL_VSMODE) |
                            (1 << riscv::INSTR_PAGE_FAULT) |
                            (1 << riscv::LOAD_PAGE_FAULT) |
-                           (1 << riscv::STORE_PAGE_FAULT);
+                           (1 << riscv::STORE_PAGE_FAULT) |
+                           (1 << riscv::INSTR_GUEST_PAGE_FAULT) |
+                           (1 << riscv::LOAD_GUEST_PAGE_FAULT) |
+                           (1 << riscv::VIRTUAL_INSTRUCTION) |
+                           (1 << riscv::STORE_GUEST_PAGE_FAULT);
                     medeleg_d = (medeleg_q & ~mask) | (csr_wdata & mask);
                 end
                 // machine interrupt delegation register
