@@ -283,8 +283,7 @@ package ariane_pkg;
                                                     | riscv::HSTATUS_VGEIN
                                                     | riscv::HSTATUS_VTVM
                                                     | riscv::HSTATUS_VTW
-                                                    | riscv::HSTATUS_VTSR
-                                                    | riscv::HSTATUS_VSXL
+                                                    | riscv::HSTATUS_VTSR;
 
     // hypervisor delegable interrupts
     localparam logic [63:0] HS_DELEG_INTERRUPTS     = riscv::IRQ_VS_SOFT
