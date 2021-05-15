@@ -908,6 +908,9 @@ module csr_regfile import ariane_pkg::*; #(
         // mark the floating point extension register as dirty
         if (FP_PRESENT && (dirty_fp_state_csr || dirty_fp_state_i)) begin
             mstatus_d.fs = riscv::Dirty;
+            if (v_q) begin
+                vsstatus_d.fs = riscv::Dirty;
+            end
         end
         // hardwired extension registers
         mstatus_d.sd   = (mstatus_q.xs == riscv::Dirty) | (mstatus_q.fs == riscv::Dirty);
