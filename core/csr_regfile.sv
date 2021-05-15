@@ -886,12 +886,15 @@ module csr_regfile import ariane_pkg::*; #(
         mstatus_d.sxl  = riscv::XLEN_64;
         mstatus_d.uxl  = riscv::XLEN_64;
 
+        hstatus_d.vsxl = riscv::XLEN_64;
+        vsstatus_d.uxl = riscv::XLEN_64;
         // mark the floating point extension register as dirty
         if (FP_PRESENT && (dirty_fp_state_csr || dirty_fp_state_i)) begin
             mstatus_d.fs = riscv::Dirty;
         end
         // hardwired extension registers
         mstatus_d.sd   = (mstatus_q.xs == riscv::Dirty) | (mstatus_q.fs == riscv::Dirty);
+        vsstatus_d.sd  = (vsstatus_q.xs == riscv::Dirty) | (vsstatus_q.fs == riscv::Dirty);
 
         // write the floating point status register
         if (csr_write_fflags_i) begin
@@ -1372,7 +1375,7 @@ module csr_regfile import ariane_pkg::*; #(
     // MMU outputs
     assign satp_ppn_o       = satp_q.ppn;
     assign asid_o           = satp_q.asid[AsidWidth-1:0];
-    assign sum_o            = mstatus_q.sum;
+    assign sum_o            = v_q ? vsstatus_q.sum : mstatus_q.sum;
     // we support bare memory addressing and SV39
     assign en_translation_o = (riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV &&
                                priv_lvl_o != riscv::PRIV_LVL_M)
