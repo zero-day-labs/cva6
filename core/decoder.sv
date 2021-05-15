@@ -32,18 +32,20 @@ module decoder import ariane_pkg::*; (
     input  irq_ctrl_t          irq_ctrl_i,              // interrupt control and status information from CSRs
     // From CSR
     input  riscv::priv_lvl_t   priv_lvl_i,              // current privilege level
-    input  logic               v_i,                     // current virtualization mode 
+    input  logic               v_i,                     // current virtualization mode
     input  logic               debug_mode_i,            // we are in debug mode
     input  riscv::xs_t         fs_i,                    // floating point extension status
     input  riscv::xs_t         vfs_i,                   // virtual floating point extension status
     input  logic [2:0]         frm_i,                   // floating-point dynamic rounding mode
     input  logic               tvm_i,                   // trap virtual memory
     input  logic               tw_i,                    // timeout wait
+    input  logic               vtw_i,                   // virtual timeout wait
     input  logic               tsr_i,                   // trap sret
     output scoreboard_entry_t  instruction_o,           // scoreboard entry to scoreboard
     output logic               is_control_flow_instr_o  // this instruction will change the control flow
 );
     logic illegal_instr;
+    logic virtual_illegal_instr;
     // this instruction is an environment call (ecall), it is handled like an exception
     logic ecall;
     // this instruction is a software break-point
@@ -111,13 +113,21 @@ module decoder import ariane_pkg::*; (
                                     // check privilege level, SRET can only be executed in S and M mode
                                     // we'll just decode an illegal instruction if we are in the wrong privilege level
                                     if (priv_lvl_i == riscv::PRIV_LVL_U) begin
-                                        illegal_instr = 1'b1;
+                                        if(v_i) begin
+                                            virtual_illegal_instr = 1'b1;
+                                        end else begin
+                                            illegal_instr = 1'b1;
+                                        end
                                         //  do not change privilege level if this is an illegal instruction
                                         instruction_o.op = ariane_pkg::ADD;
                                     end
                                     // if we are in S-Mode and Trap SRET (tsr) is set -> trap on illegal instruction
                                     if (priv_lvl_i == riscv::PRIV_LVL_S && tsr_i) begin
-                                        illegal_instr = 1'b1;
+                                        if(v_i) begin
+                                            virtual_illegal_instr = 1'b1;
+                                        end else begin
+                                            illegal_instr = 1'b1;
+                                        end
                                         //  do not change privilege level if this is an illegal instruction
                                         instruction_o.op = ariane_pkg::ADD;
                                     end
@@ -145,9 +155,14 @@ module decoder import ariane_pkg::*; (
                                         illegal_instr = 1'b1;
                                         instruction_o.op = ariane_pkg::ADD;
                                     end
+                                    if(priv_lvl_i == riscv::PRIV_LVL_S && v_i && vtw_i && !tw_i) begin
+                                        virtual_illegal_instr = 1'b1;
+                                        instruction_o.op = ariane_pkg::ADD;
+                                    end
                                     // we don't support U mode interrupts so WFI is illegal in this context
                                     if (priv_lvl_i == riscv::PRIV_LVL_U) begin
-                                        illegal_instr = 1'b1;
+                                        virtual_illegal_instr = v_i;
+                                        illegal_instr = !v_i;
                                         instruction_o.op = ariane_pkg::ADD;
                                     end
                                 end
@@ -156,11 +171,17 @@ module decoder import ariane_pkg::*; (
                                     if (instr.instr[31:25] == 7'b1001) begin
                                         // check privilege level, SFENCE.VMA can only be executed in M/S mode
                                         // otherwise decode an illegal instruction
-                                        illegal_instr    = (priv_lvl_i inside {riscv::PRIV_LVL_M, riscv::PRIV_LVL_S}) ? 1'b0 : 1'b1;
+                                        if(v_i) begin
+                                            virtual_illegal_instr = (priv_lvl_i == riscv::PRIV_LVL_S) ? 1'b0 : 1'b1;
+                                        end else begin
+                                            illegal_instr    = (priv_lvl_i inside {riscv::PRIV_LVL_M, riscv::PRIV_LVL_S}) ? 1'b0 : 1'b1;
+                                        end
                                         instruction_o.op = ariane_pkg::SFENCE_VMA;
                                         // check TVM flag and intercept SFENCE.VMA call if necessary
-                                        if (priv_lvl_i == riscv::PRIV_LVL_S && tvm_i)
-                                            illegal_instr = 1'b1;
+                                        if (priv_lvl_i == riscv::PRIV_LVL_S && tvm_i) begin
+                                            virtual_illegal_instr = v_i;
+                                            illegal_instr = !v_i;
+                                        end
                                     end else begin
                                        illegal_instr = 1'b1;
                                     end
@@ -614,7 +635,7 @@ module decoder import ariane_pkg::*; (
                         3'b000: instruction_o.op  = ariane_pkg::SB;
                         3'b001: instruction_o.op  = ariane_pkg::SH;
                         3'b010: instruction_o.op  = ariane_pkg::SW;
-                        3'b011: if (riscv::XLEN==64) instruction_o.op  = ariane_pkg::SD; 
+                        3'b011: if (riscv::XLEN==64) instruction_o.op  = ariane_pkg::SD;
                                 else illegal_instr = 1'b1;
                         default: illegal_instr = 1'b1;
                     endcase
@@ -633,7 +654,7 @@ module decoder import ariane_pkg::*; (
                         3'b100: instruction_o.op  = ariane_pkg::LBU;
                         3'b101: instruction_o.op  = ariane_pkg::LHU;
                         3'b110: instruction_o.op  = ariane_pkg::LWU;
-                        3'b011: if (riscv::XLEN==64) instruction_o.op  = ariane_pkg::LD; 
+                        3'b011: if (riscv::XLEN==64) instruction_o.op  = ariane_pkg::LD;
                                 else illegal_instr = 1'b1;
                         default: illegal_instr = 1'b1;
                     endcase
@@ -1089,6 +1110,10 @@ module decoder import ariane_pkg::*; (
                 if (!CVXIF_PRESENT) instruction_o.ex.valid = 1'b1;
                 // we decoded an illegal exception here
                 instruction_o.ex.cause = riscv::ILLEGAL_INSTR;
+            end else if (virtual_illegal_instr) begin
+                instruction_o.ex.valid = 1'b1;
+                // we decoded an virtual illegal exception here
+                instruction_o.ex.cause = riscv::VIRTUAL_INSTRUCTION;
             // we got an ecall, set the correct cause depending on the current privilege level
             end else if (ecall) begin
                 // this exception is valid
@@ -1166,7 +1191,7 @@ module decoder import ariane_pkg::*; (
                             instruction_o.ex.valid = 1'b1;
                             instruction_o.ex.cause = interrupt_cause;
                         end
-                    end 
+                    end
                     if (!v_i && ((irq_ctrl_i.sie && priv_lvl_i == riscv::PRIV_LVL_S) || priv_lvl_i == riscv::PRIV_LVL_U)) begin
                         instruction_o.ex.valid = 1'b1;
                         instruction_o.ex.cause = interrupt_cause;

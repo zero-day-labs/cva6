@@ -75,6 +75,7 @@ module csr_regfile import ariane_pkg::*; #(
     // Virtualization Support
     output logic                  tvm_o,                      // trap virtual memory
     output logic                  tw_o,                       // timeout wait
+    output logic                  vtw_o,                      // virtual timeout wait
     output logic                  tsr_o,                      // trap sret
     output logic                  debug_mode_o,               // we are in debug mode -> that will change some decoding
     output logic                  single_step_o,              // we are in single-step mode
@@ -92,6 +93,7 @@ module csr_regfile import ariane_pkg::*; #(
 );
     // internal signal to keep track of access exceptions
     logic        read_access_exception, update_access_exception, privilege_violation;
+    logic        virtual_read_access_exception, virtual_update_access_exception, virtual_privilege_violation;
     logic        csr_we, csr_read;
     riscv::xlen_t csr_wdata, csr_rdata;
     riscv::priv_lvl_t   trap_to_priv_lvl;
@@ -118,6 +120,7 @@ module csr_regfile import ariane_pkg::*; #(
     // privilege level register
     riscv::priv_lvl_t   priv_lvl_d, priv_lvl_q;
     logic v_q, v_d;  // virtualization mode
+    riscv::priv_lvl_t   acess_priv_lvl;
     // we are in debug
     logic        debug_mode_q, debug_mode_d;
     logic        mtvec_rst_load_q;// used to determine whether we came out of reset
@@ -187,6 +190,7 @@ module csr_regfile import ariane_pkg::*; #(
     always_comb begin : csr_read_process
         // a read access exception can only occur if we attempt to read a CSR which does not exist
         read_access_exception = 1'b0;
+        virtual_read_access_exception = 1'b0;
         csr_rdata = '0;
         perf_addr_o = csr_addr.address[4:0];
 
@@ -291,10 +295,13 @@ module csr_regfile import ariane_pkg::*; #(
                     end
                 riscv::CSR_SATP: begin
                     // intercept reads to SATP if in S-Mode and TVM is enabled
-                    if (priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm) begin
+                    // intercept reads to VSATP if in VS-Mode and VTVM is enabled
+                    if (priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm && !v_q) begin
                         read_access_exception = 1'b1;
+                    end else if (priv_lvl_o == riscv::PRIV_LVL_S && hstatus_q.vtvm && v_q) begin
+                        virtual_read_access_exception = 1'b1;
                     end else begin
-                        csr_rdata = satp_q;
+                        csr_rdata = v_q ? vsatp_q : satp_q;
                     end
                 end
                 // hypervisor mode registers
@@ -413,7 +420,7 @@ module csr_regfile import ariane_pkg::*; #(
 
 
         satp = satp_q;
-        vsatp = vstap_q;
+        vsatp = vsatp_q;
         instret = instret_q;
 
         // --------------------
@@ -435,6 +442,7 @@ module csr_regfile import ariane_pkg::*; #(
         eret_o                  = 1'b0;
         flush_o                 = 1'b0;
         update_access_exception = 1'b0;
+        virtual_update_access_exception = 1'b0;
 
         set_debug_pc_o          = 1'b0;
 
@@ -669,15 +677,26 @@ module csr_regfile import ariane_pkg::*; #(
                 // supervisor address translation and protection
                 riscv::CSR_SATP: begin
                     // intercept SATP writes if in S-Mode and TVM is enabled
-                    if (priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm)
+                    if (priv_lvl_o == riscv::PRIV_LVL_S && !v_q && mstatus_q.tvm)
                         update_access_exception = 1'b1;
+                    else if (priv_lvl_o == riscv::PRIV_LVL_S && v_q && hstatus_q.vtvm)
+                        virtual_update_access_exception = 1'b1; 
                     else begin
-                        satp      = riscv::satp_t'(csr_wdata);
-                        // only make ASID_LEN - 1 bit stick, that way software can figure out how many ASID bits are supported
-                        satp.asid = satp.asid & {{(riscv::ASIDW-AsidWidth){1'b0}}, {AsidWidth{1'b1}}};
-                        // only update if we actually support this mode
-                        if (riscv::vm_mode_t'(satp.mode) == riscv::ModeOff ||
-                            riscv::vm_mode_t'(satp.mode) == riscv::MODE_SV) satp_d = satp;
+                        if(v_q) begin
+                            vsatp      = riscv::satp_t'(csr_wdata);
+                            // only make ASID_LEN - 1 bit stick, that way software can figure out how many ASID bits are supported
+                            vsatp.asid = vsatp.asid & {{(riscv::ASIDW-AsidWidth){1'b0}}, {AsidWidth{1'b1}}};
+                            // only update if we actually support this mode
+                            if (riscv::vm_mode_t'(vsatp.mode) == riscv::ModeOff ||
+                                riscv::vm_mode_t'(vsatp.mode) == riscv::MODE_SV) vsatp_d = vsatp;
+                        end else begin
+                            satp      = riscv::satp_t'(csr_wdata);
+                            // only make ASID_LEN - 1 bit stick, that way software can figure out how many ASID bits are supported
+                            satp.asid = satp.asid & {{(riscv::ASIDW-AsidWidth){1'b0}}, {AsidWidth{1'b1}}};
+                            // only update if we actually support this mode
+                            if (riscv::vm_mode_t'(satp.mode) == riscv::ModeOff ||
+                                riscv::vm_mode_t'(satp.mode) == riscv::MODE_SV) satp_d = satp;
+                            end
                     end
                     // changing the mode can have side-effects on address translation (e.g.: other instructions), re-fetch
                     // the next instruction by executing a flush
@@ -1197,15 +1216,22 @@ module csr_regfile import ariane_pkg::*; #(
                                     | (priv_lvl_o != riscv::PRIV_LVL_M));
 
     always_comb begin : privilege_check
+        automatic riscv::priv_lvl_t access_priv;
+        // transforms S mode accesses into HS mode
+        access_priv = (priv_lvl_o == riscv::PRIV_LVL_S && !v_q) ? riscv::PRIV_LVL_HS : priv_lvl_o;
         // -----------------
         // Privilege Check
         // -----------------
         privilege_violation = 1'b0;
+        virtual_privilege_violation = 1'b0;
         // if we are reading or writing, check for the correct privilege level this has
         // precedence over interrupts
         if (csr_op_i inside {CSR_WRITE, CSR_SET, CSR_CLEAR, CSR_READ}) begin
-            if ((riscv::priv_lvl_t'(priv_lvl_o & csr_addr.csr_decode.priv_lvl) != csr_addr.csr_decode.priv_lvl)) begin
-                privilege_violation = 1'b1;
+            if (access_priv < csr_addr.csr_decode.priv_lvl) begin
+                if(v_q && csr_addr.csr_decode.priv_lvl == riscv::PRIV_LVL_HS)
+                    virtual_privilege_violation = 1'b1;
+                else
+                    privilege_violation = 1'b1;
             end
             // check access to debug mode only CSRs
             if (csr_addr_i[11:4] == 8'h7b && !debug_mode_q) begin
@@ -1216,8 +1242,18 @@ module csr_regfile import ariane_pkg::*; #(
             if (csr_addr_i inside {[riscv::CSR_CYCLE:riscv::CSR_HPM_COUNTER_31]}) begin
                 unique case (priv_lvl_o)
                     riscv::PRIV_LVL_M: privilege_violation = 1'b0;
-                    riscv::PRIV_LVL_S: privilege_violation = ~mcounteren_q[csr_addr_i[4:0]];
-                    riscv::PRIV_LVL_U: privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]];
+                    riscv::PRIV_LVL_S: begin
+                        virtual_privilege_violation = v_q & mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]];
+                        privilege_violation = ~mcounteren_q[csr_addr_i[4:0]];
+                    end
+                    riscv::PRIV_LVL_U: begin
+                        virtual_privilege_violation = v_q & mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]]; 
+                        if(v_q) begin
+                            privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]] & hcounteren_q[csr_addr_i[4:0]];
+                        end else begin
+                            privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]];
+                        end
+                    end
                 endcase
             end
         end
@@ -1244,6 +1280,11 @@ module csr_regfile import ariane_pkg::*; #(
         if (privilege_violation) begin
           csr_exception_o.cause = riscv::ILLEGAL_INSTR;
           csr_exception_o.valid = 1'b1;
+        end
+
+        if (virtual_update_access_exception || virtual_read_access_exception || virtual_privilege_violation) begin
+            csr_exception_o.cause = riscv::VIRTUAL_INSTRUCTION;
+            csr_exception_o.valid = 1'b1;
         end
     end
 
@@ -1335,10 +1376,11 @@ module csr_regfile import ariane_pkg::*; #(
                                priv_lvl_o != riscv::PRIV_LVL_M)
                               ? 1'b1
                               : 1'b0;
-    assign mxr_o            = mstatus_q.mxr;
-    assign tvm_o            = mstatus_q.tvm;
+    assign mxr_o            = v_q ? vsstatus_q.mxr : mstatus_q.mxr;
+    assign tvm_o            = v_q ? hstatus_q.vtvm : mstatus_q.tvm;
     assign tw_o             = mstatus_q.tw;
-    assign tsr_o            = mstatus_q.tsr;
+    assign vtw_o            = hstatus_q.vtw;
+    assign tsr_o            = v_q ? hstatus_q.vtsr : mstatus_q.tsr;
     assign halt_csr_o       = wfi_q;
 `ifdef PITON_ARIANE
     assign icache_en_o      = icache_q[0];
