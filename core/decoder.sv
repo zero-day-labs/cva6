@@ -1102,6 +1102,22 @@ module decoder import ariane_pkg::*; (
             // throw any previous exception.
             // we have three interrupt sources: external interrupts, software interrupts, timer interrupts (order of precedence)
             // for two privilege levels: Supervisor and Machine Mode
+            // Virtual Supervisor Interrupt
+            if (irq_ctrl_i.mie[riscv::VS_TIMER_INTERRUPT[$clog2(riscv::XLEN)-1:0]] && irq_ctrl_i.mip[riscv::VS_TIMER_INTERRUPT[$clog2(riscv::XLEN)-1:0]]) begin
+                interrupt_cause = riscv::VS_TIMER_INTERRUPT;
+            end
+            // Virtual Supervisor Software Interrupt
+            if (irq_ctrl_i.mie[riscv::VS_SW_INTERRUPT[$clog2(riscv::XLEN)-1:0]] && irq_ctrl_i.mip[riscv::VS_SW_INTERRUPT[$clog2(riscv::XLEN)-1:0]]) begin
+                interrupt_cause = riscv::VS_SW_INTERRUPT;
+            end
+            // Virtual Supervisor External Interrupt
+            if (irq_ctrl_i.mie[riscv::VS_EXT_INTERRUPT[$clog2(riscv::XLEN)-1:0]] && irq_ctrl_i.mip[riscv::VS_EXT_INTERRUPT[$clog2(riscv::XLEN)-1:0]]) begin
+                interrupt_cause = riscv::VS_EXT_INTERRUPT;
+            end
+            // Hypervisor Guest External Interrupts
+            if (irq_ctrl_i.mie[riscv::HS_EXT_INTERRUPT[$clog2(riscv::XLEN)-1:0]] && irq_ctrl_i.mip[riscv::HS_EXT_INTERRUPT[$clog2(riscv::XLEN)-1:0]]) begin
+                interrupt_cause = riscv::HS_EXT_INTERRUPT;
+            end
             // Supervisor Timer Interrupt
             if (irq_ctrl_i.mie[riscv::S_TIMER_INTERRUPT[$clog2(riscv::XLEN)-1:0]] && irq_ctrl_i.mip[riscv::S_TIMER_INTERRUPT[$clog2(riscv::XLEN)-1:0]]) begin
                 interrupt_cause = riscv::S_TIMER_INTERRUPT;
@@ -1134,7 +1150,13 @@ module decoder import ariane_pkg::*; (
                 // mode equals the delegated privilege mode (S or U) and that mode’s interrupt enable bit
                 // (SIE or UIE in mstatus) is set, or if the current privilege mode is less than the delegated privilege mode.
                 if (irq_ctrl_i.mideleg[interrupt_cause[$clog2(riscv::XLEN)-1:0]]) begin
-                    if ((irq_ctrl_i.sie && priv_lvl_i == riscv::PRIV_LVL_S) || priv_lvl_i == riscv::PRIV_LVL_U) begin
+                    if (v_i &&  irq_ctrl_i.hideleg[interrupt_cause[$clog2(riscv::XLEN)-1:0]]) begin
+                        if ((irq_ctrl_i.sie && priv_lvl_i == riscv::PRIV_LVL_S) || priv_lvl_i == riscv::PRIV_LVL_U) begin
+                            instruction_o.ex.valid = 1'b1;
+                            instruction_o.ex.cause = interrupt_cause;
+                        end
+                    end 
+                    if (!v_i && ((irq_ctrl_i.sie && priv_lvl_i == riscv::PRIV_LVL_S) || priv_lvl_i == riscv::PRIV_LVL_U)) begin
                         instruction_o.ex.valid = 1'b1;
                         instruction_o.ex.cause = interrupt_cause;
                     end

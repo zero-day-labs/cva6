@@ -392,6 +392,7 @@ package ariane_pkg;
       riscv::xlen_t       mie;
       riscv::xlen_t       mip;
       riscv::xlen_t       mideleg;
+      riscv::xlen_t       hideleg;
       logic        sie;
       logic        global_enable;
     } irq_ctrl_t;
