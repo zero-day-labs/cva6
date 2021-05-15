@@ -65,6 +65,7 @@ module cva6 import ariane_pkg::*; #(
   // Signals connecting more than one module
   // ------------------------------------------
   riscv::priv_lvl_t           priv_lvl;
+  logic                       v;
   exception_t                 ex_commit; // exception from commit stage
   bp_resolve_t                resolved_branch;
   logic [riscv::VLEN-1:0]     pc_commit;
@@ -177,6 +178,7 @@ module cva6 import ariane_pkg::*; #(
   // --------------
   logic [4:0]               fflags_csr_commit;
   riscv::xs_t               fs;
+  riscv::xs_t               vfs;
   logic [2:0]               frm_csr_id_issue_ex;
   logic [6:0]               fprec_csr_ex;
   logic                     enable_translation_csr_ex;
@@ -297,7 +299,9 @@ module cva6 import ariane_pkg::*; #(
     .issue_instr_ack_i          ( issue_instr_issue_id       ),
 
     .priv_lvl_i                 ( priv_lvl                   ),
+    .v_i                        ( v                          ),
     .fs_i                       ( fs                         ),
+    .vfs_i                      ( vfs                        ),
     .frm_i                      ( frm_csr_id_issue_ex        ),
     .irq_i                      ( irq_i                      ),
     .irq_ctrl_i                 ( irq_ctrl_csr_id            ),
@@ -548,7 +552,9 @@ module cva6 import ariane_pkg::*; #(
     .set_debug_pc_o         ( set_debug_pc                  ),
     .trap_vector_base_o     ( trap_vector_base_commit_pcgen ),
     .priv_lvl_o             ( priv_lvl                      ),
+    .v_o                    ( v                             ),
     .fs_o                   ( fs                            ),
+    .vfs_o                  ( vfs                            ),
     .fflags_o               ( fflags_csr_commit             ),
     .frm_o                  ( frm_csr_id_issue_ex           ),
     .fprec_o                ( fprec_csr_ex                  ),
