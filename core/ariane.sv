@@ -184,6 +184,7 @@ module ariane import ariane_pkg::*; #(
   exception_t               csr_exception_csr_commit;
   logic                     tvm_csr_id;
   logic                     tw_csr_id;
+  logic                     vtw_csr_id;
   logic                     tsr_csr_id;
   irq_ctrl_t                irq_ctrl_csr_id;
   logic                     dcache_en_csr_nbdcache;
@@ -297,6 +298,7 @@ module ariane import ariane_pkg::*; #(
     .debug_mode_i               ( debug_mode                 ),
     .tvm_i                      ( tvm_csr_id                 ),
     .tw_i                       ( tw_csr_id                  ),
+    .vtw_i                      ( vtw_csr_id                 ),
     .tsr_i                      ( tsr_csr_id                 )
   );
 
@@ -541,6 +543,7 @@ module ariane import ariane_pkg::*; #(
     .asid_o                 ( asid_csr_ex                   ),
     .tvm_o                  ( tvm_csr_id                    ),
     .tw_o                   ( tw_csr_id                     ),
+    .vtw_o                  ( vtw_csr_id                    ),
     .tsr_o                  ( tsr_csr_id                    ),
     .debug_mode_o           ( debug_mode                    ),
     .single_step_o          ( single_step_csr_commit        ),
