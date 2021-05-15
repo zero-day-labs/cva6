@@ -744,6 +744,7 @@ module csr_regfile import ariane_pkg::*; #(
                     mask = VS_DELEG_INTERRUPTS;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);                   
                 end
+                riscv::CSR_HCOUNTEREN:         hcounteren_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
                 riscv::CSR_HTINST:; //TODO: implement htinst write
                 riscv::CSR_HGEIE:; //TODO: implement htinst write
                 riscv::CSR_HGATP: begin
