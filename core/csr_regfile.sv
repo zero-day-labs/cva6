@@ -53,6 +53,7 @@ module csr_regfile import ariane_pkg::*; #(
     output logic                  v_o,                        // Current virtualization mode state
     // FPU
     output riscv::xs_t            fs_o,                       // Floating point extension status
+    output riscv::xs_t            vfs_o,                      // Floating point extension virtual status
     output logic [4:0]            fflags_o,                   // Floating-Point Accured Exceptions
     output logic [2:0]            frm_o,                      // Floating-Point Dynamic Rounding Mode
     output logic [6:0]            fprec_o,                    // Floating-Point Precision Control
@@ -173,6 +174,7 @@ module csr_regfile import ariane_pkg::*; #(
     // ----------------
     assign csr_addr = riscv::csr_t'(csr_addr_i);
     assign fs_o = mstatus_q.fs;
+    assign vfs_o = vsstatus_q.fs;
     // ----------------
     // CSR Read logic
     // ----------------
@@ -191,21 +193,21 @@ module csr_regfile import ariane_pkg::*; #(
         if (csr_read) begin
             unique case (csr_addr.address)
                 riscv::CSR_FFLAGS: begin
-                    if (mstatus_q.fs == riscv::Off) begin
+                    if (mstatus_q.fs == riscv::Off || (v_q && vsstatus_q.fs == riscv::Off)) begin
                         read_access_exception = 1'b1;
                     end else begin
                         csr_rdata = {{riscv::XLEN-5{1'b0}}, fcsr_q.fflags};
                     end
                 end
                 riscv::CSR_FRM: begin
-                    if (mstatus_q.fs == riscv::Off) begin
+                    if (mstatus_q.fs == riscv::Off || (v_q && vsstatus_q.fs == riscv::Off)) begin
                         read_access_exception = 1'b1;
                     end else begin
                         csr_rdata = {{riscv::XLEN-3{1'b0}}, fcsr_q.frm};
                     end
                 end
                 riscv::CSR_FCSR: begin
-                    if (mstatus_q.fs == riscv::Off) begin
+                    if (mstatus_q.fs == riscv::Off || (v_q && vsstatus_q.fs == riscv::Off)) begin
                         read_access_exception = 1'b1;
                     end else begin
                         csr_rdata = {{riscv::XLEN-8{1'b0}}, fcsr_q.frm, fcsr_q.fflags};
@@ -213,7 +215,7 @@ module csr_regfile import ariane_pkg::*; #(
                 end
                 // non-standard extension
                 riscv::CSR_FTRAN: begin
-                    if (mstatus_q.fs == riscv::Off) begin
+                    if (mstatus_q.fs == riscv::Off || (v_q && vsstatus_q.fs == riscv::Off)) begin
                         read_access_exception = 1'b1;
                     end else begin
                         csr_rdata = {{riscv::XLEN-7{1'b0}}, fcsr_q.fprec};
@@ -506,7 +508,7 @@ module csr_regfile import ariane_pkg::*; #(
             unique case (csr_addr.address)
                 // Floating-Point
                 riscv::CSR_FFLAGS: begin
-                    if (mstatus_q.fs == riscv::Off) begin
+                    if (mstatus_q.fs == riscv::Off || (v_q && vsstatus_q.fs == riscv::Off)) begin
                         update_access_exception = 1'b1;
                     end else begin
                         dirty_fp_state_csr = 1'b1;
@@ -516,7 +518,7 @@ module csr_regfile import ariane_pkg::*; #(
                     end
                 end
                 riscv::CSR_FRM: begin
-                    if (mstatus_q.fs == riscv::Off) begin
+                    if (mstatus_q.fs == riscv::Off || (v_q && vsstatus_q.fs == riscv::Off)) begin
                         update_access_exception = 1'b1;
                     end else begin
                         dirty_fp_state_csr = 1'b1;
@@ -526,7 +528,7 @@ module csr_regfile import ariane_pkg::*; #(
                     end
                 end
                 riscv::CSR_FCSR: begin
-                    if (mstatus_q.fs == riscv::Off) begin
+                    if (mstatus_q.fs == riscv::Off || (v_q && vsstatus_q.fs == riscv::Off)) begin
                         update_access_exception = 1'b1;
                     end else begin
                         dirty_fp_state_csr = 1'b1;
@@ -536,7 +538,7 @@ module csr_regfile import ariane_pkg::*; #(
                     end
                 end
                 riscv::CSR_FTRAN: begin
-                    if (mstatus_q.fs == riscv::Off) begin
+                    if (mstatus_q.fs == riscv::Off || (v_q && vsstatus_q.fs == riscv::Off)) begin
                         update_access_exception = 1'b1;
                     end else begin
                         dirty_fp_state_csr = 1'b1;
@@ -568,6 +570,7 @@ module csr_regfile import ariane_pkg::*; #(
                     mask = ariane_pkg::SMODE_STATUS_WRITE_MASK[riscv::XLEN-1:0];
                     vsstatus_d = (vsstatus_q & ~{{64-riscv::XLEN{1'b0}}, mask}) | {{64-riscv::XLEN{1'b0}}, (csr_wdata & mask)};
                     // hardwire to zero if floating point extension is not present
+                    vsstatus_d.xs   = riscv::Off;
                     if (!FP_PRESENT) begin
                         vsstatus_d.fs = riscv::Off;
                     end
