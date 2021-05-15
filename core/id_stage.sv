@@ -39,6 +39,7 @@ module id_stage (
     input  logic                          debug_mode_i,        // we are in debug mode
     input  logic                          tvm_i,
     input  logic                          tw_i,
+    input  logic                          vtw_i,
     input  logic                          tsr_i
 );
     // ID/ISSUE register stage
@@ -86,6 +87,7 @@ module id_stage (
         .frm_i,
         .tvm_i,
         .tw_i,
+        .vtw_i,
         .tsr_i,
         .instruction_o           ( decoded_instruction          ),
         .is_control_flow_instr_o ( is_control_flow_instr        )
