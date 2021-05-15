@@ -1184,8 +1184,9 @@ module csr_regfile import ariane_pkg::*; #(
 
     assign irq_ctrl_o.mie = mie_q;
     assign irq_ctrl_o.mip = mip_q;
-    assign irq_ctrl_o.sie = mstatus_q.sie;
+    assign irq_ctrl_o.sie = v_q ? vsstatus_q.sie : mstatus_q.sie;
     assign irq_ctrl_o.mideleg = mideleg_q;
+    assign irq_ctrl_o.hideleg = hideleg_q;
     assign irq_ctrl_o.global_enable = (~debug_mode_q)
                                     // interrupts are enabled during single step or we are not stepping
                                     & (~dcsr_q.step | dcsr_q.stepie)
