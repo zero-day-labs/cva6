@@ -1112,7 +1112,7 @@ module decoder import ariane_pkg::*; (
                 // depending on the privilege mode, set the appropriate cause
                 case (priv_lvl_i)
                     riscv::PRIV_LVL_M: instruction_o.ex.cause = riscv::ENV_CALL_MMODE;
-                    riscv::PRIV_LVL_S: instruction_o.ex.cause = riscv::ENV_CALL_SMODE;
+                    riscv::PRIV_LVL_S: instruction_o.ex.cause = v_i ? riscv::ENV_CALL_VSMODE : riscv::ENV_CALL_SMODE;
                     riscv::PRIV_LVL_U: instruction_o.ex.cause = riscv::ENV_CALL_UMODE;
                     default:; // this should not happen
                 endcase
