@@ -108,7 +108,7 @@ module csr_regfile import ariane_pkg::*; #(
     logic  dirty_fp_state_csr;
     riscv::status_rv_t    mstatus_q,  mstatus_d;
     riscv::hstatus_rv_t   hstatus_q,  hstatus_d;
-    riscv::status_rv_t    vstatus_q,  vstatus_d;
+    riscv::status_rv_t    vsstatus_q,  vsstatus_d;
     riscv::xlen_t         mstatus_extended;
     riscv::xlen_t         hstatus_extended;
     riscv::xlen_t         vsstatus_extended;
@@ -183,9 +183,9 @@ module csr_regfile import ariane_pkg::*; #(
     // ----------------
     assign mstatus_extended  = riscv::IS_XLEN64 ? mstatus_q[riscv::XLEN-1:0] :
                               {mstatus_q.sd, mstatus_q.wpri3[7:0], mstatus_q[22:0]};
-    assign hstatus_extended  = hstatus_q[riscv::XLEN-1:0]
-    assign vsstatus_extended = riscv::IS_XLEN64 ? vstatus_q[riscv::XLEN-1:0] :
-                              {vstatus_q.sd, vstatus_q.wpri3[7:0], vstatus_q[22:0]};
+    assign hstatus_extended  = hstatus_q[riscv::XLEN-1:0];
+    assign vsstatus_extended = riscv::IS_XLEN64 ? vsstatus_q[riscv::XLEN-1:0] :
+                              {vsstatus_q.sd, vsstatus_q.wpri3[7:0], vsstatus_q[22:0]};
 
     always_comb begin : csr_read_process
         // a read access exception can only occur if we attempt to read a CSR which does not exist
@@ -246,7 +246,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_VSATP:               csr_rdata = vsatp_q;
                 // supervisor registers
                 riscv::CSR_SSTATUS: begin
-                    csr_rdata = mstatus_extended & ariane_pkg::SMODE_STATUS_READ_MASK[riscv::XLEN-1:0];
+                    csr_rdata = v_q ? vsstatus_extended : mstatus_extended & ariane_pkg::SMODE_STATUS_READ_MASK[riscv::XLEN-1:0];
                 end
                 riscv::CSR_SIE: begin
                     if(v_q) begin
@@ -268,6 +268,7 @@ module csr_regfile import ariane_pkg::*; #(
                     end else begin
                         csr_rdata = stvec_q;
                     end
+                end
                 riscv::CSR_SCOUNTEREN:         csr_rdata = scounteren_q;
                 riscv::CSR_SSCRATCH: begin
                     if(v_q) begin
@@ -275,24 +276,28 @@ module csr_regfile import ariane_pkg::*; #(
                     end else begin
                         csr_rdata = sscratch_q;
                     end
+                end
                 riscv::CSR_SEPC: begin
                     if(v_q) begin
                         csr_rdata = vsepc_q;
                     end else begin
                         csr_rdata = sepc_q;
                     end
+                end
                 riscv::CSR_SCAUSE: begin
                     if(v_q) begin
                         csr_rdata = vscause_q;
                     end else begin
                         csr_rdata = scause_q;
                     end
+                end
                 riscv::CSR_STVAL: begin
                     if(v_q) begin
                         csr_rdata = vstval_q;
                     end else begin
                         csr_rdata = stval_q;
                     end
+                end
                 riscv::CSR_SATP: begin
                     // intercept reads to SATP if in S-Mode and TVM is enabled
                     // intercept reads to VSATP if in VS-Mode and VTVM is enabled
@@ -486,7 +491,7 @@ module csr_regfile import ariane_pkg::*; #(
         dcache_d                = dcache_q;
         icache_d                = icache_q;
 
-        vstatus_d               = vstatus_q; 
+        vsstatus_d              = vsstatus_q; 
         vstvec_d                = vstvec_q;   
         vsscratch_d             = vsscratch_q;
         vsepc_d                 = vsepc_q;    
@@ -602,7 +607,6 @@ module csr_regfile import ariane_pkg::*; #(
                         // only update if we actually support this mode
                         if (riscv::vm_mode_t'(vsatp.mode) == riscv::ModeOff ||
                             riscv::vm_mode_t'(vsatp.mode) == riscv::MODE_SV) vsatp_d = vsatp;
-                        end
                 end
                 // sstatus is a subset of mstatus - mask it accordingly
                 riscv::CSR_SSTATUS: begin
@@ -703,8 +707,8 @@ module csr_regfile import ariane_pkg::*; #(
                     flush_o = 1'b1;
                 end
                 //hypervisor mode registers
-                riscv::HSTATUS: begin
-                    mask = ariane_pkg::HTATUS_WRITE_MASK[riscv::XLEN-1:0];
+                riscv::CSR_HSTATUS: begin
+                    mask = ariane_pkg::HSTATUS_WRITE_MASK[riscv::XLEN-1:0];
                     hstatus_d = (hstatus_q & ~{{64-riscv::XLEN{1'b0}}, mask}) | {{64-riscv::XLEN{1'b0}}, (csr_wdata & mask)};
                     // this instruction has side-effects
                     flush_o = 1'b1;
@@ -734,17 +738,16 @@ module csr_regfile import ariane_pkg::*; #(
                     mask = VS_DELEG_INTERRUPTS;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);                   
                 end
-                riscv::CSR_HCOUNTEREN:         hcounteren_d = csr_wdata;
-                riscv::HTINST:; //TODO: implement htinst write
-                riscv::HGEIE:; //TODO: implement htinst write
-                riscv::HGATP: begin
+                riscv::CSR_HTINST:; //TODO: implement htinst write
+                riscv::CSR_HGEIE:; //TODO: implement htinst write
+                riscv::CSR_HGATP: begin
                     // intercept HGATP writes if in HS-Mode and TVM is enabled
                     if (priv_lvl_o == riscv::PRIV_LVL_S && !v_q && mstatus_q.tvm)
                         update_access_exception = 1'b1;
                     else begin
                         hgatp      = riscv::hgatp_t'(csr_wdata);
                         // only make VMID_LEN - 1 bit stick, that way software can figure out how many VMID bits are supported
-                        hgatp.vmid = hgatp.vmid & {{(riscv::VMIDW-VMidWidth){1'b0}}, {VMidWidth{1'b1}}};
+                        hgatp.vmid = hgatp.vmid & {{(riscv::VMIDW-VmidWidth){1'b0}}, {VmidWidth{1'b1}}};
                         // only update if we actually support this mode
                         if (riscv::vm_mode_t'(hgatp.mode) == riscv::ModeOff ||
                             riscv::vm_mode_t'(hgatp.mode) == riscv::MODE_SV) hgatp_d = hgatp;
@@ -925,8 +928,7 @@ module csr_regfile import ariane_pkg::*; #(
                 // so if we are already in M mode, stay there
                 trap_to_priv_lvl = (priv_lvl_o == riscv::PRIV_LVL_M) ? riscv::PRIV_LVL_M : riscv::PRIV_LVL_S;
                 trap_to_v   = 1'b0;
-            end else  begin
-                if ((ex_i.cause[riscv::XLEN-1] && hideleg_q[ex_i.cause[$clog2(riscv::XLEN)-1:0]]) ||
+            end else if ((ex_i.cause[riscv::XLEN-1] && hideleg_q[ex_i.cause[$clog2(riscv::XLEN)-1:0]]) ||
                     (~ex_i.cause[riscv::XLEN-1] && hedeleg_q[ex_i.cause[$clog2(riscv::XLEN)-1:0]])) begin
                 trap_to_priv_lvl = (priv_lvl_o == riscv::PRIV_LVL_M) ? riscv::PRIV_LVL_M : riscv::PRIV_LVL_S;
                 // trap to VS only if it is  the currently active mode
@@ -942,7 +944,7 @@ module csr_regfile import ariane_pkg::*; #(
                     // this can either be user or supervisor mode
                     vsstatus_d.spp  = priv_lvl_q[0];
                     // set cause
-                    vscause_d       = ex_i.cause[XLEN-1] ? {ex_i.cause[XLEN-1:2],2'b01} : ex_i.cause; // TODO: transform vscause code into scause codes
+                    vscause_d       = ex_i.cause[riscv::XLEN-1] ? {ex_i.cause[riscv::XLEN-1:2],2'b01} : ex_i.cause; // TODO: transform vscause code into scause codes
                     // set epc
                     vsepc_d         = {{riscv::XLEN-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
                     // set mtval or stval
