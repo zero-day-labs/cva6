@@ -733,7 +733,7 @@ module csr_regfile import ariane_pkg::*; #(
                 end
                 riscv::CSR_HIE: begin
                     mask = HS_DELEG_INTERRUPTS;
-                    mip_d = (mip_q & ~mask) | (csr_wdata & mask);
+                    mie_d = (mie_q & ~mask) | (csr_wdata & mask);
                 end
                 riscv::CSR_HIP: begin
                     mask = riscv::MIP_VSSIP;
@@ -807,7 +807,7 @@ module csr_regfile import ariane_pkg::*; #(
                 end
                 // mask the register so that unsupported interrupts can never be set
                 riscv::CSR_MIE: begin
-                    mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | riscv::MIP_MSIP | riscv::MIP_MTIP | riscv::MIP_MEIP;
+                    mask = HS_DELEG_INTERRUPTS | riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | riscv::MIP_MSIP | riscv::MIP_MTIP | riscv::MIP_MEIP;
                     mie_d = (mie_q & ~mask) | (csr_wdata & mask); // we only support supervisor and M-mode interrupts
                 end
 
@@ -824,7 +824,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MCAUSE:             mcause_d    = csr_wdata;
                 riscv::CSR_MTVAL:              mtval_d     = csr_wdata;
                 riscv::CSR_MIP: begin
-                    mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | HS_DELEG_INTERRUPTS;
+                    mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | VS_DELEG_INTERRUPTS;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                 end
                 // performance counters
