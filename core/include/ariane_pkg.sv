@@ -290,14 +290,15 @@ package ariane_pkg;
                                                     | riscv::HSTATUS_VTSR;
 
     // hypervisor delegable interrupts
-    localparam logic [63:0] HS_DELEG_INTERRUPTS     = riscv::IRQ_VS_SOFT
-                                                    | riscv::IRQ_VS_TIMER
-                                                    | riscv::IRQ_VS_EXT
-                                                    | riscv::IRQ_HS_EXT;
+    localparam logic [63:0] HS_DELEG_INTERRUPTS     = riscv::MIP_VSSIP
+                                                    | riscv::MIP_VSTIP
+                                                    | riscv::MIP_VSEIP
+                                                    | riscv::MIP_SGEIP;
     // virtual supervisor delegable interrupts
-    localparam logic [63:0] VS_DELEG_INTERRUPTS     = riscv::IRQ_VS_SOFT
-                                                    | riscv::IRQ_VS_TIMER
-                                                    | riscv::IRQ_VS_EXT;
+    localparam logic [63:0] VS_DELEG_INTERRUPTS     = riscv::MIP_VSSIP
+                                                    | riscv::MIP_VSTIP
+                                                    | riscv::MIP_VSEIP;
+
     // ---------------
     // Fetch Stage
     // ---------------
