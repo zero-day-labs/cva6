@@ -216,7 +216,56 @@ module decoder import ariane_pkg::*; (
                                 end
                             endcase
                         end
+                        3'b100: begin
+                            // Hypervisor load/store instructions when V=1 cause virtual instruction
+                            if (v_i)
+                                virtual_illegal_instr = 1'b1;
+                            case (instr.rtype.funct7)
+                            7'b011_0000: begin
+                                if(instr.rtype.rs2 == 5'b0) begin
+                                    instruction_o.op = ariane_pkg::HLV_B;
                                 end
+                                if(instr.rtype.rs2 == 5'b1) begin
+                                    instruction_o.op = ariane_pkg::HLV_BU;
+                                end
+                            end
+                            7'b011_0010: begin
+                                if(instr.rtype.rs2 == 5'b0) begin
+                                    instruction_o.op = ariane_pkg::HLV_H;
+                                end
+                                if(instr.rtype.rs2 == 5'b1) begin
+                                    instruction_o.op = ariane_pkg::HLV_HU;
+                                end
+                                if(instr.rtype.rs2 == 5'b11) begin
+                                    instruction_o.op = ariane_pkg::HLVX_HU;
+                                end                               
+                            end
+                            7'b011_0100: begin
+                                if(instr.rtype.rs2 == 5'b0) begin
+                                    instruction_o.op = ariane_pkg::HLV_W;
+                                end
+                                if(instr.rtype.rs2 == 5'b1) begin
+                                    instruction_o.op = ariane_pkg::HLV_WU;
+                                end
+                                if(instr.rtype.rs2 == 5'b11) begin
+                                    instruction_o.op = ariane_pkg::HLVX_WU;
+                                end 
+                            end
+                            7'b011_0001: begin
+                                instruction_o.op = ariane_pkg::HSV_B;
+                            end
+                            7'b011_0011: begin
+                                instruction_o.op = ariane_pkg::HSV_H;
+                            end
+                            7'b011_0101: begin
+                                instruction_o.op = ariane_pkg::HSV_W;
+                            end
+                            7'b011_0110: begin
+                                instruction_o.op = ariane_pkg::HLV_D;
+                            end
+                            7'b011_0111: begin
+                                instruction_o.op = ariane_pkg::HSV_D;
+                            end
                             endcase
                         end
                         // atomically swaps values in the CSR and integer register
