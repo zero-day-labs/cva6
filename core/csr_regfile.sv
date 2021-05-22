@@ -79,6 +79,7 @@ module csr_regfile import ariane_pkg::*; #(
     output logic                  tsr_o,                      // trap sret
     output logic                  debug_mode_o,               // we are in debug mode -> that will change some decoding
     output logic                  single_step_o,              // we are in single-step mode
+    output logic                  hu_o,                       // hypervisor user mode
     // Caches
     output logic                  icache_en_o,                // L1 ICache Enable
     output logic                  dcache_en_o,                // L1 DCache Enable
@@ -1469,7 +1470,6 @@ module csr_regfile import ariane_pkg::*; #(
             vsepc_q                 <= {riscv::XLEN{1'b0}};
             vscause_q               <= {riscv::XLEN{1'b0}};
             vstvec_q                <= {riscv::XLEN{1'b0}};
-            vscounteren_q           <= {riscv::XLEN{1'b0}};
             vsscratch_q             <= {riscv::XLEN{1'b0}};
             vstval_q                <= {riscv::XLEN{1'b0}};
             vsatp_q                 <= {riscv::XLEN{1'b0}};
@@ -1528,7 +1528,6 @@ module csr_regfile import ariane_pkg::*; #(
             vsepc_q                 <= vsepc_d;
             vscause_q               <= vscause_d;
             vstvec_q                <= vstvec_d;
-            vscounteren_q           <= vscounteren_d;
             vsscratch_q             <= vsscratch_d;
             vstval_q                <= vstval_d;
             vsatp_q                 <= vsatp_d;

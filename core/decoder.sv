@@ -41,6 +41,7 @@ module decoder import ariane_pkg::*; (
     input  logic               tw_i,                    // timeout wait
     input  logic               vtw_i,                   // virtual timeout wait
     input  logic               tsr_i,                   // trap sret
+    input  logic               hu_i,                    // hypervisor user mode
     output scoreboard_entry_t  instruction_o,           // scoreboard entry to scoreboard
     output logic               is_control_flow_instr_o  // this instruction will change the control flow
 );
@@ -220,6 +221,9 @@ module decoder import ariane_pkg::*; (
                             // Hypervisor load/store instructions when V=1 cause virtual instruction
                             if (v_i)
                                 virtual_illegal_instr = 1'b1;
+                            // Hypervisor load/store instructions in U-mode when hstatus.HU=0 cause an illegal instruction trap.
+                            if(hu_i && !v_i && priv_lvl_i == riscv::PRIV_LVL_U)
+                                illegal_instr = 1'b1;
                             case (instr.rtype.funct7)
                             7'b011_0000: begin
                                 if(instr.rtype.rs2 == 5'b0) begin
