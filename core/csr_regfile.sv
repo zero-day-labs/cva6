@@ -1389,6 +1389,7 @@ module csr_regfile import ariane_pkg::*; #(
 
     // in debug mode we execute with privilege level M
     assign priv_lvl_o       = (debug_mode_q) ? riscv::PRIV_LVL_M : priv_lvl_q;
+    assign v_o              = v_q;
     // FPU outputs
     assign fflags_o         = fcsr_q.fflags;
     assign frm_o            = fcsr_q.frm;
@@ -1424,6 +1425,7 @@ module csr_regfile import ariane_pkg::*; #(
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (~rst_ni) begin
             priv_lvl_q             <= riscv::PRIV_LVL_M;
+            v_q                    <= '0;
             // floating-point registers
             fcsr_q                 <= '0;
             // debug signals
@@ -1462,6 +1464,20 @@ module csr_regfile import ariane_pkg::*; #(
             sscratch_q             <= {riscv::XLEN{1'b0}};
             stval_q                <= {riscv::XLEN{1'b0}};
             satp_q                 <= {riscv::XLEN{1'b0}};
+            hstatus_q              <= {riscv::XLEN{1'b0}};
+            hedeleg_q              <= {riscv::XLEN{1'b0}};
+            hideleg_q              <= {riscv::XLEN{1'b0}};
+            hgeie_q                <= {riscv::XLEN{1'b0}};
+            hgatp_q                <= {riscv::XLEN{1'b0}};
+            // virtual supervisor mode registers
+            vsstatus_q              <= 64'b0;
+            vsepc_q                 <= {riscv::XLEN{1'b0}};
+            vscause_q               <= {riscv::XLEN{1'b0}};
+            vstvec_q                <= {riscv::XLEN{1'b0}};
+            vscounteren_q           <= {riscv::XLEN{1'b0}};
+            vsscratch_q             <= {riscv::XLEN{1'b0}};
+            vstval_q                <= {riscv::XLEN{1'b0}};
+            vsatp_q                 <= {riscv::XLEN{1'b0}};
             // timer and counters
             cycle_q                <= {riscv::XLEN{1'b0}};
             instret_q              <= {riscv::XLEN{1'b0}};
@@ -1474,6 +1490,7 @@ module csr_regfile import ariane_pkg::*; #(
             pmpaddr_q              <= '0;
         end else begin
             priv_lvl_q             <= priv_lvl_d;
+            v_q                    <= v_d;
             // floating-point registers
             fcsr_q                 <= fcsr_d;
             // debug signals
@@ -1505,6 +1522,21 @@ module csr_regfile import ariane_pkg::*; #(
             sscratch_q             <= sscratch_d;
             stval_q                <= stval_d;
             satp_q                 <= satp_d;
+            // hypervisor mode registers
+            hstatus_q              <= hstatus_d;
+            hedeleg_q              <= hedeleg_d;
+            hideleg_q              <= hideleg_d;
+            hgeie_q                <= hgeie_d;
+            hgatp_q                <= hgatp_d;
+            // virtual supervisor mode registers
+            vsstatus_q              <= vsstatus_q;
+            vsepc_q                 <= vsepc_d;
+            vscause_q               <= vscause_d;
+            vstvec_q                <= vstvec_d;
+            vscounteren_q           <= vscounteren_d;
+            vsscratch_q             <= vsscratch_d;
+            vstval_q                <= vstval_d;
+            vsatp_q                 <= vsatp_d;
             // timer and counters
             cycle_q                <= cycle_d;
             instret_q              <= instret_d;
