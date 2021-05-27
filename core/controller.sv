@@ -37,6 +37,7 @@ module controller import ariane_pkg::*; (
     input  logic            halt_csr_i,             // Halt request from CSR (WFI instruction)
     output logic            halt_o,                 // Halt signal to commit stage
     input  logic            cache_busy_i,           // Cache is busy
+    output logic            cache_init_no,          // Do not init cache
     input  logic [31:0]     fence_t_pad_i,          // Pad cycles of fence.t end relative to time interrupt
     input  logic            time_irq_i,             // Time interrupt
     input  logic            eret_i,                 // Return from exception
@@ -60,6 +61,11 @@ module controller import ariane_pkg::*; (
     // Pad counter
     logic [31:0] pad_cnt;
     logic time_irq_q;
+
+    // cache init shift register. Keep 'no cache init' asserted for 3 cycles.
+    logic [2:0] cache_init_d, cache_init_q;
+    assign cache_init_d[2:1] = cache_init_q[1:0];
+    assign cache_init_no     = |cache_init_q;
 
     // address to fetch from after coming out of (uarch) reset
     logic [riscv::VLEN-1:0] rst_addr_d, rst_addr_q;
@@ -243,6 +249,7 @@ module controller import ariane_pkg::*; (
         fence_t_state_d = fence_t_state_q;
         rst_uarch_cnt_d = rst_uarch_cnt_q;
         rst_uarch_no    = 1'b1;
+        cache_init_d[0] = 1'b0;
 
         unique case (fence_t_state_q)
             // Idle
@@ -267,7 +274,8 @@ module controller import ariane_pkg::*; (
 
             // Reset microarchitecture
             RST_UARCH: begin
-                rst_uarch_no = 1'b0;
+                rst_uarch_no    = 1'b0;
+                cache_init_d[0] = 1'b1;
 
                 // Return to IDLE after 16 cycles
                 if (rst_uarch_cnt_q == 4'hf) begin
@@ -311,6 +319,7 @@ module controller import ariane_pkg::*; (
             flush_dcache_o  <= 1'b0;
             rst_addr_q      <= boot_addr_i;
             time_irq_q      <= 1'b0;
+            cache_init_q    <= '0;
         end else begin
             fence_t_state_q <= fence_t_state_d;
             fence_active_q  <= fence_active_d;
@@ -319,6 +328,7 @@ module controller import ariane_pkg::*; (
             flush_dcache_o  <= flush_dcache;
             rst_addr_q      <= rst_addr_d;
             time_irq_q      <= time_irq_i;
+            cache_init_q    <= cache_init_d;
         end
     end
 endmodule
