@@ -74,6 +74,7 @@ module decoder import ariane_pkg::*; (
         imm_select                  = NOIMM;
         is_control_flow_instr_o     = 1'b0;
         illegal_instr               = 1'b0;
+        virtual_illegal_instr       = 1'b0;
         instruction_o.pc            = pc_i;
         instruction_o.trans_id      = 5'b0;
         instruction_o.fu            = NONE;

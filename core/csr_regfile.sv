@@ -1544,7 +1544,7 @@ module csr_regfile import ariane_pkg::*; #(
             hgeie_q                <= hgeie_d;
             hgatp_q                <= hgatp_d;
             // virtual supervisor mode registers
-            vsstatus_q              <= vsstatus_q;
+            vsstatus_q              <= vsstatus_d;
             vsepc_q                 <= vsepc_d;
             vscause_q               <= vscause_d;
             vstvec_q                <= vstvec_d;
