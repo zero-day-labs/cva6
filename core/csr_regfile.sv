@@ -595,7 +595,10 @@ module csr_regfile import ariane_pkg::*; #(
                     mask = riscv::MIP_VSSIP & hideleg_q;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                 end
-                riscv::CSR_VSTVEC:              vstvec_d    = {csr_wdata[riscv::XLEN-1:2], 1'b0, csr_wdata[0]};
+                riscv::CSR_VSTVEC:begin
+                    vstvec_d    = {csr_wdata[riscv::XLEN-1:2], 1'b0, csr_wdata[0]};
+                    if (csr_wdata[0]) vstvec_d = {csr_wdata[riscv::XLEN-1:8], 7'b0, csr_wdata[0]};
+                end
                 riscv::CSR_VSSCRATCH:           vsscratch_d = csr_wdata;
                 riscv::CSR_VSEPC:               vsepc_d     = {csr_wdata[riscv::XLEN-1:1], 1'b0};
                 riscv::CSR_VSCAUSE:             vscause_d   = csr_wdata;
@@ -646,8 +649,10 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_STVEC: begin
                     if(v_q) begin
                         vstvec_d  = {csr_wdata[riscv::XLEN-1:2], 1'b0, csr_wdata[0]};
+                        if (csr_wdata[0]) vstvec_d = {csr_wdata[riscv::XLEN-1:8], 7'b0, csr_wdata[0]};
                     end else begin
                         stvec_d = {csr_wdata[riscv::XLEN-1:2], 1'b0, csr_wdata[0]};
+                        if (csr_wdata[0]) stvec_d = {csr_wdata[riscv::XLEN-1:8], 7'b0, csr_wdata[0]};
                     end
                 end
                 riscv::CSR_SCOUNTEREN:         scounteren_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
@@ -1348,9 +1353,24 @@ module csr_regfile import ariane_pkg::*; #(
         // check if we are in vectored mode, if yes then do BASE + 4 * cause
         // we are imposing an additional alignment-constraint of 64 * 4 bytes since
         // we want to spare the costly addition
-        if ((mtvec_q[0] || stvec_q[0] || vstvec_q[0]) && ex_i.cause[riscv::XLEN-1]) begin
-            trap_vector_base_o[7:2] = ex_i.cause[5:0];
-        end
+       unique case(trap_to_priv_lvl)
+            riscv::PRIV_LVL_M: begin
+                if (mtvec_q[0] && ex_i.cause[riscv::XLEN-1]) begin
+                    trap_vector_base_o[7:2] = ex_i.cause[5:0];
+                end
+            end
+            riscv::PRIV_LVL_S: begin
+                if(trap_to_v) begin
+                    if (vstvec_q[0] && ex_i.cause[riscv::XLEN-1]) begin
+                        trap_vector_base_o[7:2] = ex_i.cause[5:0];
+                    end
+                end else begin
+                    if (stvec_q[0] && ex_i.cause[riscv::XLEN-1]) begin
+                        trap_vector_base_o[7:2] = ex_i.cause[5:0];
+                    end
+                end
+            end
+        endcase
 
         epc_o = mepc_q[riscv::VLEN-1:0];
         // we are returning from supervisor or virtual supervisor mode, so take the sepc register
