@@ -25,6 +25,7 @@ module miss_handler import ariane_pkg::*; import std_cache_pkg::*; #(
     output logic                                        flush_ack_o,  // acknowledge successful flush
     output logic                                        miss_o,
     input  logic                                        busy_i,       // dcache is busy with something
+    input  logic                                        init_ni,      // do not init after reset
     // Bypass or miss
     input  logic [NR_PORTS-1:0][$bits(miss_req_t)-1:0]  miss_req_i,
     // Bypass handling
@@ -371,7 +372,7 @@ module miss_handler import ariane_pkg::*; import std_cache_pkg::*; #(
                 be_o.vldrty = '1;
                 cnt_d       = cnt_q + (1'b1 << DCACHE_BYTE_OFFSET);
                 // finished initialization
-                if (cnt_q[DCACHE_INDEX_WIDTH-1:DCACHE_BYTE_OFFSET] == DCACHE_NUM_WORDS-1)
+                if (cnt_q[DCACHE_INDEX_WIDTH-1:DCACHE_BYTE_OFFSET] == DCACHE_NUM_WORDS-1 || init_ni)
                     state_d = IDLE;
             end
             // ----------------------
