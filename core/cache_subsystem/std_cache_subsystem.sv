@@ -22,6 +22,7 @@ module std_cache_subsystem import ariane_pkg::*; import std_cache_pkg::*; #(
     input  logic                           rst_ni,
     input  riscv::priv_lvl_t               priv_lvl_i,
     output logic                           busy_o,
+    input  logic                           init_ni,                // do not init after reset
     // I$
     input  logic                           icache_en_i,            // enable icache (or bypass e.g: in debug mode)
     input  logic                           icache_flush_i,         // flush the icache, flush and kill have to be asserted together
@@ -74,6 +75,7 @@ module std_cache_subsystem import ariane_pkg::*; import std_cache_pkg::*; #(
         .en_i       ( icache_en_i           ),
         .miss_o     ( icache_miss_o         ),
         .busy_o     ( icache_busy           ),
+        .init_ni    ( init_ni               ),
         .areq_i     ( icache_areq_i         ),
         .areq_o     ( icache_areq_o         ),
         .dreq_i     ( icache_dreq_i         ),
@@ -96,6 +98,7 @@ module std_cache_subsystem import ariane_pkg::*; import std_cache_pkg::*; #(
       .flush_ack_o  ( dcache_flush_ack_o     ),
       .miss_o       ( dcache_miss_o          ),
       .busy_o       ( dcache_busy            ),
+      .init_ni      ( init_ni                ),
       .axi_bypass_o ( axi_req_bypass         ),
       .axi_bypass_i ( axi_resp_bypass        ),
       .axi_data_o   ( axi_req_data           ),
