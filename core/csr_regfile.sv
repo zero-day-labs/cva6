@@ -255,7 +255,7 @@ module csr_regfile import ariane_pkg::*; #(
                     end else begin
                         csr_rdata = mie_q & mideleg_q & ~HS_DELEG_INTERRUPTS;
                     end
-                end                
+                end
                 riscv::CSR_SIP: begin
                     if(v_q) begin
                         csr_rdata = (mip_q & VS_DELEG_INTERRUPTS & hideleg_q) >> 1;
@@ -492,11 +492,11 @@ module csr_regfile import ariane_pkg::*; #(
         dcache_d                = dcache_q;
         icache_d                = icache_q;
 
-        vsstatus_d              = vsstatus_q; 
-        vstvec_d                = vstvec_q;   
+        vsstatus_d              = vsstatus_q;
+        vstvec_d                = vstvec_q;
         vsscratch_d             = vsscratch_q;
-        vsepc_d                 = vsepc_q;    
-        vscause_d               = vscause_q; 
+        vsepc_d                 = vsepc_q;
+        vscause_d               = vscause_q;
         vstval_d                = vstval_q;
 
         sepc_d                  = sepc_q;
@@ -690,7 +690,7 @@ module csr_regfile import ariane_pkg::*; #(
                     if (priv_lvl_o == riscv::PRIV_LVL_S && !v_q && mstatus_q.tvm)
                         update_access_exception = 1'b1;
                     else if (priv_lvl_o == riscv::PRIV_LVL_S && v_q && hstatus_q.vtvm)
-                        virtual_update_access_exception = 1'b1; 
+                        virtual_update_access_exception = 1'b1;
                     else begin
                         if(v_q) begin
                             vsatp      = riscv::satp_t'(csr_wdata);
@@ -732,7 +732,7 @@ module csr_regfile import ariane_pkg::*; #(
                            (1 << riscv::INSTR_PAGE_FAULT) |
                            (1 << riscv::LOAD_PAGE_FAULT) |
                            (1 << riscv::STORE_PAGE_FAULT);
-                    hedeleg_d = (hedeleg_q & ~mask) | (csr_wdata & mask);   
+                    hedeleg_d = (hedeleg_q & ~mask) | (csr_wdata & mask);
                 end
                 riscv::CSR_HIDELEG: begin
                     hideleg_d = (hideleg_q & ~VS_DELEG_INTERRUPTS) | (csr_wdata & VS_DELEG_INTERRUPTS);
@@ -744,11 +744,11 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_HIP: begin
                     mask = riscv::MIP_VSSIP;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
-                    
+
                 end
                 riscv::CSR_HVIP: begin
                     mask = VS_DELEG_INTERRUPTS;
-                    mip_d = (mip_q & ~mask) | (csr_wdata & mask);                   
+                    mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                 end
                 riscv::CSR_HCOUNTEREN:         hcounteren_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
                 riscv::CSR_HTINST:; //TODO: implement htinst write
@@ -768,7 +768,7 @@ module csr_regfile import ariane_pkg::*; #(
                     // changing the mode can have side-effects on address translation (e.g.: other instructions), re-fetch
                     // the next instruction by executing a flush
                     flush_o = 1'b1;
-                end  
+                end
 
                 riscv::CSR_MSTATUS: begin
                     mstatus_d      = {{64-riscv::XLEN{1'b0}}, csr_wdata};
@@ -985,7 +985,7 @@ module csr_regfile import ariane_pkg::*; #(
                                         riscv::ENV_CALL_UMODE,
                                         riscv::ENV_CALL_SMODE,
                                         riscv::ENV_CALL_MMODE
-                                      } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tval;  
+                                      } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tval;
                 end
                 // update sstatus
                 mstatus_d.sie  = 1'b0;
@@ -1279,7 +1279,7 @@ module csr_regfile import ariane_pkg::*; #(
                         privilege_violation = ~mcounteren_q[csr_addr_i[4:0]];
                     end
                     riscv::PRIV_LVL_U: begin
-                        virtual_privilege_violation = v_q & mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]]; 
+                        virtual_privilege_violation = v_q & mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]];
                         if(v_q) begin
                             privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]] & hcounteren_q[csr_addr_i[4:0]];
                         end else begin
