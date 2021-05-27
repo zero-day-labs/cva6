@@ -510,6 +510,7 @@ module csr_regfile import ariane_pkg::*; #(
         hideleg_d               = hideleg_q;
         hgeie_d                 = hgeie_q;
         hgatp_d                 = hgatp_q;
+        hcounteren_d            = hcounteren_q;
 
         en_ld_st_translation_d  = en_ld_st_translation_q;
         dirty_fp_state_csr      = 1'b0;
@@ -1249,8 +1250,10 @@ module csr_regfile import ariane_pkg::*; #(
 
     always_comb begin : privilege_check
         automatic riscv::priv_lvl_t access_priv;
+        automatic riscv::priv_lvl_t curr_priv;
         // transforms S mode accesses into HS mode
         access_priv = (priv_lvl_o == riscv::PRIV_LVL_S && !v_q) ? riscv::PRIV_LVL_HS : priv_lvl_o;
+        curr_priv = priv_lvl_o;
         // -----------------
         // Privilege Check
         // -----------------
@@ -1272,7 +1275,7 @@ module csr_regfile import ariane_pkg::*; #(
             // check counter-enabled counter CSR accesses
             // counter address range is C00 to C1F
             if (csr_addr_i inside {[riscv::CSR_CYCLE:riscv::CSR_HPM_COUNTER_31]}) begin
-                unique case (priv_lvl_o)
+                unique case (curr_priv)
                     riscv::PRIV_LVL_M: privilege_violation = 1'b0;
                     riscv::PRIV_LVL_S: begin
                         virtual_privilege_violation = v_q & mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]];
@@ -1485,6 +1488,7 @@ module csr_regfile import ariane_pkg::*; #(
             hideleg_q              <= {riscv::XLEN{1'b0}};
             hgeie_q                <= {riscv::XLEN{1'b0}};
             hgatp_q                <= {riscv::XLEN{1'b0}};
+            hcounteren_q           <= {riscv::XLEN{1'b0}};
             // virtual supervisor mode registers
             vsstatus_q              <= 64'b0;
             vsepc_q                 <= {riscv::XLEN{1'b0}};
@@ -1543,6 +1547,7 @@ module csr_regfile import ariane_pkg::*; #(
             hideleg_q              <= hideleg_d;
             hgeie_q                <= hgeie_d;
             hgatp_q                <= hgatp_d;
+            hcounteren_q           <= hcounteren_d;
             // virtual supervisor mode registers
             vsstatus_q              <= vsstatus_d;
             vsepc_q                 <= vsepc_d;
