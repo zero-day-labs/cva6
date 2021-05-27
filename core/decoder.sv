@@ -243,7 +243,7 @@ module decoder import ariane_pkg::*; (
                                 end
                                 if(instr.rtype.rs2 == 5'b11) begin
                                     instruction_o.op = ariane_pkg::HLVX_HU;
-                                end                               
+                                end
                             end
                             7'b011_0100: begin
                                 if(instr.rtype.rs2 == 5'b0) begin
@@ -254,7 +254,7 @@ module decoder import ariane_pkg::*; (
                                 end
                                 if(instr.rtype.rs2 == 5'b11) begin
                                     instruction_o.op = ariane_pkg::HLVX_WU;
-                                end 
+                                end
                             end
                             7'b011_0001: begin
                                 instruction_o.op = ariane_pkg::HSV_B;
