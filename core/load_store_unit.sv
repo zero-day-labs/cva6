@@ -361,13 +361,14 @@ module load_store_unit import ariane_pkg::*; #(
     // the misaligned exception is passed to the functional unit via the MMU, which in case
     // can augment the exception if other memory related exceptions like a page fault or access errors
     always_comb begin : data_misaligned_detection
-
+        automatic riscv::xlen_t tinst_addr_offset;
         misaligned_exception = {
+            {riscv::XLEN{1'b0}},
             {riscv::XLEN{1'b0}},
             {riscv::XLEN{1'b0}},
             1'b0
         };
-
+        tinst_addr_offset = {riscv::XLEN{1'b0}};
         data_misaligned = 1'b0;
 
         if (lsu_ctrl.valid) begin
@@ -404,11 +405,13 @@ module load_store_unit import ariane_pkg::*; #(
         end
 
         if (data_misaligned) begin
+        //TODO: calculate addr offset ffor tinst
 
             if (lsu_ctrl.fu == LOAD) begin
                 misaligned_exception = {
                     riscv::LD_ADDR_MISALIGNED,
                     {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
+                    tinst_addr_offset,
                     1'b1
                 };
 
@@ -416,6 +419,7 @@ module load_store_unit import ariane_pkg::*; #(
                 misaligned_exception = {
                     riscv::ST_ADDR_MISALIGNED,
                     {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
+                    tinst_addr_offset,
                     1'b1
                 };
             end
