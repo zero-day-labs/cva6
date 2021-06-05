@@ -311,6 +311,7 @@ package ariane_pkg;
          riscv::xlen_t       cause; // cause of exception
          riscv::xlen_t       tval;  // additional information of causing exception (e.g.: instruction causing it),
                              // address of LD/ST fault
+         riscv::xlen_t       tinst;  // transformed instruction information
          logic        valid;
     } exception_t;
 
@@ -870,4 +871,37 @@ package ariane_pkg;
             default:     return 2'b11;
         endcase
     endfunction
+
+    // ----------------------
+    // Get funct from OP
+    // ----------------------
+    function automatic logic [2:0] extract_funct(fu_op op);
+        case (op)
+            LD, SD, FLD, FSD: begin
+                return 3'b011;
+            end
+            LW, LWU, SW, FLW, FSW, HLV_H, HLV_HU, HLVX_HU: begin
+                return 3'b010;
+            end
+            LH, LHU, SH, HSV_B: return 3'b001;
+            LB, LBU, SB,HLV_B, HLV_BU: return 3'b000;
+            HLV_W, HLVX_WU, HLV_WU: begin
+                return 3'b100;
+            end
+            HSV_W: begin
+                return 3'b101;
+            end
+            HSV_H: begin
+                return 3'b011;
+            end
+            HLV_D: begin
+                return 3'b110;
+            end
+            HSV_D: begin
+                return 3'b111;
+            end
+            default:     return 3'b000;
+        endcase
+    endfunction
+
 endpackage
