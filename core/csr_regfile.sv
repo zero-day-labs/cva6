@@ -975,10 +975,10 @@ module csr_regfile import ariane_pkg::*; #(
                     // this can either be user or supervisor mode
                     vsstatus_d.spp  = priv_lvl_q[0];
                     // set cause
-                    vscause_d       = ex_i.cause[riscv::XLEN-1] ? {ex_i.cause[riscv::XLEN-1:2],2'b01} : ex_i.cause; // TODO: transform vscause code into scause codes
+                    vscause_d       = ex_i.cause[riscv::XLEN-1] ? {ex_i.cause[riscv::XLEN-1:2],2'b01} : ex_i.cause;
                     // set epc
                     vsepc_d         = {{riscv::XLEN-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
-                    // set mtval or stval
+                    // set vstval
                     vstval_d        = (ariane_pkg::ZERO_TVAL
                                       && (ex_i.cause inside {
                                         riscv::ILLEGAL_INSTR,
@@ -987,7 +987,7 @@ module csr_regfile import ariane_pkg::*; #(
                                         riscv::ENV_CALL_SMODE,
                                         riscv::ENV_CALL_MMODE
                                       } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tval;
-                end
+                end else begin
                 // update sstatus
                 mstatus_d.sie  = 1'b0;
                 mstatus_d.spie = mstatus_q.sie;
