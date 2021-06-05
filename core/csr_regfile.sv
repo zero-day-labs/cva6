@@ -139,6 +139,7 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::xlen_t mepc_q,      mepc_d;
     riscv::xlen_t mcause_q,    mcause_d;
     riscv::xlen_t mtval_q,     mtval_d;
+    riscv::xlen_t mtinst_q,    mtinst_d;
 
     riscv::xlen_t stvec_q,     stvec_d;
     riscv::xlen_t scounteren_q,scounteren_d;
@@ -150,6 +151,7 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::xlen_t hideleg_q,   hideleg_d;
     riscv::xlen_t hcounteren_q,hcounteren_d;
     riscv::xlen_t hgeie_q,     hgeie_d;
+    riscv::xlen_t htinst_q,    htinst_d;
 
     riscv::xlen_t vstvec_q,    vstvec_d;
     riscv::xlen_t vsscratch_q, vsscratch_d;
@@ -318,7 +320,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_HIP:                csr_rdata = mip_q & HS_DELEG_INTERRUPTS;
                 riscv::CSR_HVIP:               csr_rdata = mip_q & VS_DELEG_INTERRUPTS;
                 riscv::CSR_HCOUNTEREN:         csr_rdata = hcounteren_q;
-                riscv::CSR_HTINST:;            //TODO: implement htinst
+                riscv::CSR_HTINST:             csr_rdata = htinst_q;
                 riscv::CSR_HGEIE:;             //TODO: implement hgeie
                 riscv::CSR_HGEIP:;             //TODO: implement hgeip
                 riscv::CSR_HGATP: begin
@@ -349,6 +351,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MHARTID:            csr_rdata = hart_id_i;
                 riscv::CSR_MCYCLE:             csr_rdata = cycle_q;
                 riscv::CSR_MINSTRET:           csr_rdata = instret_q;
+                riscv::CSR_MTINST:             csr_rdata = mtinst_q;
                 // Counters and Timers
                 riscv::CSR_CYCLE:              csr_rdata = cycle_q;
                 riscv::CSR_INSTRET:            csr_rdata = instret_q;
@@ -489,6 +492,7 @@ module csr_regfile import ariane_pkg::*; #(
         mcounteren_d            = mcounteren_q;
         mscratch_d              = mscratch_q;
         mtval_d                 = mtval_q;
+        mtinst_d                = mtinst_q;
         dcache_d                = dcache_q;
         icache_d                = icache_q;
 
@@ -511,6 +515,7 @@ module csr_regfile import ariane_pkg::*; #(
         hgeie_d                 = hgeie_q;
         hgatp_d                 = hgatp_q;
         hcounteren_d            = hcounteren_q;
+        htinst_d                = htinst_q;
 
         en_ld_st_translation_d  = en_ld_st_translation_q;
         dirty_fp_state_csr      = 1'b0;
@@ -752,7 +757,7 @@ module csr_regfile import ariane_pkg::*; #(
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                 end
                 riscv::CSR_HCOUNTEREN:         hcounteren_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
-                riscv::CSR_HTINST:; //TODO: implement htinst write
+                riscv::CSR_HTINST:             htinst_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
                 riscv::CSR_HGEIE:; //TODO: implement htinst write
                 riscv::CSR_HGATP: begin
                     // intercept HGATP writes if in HS-Mode and TVM is enabled
@@ -830,6 +835,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MEPC:               mepc_d      = {csr_wdata[riscv::XLEN-1:1], 1'b0};
                 riscv::CSR_MCAUSE:             mcause_d    = csr_wdata;
                 riscv::CSR_MTVAL:              mtval_d     = csr_wdata;
+                riscv::CSR_MTINST:             mtinst_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
                 riscv::CSR_MIP: begin
                     mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | VS_DELEG_INTERRUPTS;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
@@ -1006,11 +1012,22 @@ module csr_regfile import ariane_pkg::*; #(
                                     riscv::ENV_CALL_SMODE,
                                     riscv::ENV_CALL_MMODE
                                   } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tval;
-                v_d            = 1'b0;
+                htinst_d       = (ariane_pkg::ZERO_TVAL
+                                  && (ex_i.cause inside {
+                                    riscv::INSTR_ACCESS_FAULT,
+                                    riscv::ILLEGAL_INSTR,
+                                    riscv::BREAKPOINT,
+                                    riscv::ENV_CALL_UMODE,
+                                    riscv::ENV_CALL_SMODE,
+                                    riscv::ENV_CALL_MMODE,
+                                    riscv::INSTR_PAGE_FAULT,
+                                    riscv::INSTR_GUEST_PAGE_FAULT,
+                                    riscv::VIRTUAL_INSTRUCTION
+                                  } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tinst;
                 hstatus_d.spvp = v_q ? priv_lvl_q[0] : hstatus_d.spvp;
                 // TODO: set GVA bit
                 hstatus_d.spv  = v_q;
-
+                end
             // trap to machine mode
             end else begin
                 // update mstatus
@@ -1030,6 +1047,17 @@ module csr_regfile import ariane_pkg::*; #(
                                     riscv::ENV_CALL_SMODE,
                                     riscv::ENV_CALL_MMODE
                                   } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tval;
+                mtinst_d       = (ariane_pkg::ZERO_TVAL
+                                  && (ex_i.cause inside {
+                                    riscv::ILLEGAL_INSTR,
+                                    riscv::BREAKPOINT,
+                                    riscv::ENV_CALL_UMODE,
+                                    riscv::ENV_CALL_SMODE,
+                                    riscv::ENV_CALL_MMODE,
+                                    riscv::INSTR_PAGE_FAULT,
+                                    riscv::INSTR_GUEST_PAGE_FAULT,
+                                    riscv::VIRTUAL_INSTRUCTION
+                                  } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tinst;
             end
 
             priv_lvl_d = trap_to_priv_lvl;
@@ -1473,6 +1501,7 @@ module csr_regfile import ariane_pkg::*; #(
             mcounteren_q           <= {riscv::XLEN{1'b0}};
             mscratch_q             <= {riscv::XLEN{1'b0}};
             mtval_q                <= {riscv::XLEN{1'b0}};
+            mtinst_q               <= {riscv::XLEN{1'b0}};
             dcache_q               <= {{riscv::XLEN-1{1'b0}}, 1'b1};
             icache_q               <= {{riscv::XLEN-1{1'b0}}, 1'b1};
             // supervisor mode registers
@@ -1489,6 +1518,7 @@ module csr_regfile import ariane_pkg::*; #(
             hgeie_q                <= {riscv::XLEN{1'b0}};
             hgatp_q                <= {riscv::XLEN{1'b0}};
             hcounteren_q           <= {riscv::XLEN{1'b0}};
+            htinst_q               <= {riscv::XLEN{1'b0}};
             // virtual supervisor mode registers
             vsstatus_q              <= 64'b0;
             vsepc_q                 <= {riscv::XLEN{1'b0}};
@@ -1531,6 +1561,7 @@ module csr_regfile import ariane_pkg::*; #(
             mcounteren_q           <= mcounteren_d;
             mscratch_q             <= mscratch_d;
             mtval_q                <= mtval_d;
+            mtinst_q               <= mtinst_d;
             dcache_q               <= dcache_d;
             icache_q               <= icache_d;
             // supervisor mode registers
@@ -1548,6 +1579,7 @@ module csr_regfile import ariane_pkg::*; #(
             hgeie_q                <= hgeie_d;
             hgatp_q                <= hgatp_d;
             hcounteren_q           <= hcounteren_d;
+            htinst_q               <= htinst_d;
             // virtual supervisor mode registers
             vsstatus_q              <= vsstatus_d;
             vsepc_q                 <= vsepc_d;
