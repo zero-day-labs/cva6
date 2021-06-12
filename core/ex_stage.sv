@@ -16,6 +16,7 @@
 
 module ex_stage import ariane_pkg::*; #(
     parameter int unsigned ASID_WIDTH = 1,
+    parameter int unsigned VMID_WIDTH = 1,
     parameter ariane_pkg::ariane_cfg_t ArianeCfg = ariane_pkg::ArianeDefaultConfig
 ) (
     input  logic                                   clk_i,    // Clock
@@ -91,16 +92,19 @@ module ex_stage import ariane_pkg::*; #(
     input  cvxif_pkg::cvxif_resp_t                 cvxif_resp_i,
     // Memory Management
     input  logic                                   enable_translation_i,
+    input  logic                                   enable_g_translation_i,
     input  logic                                   en_ld_st_translation_i,
     input  logic                                   flush_tlb_i,
 
     input  riscv::priv_lvl_t                       priv_lvl_i,
+    input logic                                    v_i,
     input  riscv::priv_lvl_t                       ld_st_priv_lvl_i,
     input  logic                                   sum_i,
     input  logic                                   mxr_i,
     input  logic [riscv::PPNW-1:0]                 satp_ppn_i,
     input  logic [ASID_WIDTH-1:0]                  asid_i,
-    // icache translation requests
+    input  logic [riscv::PPNW-1:0]                 hgatp_ppn_i,
+    input  logic [VMID_WIDTH-1:0]                  vmid_i,
     input  icache_areq_o_t                         icache_areq_i,
     output icache_areq_i_t                         icache_areq_o,
 
@@ -284,6 +288,7 @@ module ex_stage import ariane_pkg::*; #(
 
     load_store_unit #(
         .ASID_WIDTH ( ASID_WIDTH ),
+        .VMID_WIDTH ( VMID_WIDTH ),
         .ArianeCfg ( ArianeCfg )
     ) lsu_i (
         .clk_i,
@@ -305,16 +310,21 @@ module ex_stage import ariane_pkg::*; #(
         .commit_ready_o        ( lsu_commit_ready_o ),
         .commit_tran_id_i,
         .enable_translation_i,
+        .enable_g_translation_i,
         .en_ld_st_translation_i,
         .icache_areq_i,
         .icache_areq_o,
         .priv_lvl_i,
+        .v_i,
         .ld_st_priv_lvl_i,
         .sum_i,
         .mxr_i,
         .satp_ppn_i,
+        .hgatp_ppn_i,
         .asid_i,
         .asid_to_be_flushed_i (asid_to_be_flushed),
+        .vmid_i,
+        .vmid_to_be_flushed_i ('0),
         .vaddr_to_be_flushed_i (vaddr_to_be_flushed),
         .flush_tlb_i,
         .itlb_miss_o,

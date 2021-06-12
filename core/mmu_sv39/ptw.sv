@@ -17,6 +17,7 @@
 
 module ptw import ariane_pkg::*; #(
         parameter int ASID_WIDTH = 1,
+        parameter int VMID_WIDTH = 1,
         parameter ariane_pkg::ariane_cfg_t ArianeCfg = ariane_pkg::ArianeDefaultConfig
 ) (
     input  logic                    clk_i,                  // Clock
@@ -28,7 +29,8 @@ module ptw import ariane_pkg::*; #(
     output logic                    walking_instr_o,        // set when walking for TLB
     output logic                    ptw_error_o,            // set when an error occurred
     output logic                    ptw_access_exception_o, // set when an PMP access exception occured
-    input  logic                    enable_translation_i,   // CSRs indicate to enable SV39
+    input  logic                    enable_translation_i,   // CSRs indicate to enable SV39 VS-Stage translation
+    input  logic                    enable_g_translation_i, // CSRs indicate to enable SV39  G-Stage translation
     input  logic                    en_ld_st_translation_i, // enable virtual memory translation for load/stores
 
     input  logic                    lsu_is_store_i,         // this translation was triggered by a store
@@ -44,6 +46,7 @@ module ptw import ariane_pkg::*; #(
     output logic [riscv::VLEN-1:0]  update_vaddr_o,
 
     input  logic [ASID_WIDTH-1:0]   asid_i,
+    input  logic [ASID_WIDTH-1:0]   vmid_i,
     // from TLBs
     // did we miss?
     input  logic                    itlb_access_i,
@@ -55,6 +58,7 @@ module ptw import ariane_pkg::*; #(
     input  logic [riscv::VLEN-1:0]  dtlb_vaddr_i,
     // from CSR file
     input  logic [riscv::PPNW-1:0]  satp_ppn_i, // ppn from satp
+    input  logic [riscv::PPNW-1:0]  hgatp_ppn_i,// ppn from hgatp
     input  logic                    mxr_i,
     // Performance counters
     output logic                    itlb_miss_o,

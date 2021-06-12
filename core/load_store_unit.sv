@@ -15,6 +15,7 @@
 
 module load_store_unit import ariane_pkg::*; #(
     parameter int unsigned ASID_WIDTH = 1,
+    parameter int unsigned VMID_WIDTH = 1,
     parameter ariane_pkg::ariane_cfg_t ArianeCfg = ariane_pkg::ArianeDefaultConfig
 )(
     input  logic                     clk_i,
@@ -42,6 +43,7 @@ module load_store_unit import ariane_pkg::*; #(
     input  logic [TRANS_ID_BITS-1:0] commit_tran_id_i,
 
     input  logic                     enable_translation_i,     // enable virtual memory translation
+    input  logic                     enable_g_translation_i,   // enable G-Stage translation
     input  logic                     en_ld_st_translation_i,   // enable virtual memory translation for load/stores
 
     // icache translation requests
@@ -49,12 +51,16 @@ module load_store_unit import ariane_pkg::*; #(
     output icache_areq_i_t           icache_areq_o,
 
     input  riscv::priv_lvl_t         priv_lvl_i,               // From CSR register file
+    input logic                      v_i,                      // From CSR register file
     input  riscv::priv_lvl_t         ld_st_priv_lvl_i,         // From CSR register file
     input  logic                     sum_i,                    // From CSR register file
     input  logic                     mxr_i,                    // From CSR register file
     input  logic [riscv::PPNW-1:0]   satp_ppn_i,               // From CSR register file
     input  logic [ASID_WIDTH-1:0]    asid_i,                   // From CSR register file
     input  logic [ASID_WIDTH-1:0]    asid_to_be_flushed_i,
+    input  logic [riscv::PPNW-1:0]   hgatp_ppn_i,              // From CSR register file
+    input  logic [VMID_WIDTH-1:0]    vmid_i,                   // From CSR register file
+    input  logic [VMID_WIDTH-1:0]    vmid_to_be_flushed_i,
     input  logic [riscv::VLEN-1:0]   vaddr_to_be_flushed_i,
     input  logic                     flush_tlb_i,
     // Performance counters
@@ -135,6 +141,7 @@ module load_store_unit import ariane_pkg::*; #(
             .INSTR_TLB_ENTRIES      ( 16                     ),
             .DATA_TLB_ENTRIES       ( 16                     ),
             .ASID_WIDTH             ( ASID_WIDTH             ),
+            .VMID_WIDTH             ( VMID_WIDTH             ),
             .ArianeCfg              ( ArianeCfg              )
         ) i_cva6_mmu (
             // misaligned bypass
