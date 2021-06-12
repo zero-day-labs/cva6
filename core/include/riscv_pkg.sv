@@ -38,6 +38,7 @@ package riscv;
     // Warning: VLEN must be superior or equal to PLEN
     localparam VLEN       = (XLEN == 32) ? 32 : 64;    // virtual address length
     localparam PLEN       = (XLEN == 32) ? 34 : 56;    // physical address length
+    localparam GPLEN      = (XLEN == 32) ? 34 : 41;    // guest physical address length
 
     localparam IS_XLEN32  = (XLEN == 32) ? 1'b1 : 1'b0;
     localparam IS_XLEN64  = (XLEN == 32) ? 1'b0 : 1'b1;
@@ -45,8 +46,10 @@ package riscv;
     localparam ASIDW      = (XLEN == 32) ? 9 : 16;
     localparam VMIDW      = (XLEN == 32) ? 7 : 14;
     localparam PPNW       = (XLEN == 32) ? 22 : 44;
+    localparam GPPNW      = (XLEN == 32) ? 22 : 29;
     localparam vm_mode_t MODE_SV = (XLEN == 32) ? ModeSv32 : ModeSv39;
     localparam SV         = (MODE_SV == ModeSv32) ? 32 : 39;
+    localparam SVX        = (MODE_SV == ModeSv32) ? 34 : 41;
     localparam VPN2       = (VLEN-31 < 8) ? VLEN-31 : 8;
 
     localparam  FPU_EN     = 1'b1; // This bit is to select FPU in the design, FPU_EN = 1'b0 disables FPU in the design
@@ -305,7 +308,7 @@ package riscv;
     // memory management, pte for sv39
     typedef struct packed {
         logic [9:0]  reserved;
-        logic [44-1:0] ppn; // PPN length for 
+        logic [44-1:0] ppn; // PPN length for
         logic [1:0]  rsw;
         logic d;
         logic a;
@@ -319,7 +322,7 @@ package riscv;
 
     // memory management, pte for sv32
     typedef struct packed {
-        logic [22-1:0] ppn; // PPN length for 
+        logic [22-1:0] ppn; // PPN length for
         logic [1:0]  rsw;
         logic d;
         logic a;

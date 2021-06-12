@@ -77,8 +77,10 @@ module mmu import ariane_pkg::*; #(
     logic                   ptw_active;    // PTW is currently walking a page table
     logic                   walking_instr; // PTW is walking because of an ITLB miss
     logic                   ptw_error;     // PTW threw an exception
+    logic                   ptw_error_at_g_st;    // PTW threw an exception at the G-Stage
     logic                   ptw_access_exception; // PTW threw an access exception (PMPs)
     logic [riscv::PLEN-1:0] ptw_bad_paddr; // PTW PMP exception bad physical addr
+    logic [riscv::GPLEN-1:0] ptw_bad_gpaddr; // PTW exception bad guest physical addr
 
     logic [riscv::VLEN-1:0] update_vaddr;
     tlb_update_t update_ptw_itlb, update_ptw_dtlb;
@@ -148,6 +150,7 @@ module mmu import ariane_pkg::*; #(
 
     ptw  #(
         .ASID_WIDTH             ( ASID_WIDTH            ),
+        .VMID_WIDTH             ( VMID_WIDTH            ),
         .ArianeCfg              ( ArianeCfg             )
     ) i_ptw (
         .clk_i                  ( clk_i                 ),
@@ -155,8 +158,10 @@ module mmu import ariane_pkg::*; #(
         .ptw_active_o           ( ptw_active            ),
         .walking_instr_o        ( walking_instr         ),
         .ptw_error_o            ( ptw_error             ),
+        .ptw_error_at_g_st_o    ( ptw_error_at_g_st     ),
         .ptw_access_exception_o ( ptw_access_exception  ),
         .enable_translation_i   ( enable_translation_i  ),
+        .enable_g_translation_i ( enable_g_translation_i),
 
         .update_vaddr_o         ( update_vaddr          ),
         .itlb_update_o          ( update_ptw_itlb       ),
@@ -175,6 +180,7 @@ module mmu import ariane_pkg::*; #(
         .pmpcfg_i,
         .pmpaddr_i,
         .bad_paddr_o            ( ptw_bad_paddr         ),
+        .bad_gpaddr_o           ( ptw_bad_gpaddr        ),
         .*
     );
 

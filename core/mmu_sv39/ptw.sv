@@ -28,6 +28,7 @@ module ptw import ariane_pkg::*; #(
     output logic                    ptw_active_o,
     output logic                    walking_instr_o,        // set when walking for TLB
     output logic                    ptw_error_o,            // set when an error occurred
+    output logic                    ptw_error_at_g_st_o,    // set when an error occurred at the G-Stage
     output logic                    ptw_access_exception_o, // set when an PMP access exception occured
     input  logic                    enable_translation_i,   // CSRs indicate to enable SV39 VS-Stage translation
     input  logic                    enable_g_translation_i, // CSRs indicate to enable SV39  G-Stage translation
@@ -67,7 +68,8 @@ module ptw import ariane_pkg::*; #(
 
     input  riscv::pmpcfg_t [15:0]   pmpcfg_i,
     input  logic [15:0][riscv::PLEN-3:0] pmpaddr_i,
-    output logic [riscv::PLEN-1:0]  bad_paddr_o
+    output logic [riscv::PLEN-1:0]  bad_paddr_o,
+    output logic [riscv::GPLEN-1:0] bad_gpaddr_o
 
 );
 
@@ -76,6 +78,7 @@ module ptw import ariane_pkg::*; #(
     logic [63:0] data_rdata_q;
 
     riscv::pte_t pte;
+    riscv::pte_t gpte_q, gpte_d;
     assign pte = riscv::pte_t'(data_rdata_q);
 
     enum logic[2:0] {
@@ -90,7 +93,14 @@ module ptw import ariane_pkg::*; #(
     // SV39 defines three levels of page tables
     enum logic [1:0] {
         LVL1, LVL2, LVL3
-    } ptw_lvl_q, ptw_lvl_n;
+    } ptw_lvl_q, ptw_lvl_n, gptw_lvl_q, gptw_lvl_n;
+
+    // ptw stages
+    enum logic [1:0] {
+        VS_STAGE,
+        VS_INTERMED_STAGE,
+        G_STAGE
+    } ptw_stage_q, ptw_stage_d;
 
     // is this an instruction page table walk?
     logic is_instr_ptw_q,   is_instr_ptw_n;
@@ -99,10 +109,15 @@ module ptw import ariane_pkg::*; #(
     logic tag_valid_n,      tag_valid_q;
     // register the ASID
     logic [ASID_WIDTH-1:0]  tlb_update_asid_q, tlb_update_asid_n;
+    // register the VMID
+    logic [VMID_WIDTH-1:0]  tlb_update_vmid_q, tlb_update_vmid_n;
     // register the VPN we need to walk, SV39 defines a 39 bit virtual address
     logic [riscv::VLEN-1:0] vaddr_q,   vaddr_n;
+    // register the VPN we need to walk, SV39 defines a 41 bit virtual address for the G-Stage
+    logic [riscv::GPLEN-1:0] gpaddr_q, gpaddr_n;
     // 4 byte aligned physical pointer
     logic [riscv::PLEN-1:0] ptw_pptr_q, ptw_pptr_n;
+    logic [riscv::PLEN-1:0] gptw_pptr_q, gptw_pptr_n;
 
     // Assignments
     assign update_vaddr_o  = vaddr_q;
@@ -129,15 +144,21 @@ module ptw import ariane_pkg::*; #(
     // output the correct ASID
     assign itlb_update_o.asid = tlb_update_asid_q;
     assign dtlb_update_o.asid = tlb_update_asid_q;
+    // output the correct VMID
+    assign itlb_update_o.vmid = tlb_update_vmid_q;
+    assign dtlb_update_o.vmid = tlb_update_vmid_q;
     // set the global mapping bit
     assign itlb_update_o.content = pte | (global_mapping_q << 5);
     assign dtlb_update_o.content = pte | (global_mapping_q << 5);
+    assign itlb_update_o.guest_content = (enable_translation_i && enable_g_translation_i) ? gpte_q | (global_mapping_q << 5) : gpte_q;
+    assign dtlb_update_o.guest_content = (enable_translation_i && enable_g_translation_i) ? gpte_q | (global_mapping_q << 5) : gpte_q;
 
     assign req_port_o.tag_valid      = tag_valid_q;
 
     logic allow_access;
 
     assign bad_paddr_o = ptw_access_exception_o ? ptw_pptr_q : 'b0;
+    assign bad_gpaddr_o = ptw_error_at_g_st_o ? ((ptw_stage_q == VS_INTERMED_STAGE) ? gptw_pptr_q[riscv::GPLEN:0] : gpaddr_q) : 'b0;
 
     pmp #(
         .PLEN       ( riscv::PLEN            ),
@@ -179,6 +200,8 @@ module ptw import ariane_pkg::*; #(
     //        pa.ppn[i-1:0] = va.vpn[i-1:0].
     //      - pa.ppn[LEVELS-1:i] = pte.ppn[LEVELS-1:i].
     always_comb begin : ptw
+        automatic logic [riscv::PLEN-1:0] pptr;
+        automatic logic [riscv::GPLEN-1:0] gpaddr;
         // default assignments
         // PTW memory interface
         tag_valid_n            = 1'b0;
@@ -187,16 +210,22 @@ module ptw import ariane_pkg::*; #(
         req_port_o.data_size   = 2'b11;
         req_port_o.data_we     = 1'b0;
         ptw_error_o            = 1'b0;
+        ptw_error_at_g_st_o    = 1'b0;
         ptw_access_exception_o = 1'b0;
         itlb_update_o.valid    = 1'b0;
         dtlb_update_o.valid    = 1'b0;
         is_instr_ptw_n         = is_instr_ptw_q;
         ptw_lvl_n              = ptw_lvl_q;
+        gptw_lvl_n             = gptw_lvl_q;
         ptw_pptr_n             = ptw_pptr_q;
+        gptw_pptr_n            = gptw_pptr_q;
         state_d                = state_q;
+        ptw_stage_d            = ptw_stage_q;
+        gpte_d                 = gpte_q;
         global_mapping_n       = global_mapping_q;
         // input registers
         tlb_update_asid_n     = tlb_update_asid_q;
+        tlb_update_vmid_n     = tlb_update_vmid_q;
         vaddr_n               = vaddr_q;
 
         itlb_miss_o           = 1'b0;
@@ -207,11 +236,23 @@ module ptw import ariane_pkg::*; #(
             IDLE: begin
                 // by default we start with the top-most page table
                 ptw_lvl_n        = LVL1;
+                gptw_lvl_n       = LVL1;
                 global_mapping_n = 1'b0;
                 is_instr_ptw_n   = 1'b0;
                 // if we got an ITLB miss
                 if (enable_translation_i & itlb_access_i & ~itlb_hit_i & ~dtlb_access_i) begin
-                    ptw_pptr_n          = {satp_ppn_i, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                    if (enable_translation_i && enable_g_translation_i) begin
+                        ptw_stage_d = VS_INTERMED_STAGE;
+                        pptr = {satp_ppn_i, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                        gptw_pptr_n = pptr;
+                        ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], pptr[riscv::SVX-1:30], 3'b0};
+                    end else if (!enable_translation_i && enable_g_translation_i) begin
+                        ptw_stage_d = G_STAGE;
+                        ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], {2{itlb_vaddr_i[riscv::SV-1]}}, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                    end else if (enable_translation_i && !enable_g_translation_i) begin
+                        ptw_stage_d = VS_STAGE;
+                        ptw_pptr_n  = {satp_ppn_i, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                    end
                     is_instr_ptw_n      = 1'b1;
                     tlb_update_asid_n   = asid_i;
                     vaddr_n             = itlb_vaddr_i;
@@ -219,7 +260,18 @@ module ptw import ariane_pkg::*; #(
                     itlb_miss_o         = 1'b1;
                 // we got an DTLB miss
                 end else if (en_ld_st_translation_i & dtlb_access_i & ~dtlb_hit_i) begin
-                    ptw_pptr_n          = {satp_ppn_i, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                    if (enable_translation_i && enable_g_translation_i) begin
+                        ptw_stage_d = VS_INTERMED_STAGE;
+                        pptr = {satp_ppn_i, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                        gptw_pptr_n = pptr;
+                        ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], pptr[riscv::SVX-1:30], 3'b0};
+                    end else if (!enable_translation_i && enable_g_translation_i) begin
+                        ptw_stage_d = G_STAGE;
+                        ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], {2{itlb_vaddr_i[riscv::SV-1]}}, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                    end else if (enable_translation_i && !enable_g_translation_i) begin
+                        ptw_stage_d = VS_STAGE;
+                        ptw_pptr_n  = {satp_ppn_i, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                    end
                     tlb_update_asid_n   = asid_i;
                     vaddr_n             = dtlb_vaddr_i;
                     state_d             = WAIT_GRANT;
@@ -260,6 +312,37 @@ module ptw import ariane_pkg::*; #(
                         // it is a valid PTE
                         // if pte.r = 1 or pte.x = 1 it is a valid PTE
                         if (pte.r || pte.x) begin
+                            case (ptw_stage_q)
+                                VS_STAGE: begin
+                                        if (enable_g_translation_i) begin
+                                            state_d = WAIT_GRANT;
+                                            ptw_stage_d = G_STAGE;
+                                            gpte_d = pte;
+                                            gptw_lvl_n = ptw_lvl_q;
+                                            if(ptw_lvl_q == LVL1)
+                                                gpaddr = {pte.ppn[riscv::GPPNW-1:17], vaddr_q[29:0]};
+                                            else if (ptw_lvl_q == LVL2)
+                                                gpaddr = {pte.ppn[riscv::GPPNW-1:8], vaddr_q[20:0]};
+                                            else if (ptw_lvl_q == LVL3)
+                                                gpaddr = {pte.ppn[riscv::GPPNW-1:0], vaddr_q[11:0]};
+                                            gpaddr_n = gpaddr;
+                                            ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], gpaddr[riscv::SVX-1:30], 3'b0};
+                                            ptw_lvl_n = LVL1;
+                                        end
+                                end
+                                VS_INTERMED_STAGE: begin
+                                            state_d = WAIT_GRANT;
+                                            ptw_stage_d = VS_STAGE;
+                                            ptw_lvl_q = gptw_lvl_n;
+                                            if(ptw_lvl_q == LVL1)
+                                                pptr = {pte.ppn, gptw_pptr_q[29:0]};
+                                            else if (ptw_lvl_q == LVL2)
+                                                pptr = {pte.ppn, gptw_pptr_q[20:0]};
+                                            else if (ptw_lvl_q == LVL3)
+                                                pptr = {pte.ppn, gptw_pptr_q[11:0]};
+                                            ptw_pptr_n = pptr;
+                                end
+                            endcase
                             // Valid translation found (either 1G, 2M or 4K entry)
                             if (is_instr_ptw_q) begin
                                 // ------------
@@ -270,7 +353,7 @@ module ptw import ariane_pkg::*; #(
                                 // to the access flag since we let the access flag be managed by SW.
                                 if (!pte.x || !pte.a)
                                   state_d = PROPAGATE_ERROR;
-                                else
+                                else if((enable_g_translation_i && ptw_stage_q == G_STAGE) || (!enable_g_translation_i && ptw_stage_q == VS_STAGE))
                                   itlb_update_o.valid = 1'b1;
 
                             end else begin
@@ -283,7 +366,8 @@ module ptw import ariane_pkg::*; #(
                                 // we can directly raise an error. This doesn't put a useless
                                 // entry into the TLB.
                                 if (pte.a && (pte.r || (pte.x && mxr_i))) begin
-                                  dtlb_update_o.valid = 1'b1;
+                                  if((enable_g_translation_i && ptw_stage_q == G_STAGE) || (!enable_g_translation_i && ptw_stage_q == VS_STAGE))
+                                      dtlb_update_o.valid = 1'b1;
                                 end else begin
                                   state_d   = PROPAGATE_ERROR;
                                 end
@@ -312,14 +396,55 @@ module ptw import ariane_pkg::*; #(
                             // pointer to next level of page table
                             if (ptw_lvl_q == LVL1) begin
                                 // we are in the second level now
-                                ptw_lvl_n  = LVL2;
-                                ptw_pptr_n = {pte.ppn, vaddr_q[29:21], 3'b0};
+                                // TODO: check guest physical address bit 63:41 are all zeros;
+                                ptw_lvl_n = LVL2;
+                                case (ptw_stage_q)
+                                    VS_STAGE: begin
+                                        if (enable_g_translation_i) begin
+                                            ptw_stage_d = VS_INTERMED_STAGE;
+                                            gpte_d = pte;
+                                            gptw_lvl_n = LVL2;
+                                            pptr = {pte.ppn, vaddr_q[29:21], 3'b0};
+                                            gptw_pptr_n = pptr;
+                                            ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], pptr[riscv::SVX-1:30], 3'b0};
+                                            ptw_lvl_n = LVL1;
+                                        end else begin
+                                            ptw_pptr_n = {pte.ppn, vaddr_q[29:21], 3'b0};
+                                        end
+                                    end
+                                    VS_INTERMED_STAGE: begin
+                                            ptw_pptr_n = {pte.ppn, gptw_pptr_q[29:21], 3'b0};
+                                    end
+                                    G_STAGE: begin
+                                            ptw_pptr_n = {pte.ppn, gpaddr_q[29:21], 3'b0};
+                                    end
+                                endcase
                             end
 
                             if (ptw_lvl_q == LVL2) begin
                                 // here we received a pointer to the third level
                                 ptw_lvl_n  = LVL3;
-                                ptw_pptr_n = {pte.ppn, vaddr_q[20:12], 3'b0};
+                                unique case (ptw_stage_q)
+                                    VS_STAGE: begin
+                                        if (enable_g_translation_i) begin
+                                            ptw_stage_d = VS_INTERMED_STAGE;
+                                            gpte_d = pte;
+                                            gptw_lvl_n = LVL3;
+                                            pptr = {pte.ppn, vaddr_q[20:12], 3'b0};
+                                            gptw_pptr_n = pptr;
+                                            ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], pptr[riscv::SVX-1:30], 3'b0};
+                                            ptw_lvl_n = LVL1;
+                                        end else begin
+                                            ptw_pptr_n = {pte.ppn, vaddr_q[20:12], 3'b0};
+                                        end
+                                    end
+                                    VS_INTERMED_STAGE: begin
+                                            ptw_pptr_n = {pte.ppn, gptw_pptr_q[20:12], 3'b0};
+                                    end
+                                    G_STAGE: begin
+                                            ptw_pptr_n = {pte.ppn, gpaddr_q[20:12], 3'b0};
+                                    end
+                                endcase
                             end
 
                             state_d = WAIT_GRANT;
@@ -328,6 +453,10 @@ module ptw import ariane_pkg::*; #(
                               // Should already be the last level page table => Error
                               ptw_lvl_n   = LVL3;
                               state_d = PROPAGATE_ERROR;
+                              ptw_stage_d = ptw_stage_q;
+                            end
+                            if (ptw_stage_q == VS_STAGE || pte.ppn[riscv::PPNW:riscv::GPPNW] != '0 ) begin
+                                state_d = PROPAGATE_ERROR;
                             end
                         end
                     end
@@ -338,6 +467,7 @@ module ptw import ariane_pkg::*; #(
                         dtlb_update_o.valid = 1'b0;
                         // we have to return the failed address in bad_addr
                         ptw_pptr_n = ptw_pptr_q;
+                        ptw_stage_d = ptw_stage_q;
                         state_d = PROPAGATE_ACCESS_ERROR;
                     end
                 end
@@ -347,6 +477,7 @@ module ptw import ariane_pkg::*; #(
             PROPAGATE_ERROR: begin
                 state_d     = IDLE;
                 ptw_error_o = 1'b1;
+                ptw_error_at_g_st_o = ptw_stage_q != VS_STAGE ? 1'b1 : 1'b0;
             end
             PROPAGATE_ACCESS_ERROR: begin
                 state_d     = IDLE;
@@ -382,25 +513,35 @@ module ptw import ariane_pkg::*; #(
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (~rst_ni) begin
             state_q            <= IDLE;
+            ptw_stage_q        <= VS_STAGE;
             is_instr_ptw_q     <= 1'b0;
             ptw_lvl_q          <= LVL1;
+            gptw_lvl_n         <= LVL1;
             tag_valid_q        <= 1'b0;
             tlb_update_asid_q  <= '0;
+            tlb_update_vmid_q  <= '0;
             vaddr_q            <= '0;
             ptw_pptr_q         <= '0;
+            gptw_pptr_q        <= '0;
             global_mapping_q   <= 1'b0;
             data_rdata_q       <= '0;
+            gpte_q             <= '0;
             data_rvalid_q      <= 1'b0;
         end else begin
             state_q            <= state_d;
+            ptw_stage_q        <= ptw_stage_d;
             ptw_pptr_q         <= ptw_pptr_n;
+            gptw_pptr_q        <= gptw_pptr_n;
             is_instr_ptw_q     <= is_instr_ptw_n;
             ptw_lvl_q          <= ptw_lvl_n;
+            gptw_lvl_q         <= gptw_lvl_n;
             tag_valid_q        <= tag_valid_n;
             tlb_update_asid_q  <= tlb_update_asid_n;
+            tlb_update_vmid_q  <= tlb_update_vmid_n;
             vaddr_q            <= vaddr_n;
             global_mapping_q   <= global_mapping_n;
             data_rdata_q       <= req_port_i.data_rdata;
+            gpte_q             <= gpte_d;
             data_rvalid_q      <= req_port_i.data_rvalid;
         end
     end
