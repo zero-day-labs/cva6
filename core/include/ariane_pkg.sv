@@ -132,6 +132,7 @@ package ariane_pkg;
     localparam TRANS_ID_BITS = $clog2(NR_SB_ENTRIES); // depending on the number of scoreboard entries we need that many bits
                                                       // to uniquely identify the entry in the scoreboard
     localparam ASID_WIDTH    = (riscv::XLEN == 64) ? 16 : 1;
+    localparam VMID_WIDTH    = (riscv::XLEN == 64) ? 14 : 1;
     localparam BITS_SATURATION_COUNTER = 2;
     localparam NR_COMMIT_PORTS = 2;
 
@@ -315,6 +316,7 @@ package ariane_pkg;
          riscv::xlen_t       cause; // cause of exception
          riscv::xlen_t       tval;  // additional information of causing exception (e.g.: instruction causing it),
                              // address of LD/ST fault
+         riscv::xlen_t       tval2; // additional information when the causing exception in a guest exception
          riscv::xlen_t       tinst;  // transformed instruction information
          logic        valid;
     } exception_t;
@@ -676,7 +678,9 @@ package ariane_pkg;
         logic                  is_1G;      //
         logic [27-1:0]         vpn;        // VPN (39bits) = 27bits + 12bits offset
         logic [ASID_WIDTH-1:0] asid;
+        logic [VMID_WIDTH-1:0] vmid;
         riscv::pte_t           content;
+        riscv::pte_t           guest_content;
     } tlb_update_t;
 
     // Bits required for representation of physical address space as 4K pages
