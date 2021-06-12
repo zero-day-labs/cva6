@@ -61,12 +61,15 @@ module csr_regfile import ariane_pkg::*; #(
     output irq_ctrl_t             irq_ctrl_o,                 // interrupt management to id stage
     // MMU
     output logic                  en_translation_o,           // enable VA translation
+    output logic                  en_g_translation_o,         // enable G-Stage translation
     output logic                  en_ld_st_translation_o,     // enable VA translation for load and stores
     output riscv::priv_lvl_t      ld_st_priv_lvl_o,           // Privilege level at which load and stores should happen
     output logic                  sum_o,
     output logic                  mxr_o,
     output logic[riscv::PPNW-1:0] satp_ppn_o,
-    output logic [AsidWidth-1:0] asid_o,
+    output logic [AsidWidth-1:0]  asid_o,
+    output logic[riscv::PPNW-1:0] hgatp_ppn_o,
+    output logic [VmidWidth-1:0]  vmid_o,
     // external interrupts
     input  logic [1:0]            irq_i,                      // external interrupt in
     input  logic                  ipi_i,                      // inter processor interrupt -> connected to machine mode sw
@@ -1150,7 +1153,7 @@ module csr_regfile import ariane_pkg::*; #(
         if (mprv && riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV && (mstatus_q.mpp != riscv::PRIV_LVL_M))
             en_ld_st_translation_d = 1'b1;
         else // otherwise we go with the regular settings
-            en_ld_st_translation_d = en_translation_o;
+            en_ld_st_translation_d = en_translation_o || en_g_translation_o;
 
         ld_st_priv_lvl_o = (mprv) ? mstatus_q.mpp : priv_lvl_o;
         en_ld_st_translation_o = en_ld_st_translation_q;
@@ -1442,12 +1445,18 @@ module csr_regfile import ariane_pkg::*; #(
     assign frm_o            = fcsr_q.frm;
     assign fprec_o          = fcsr_q.fprec;
     // MMU outputs
-    assign satp_ppn_o       = satp_q.ppn;
+    assign satp_ppn_o       = v_q ? vsatp_q.ppn : satp_q.ppn;
+    assign hgatp_ppn_o      = hgatp_q.ppn;
     assign asid_o           = satp_q.asid[AsidWidth-1:0];
+    assign vmid_o           = hgatp_q.vmid[VmidWidth-1:0];
     assign sum_o            = v_q ? vsstatus_q.sum : mstatus_q.sum;
     // we support bare memory addressing and SV39
-    assign en_translation_o = (riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV &&
+    assign en_translation_o = ((riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV &&
                                priv_lvl_o != riscv::PRIV_LVL_M)
+                              ? 1'b1
+                              : 1'b0) | en_g_translation_o;
+    assign en_g_translation_o = (riscv::vm_mode_t'(hgatp_q.mode) == riscv::MODE_SV &&
+                               priv_lvl_o != riscv::PRIV_LVL_M && v_q)
                               ? 1'b1
                               : 1'b0;
     assign mxr_o            = v_q ? vsstatus_q.mxr : mstatus_q.mxr;
