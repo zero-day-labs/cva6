@@ -273,6 +273,7 @@ module decoder import ariane_pkg::*; (
                             end
                             endcase
                             instruction_o.ex.tinst = {instr.rtype.funct7,instr.rtype.rs2,5'b0,instr.rtype.funct3,instr.rtype.rd,instr.rtype.opcode};
+                            instruction_o.ex.tinst[1] = is_compressed_i ? 1'b1 : 'b0;
                         end
                         // atomically swaps values in the CSR and integer register
                         3'b001: begin// CSRRW
@@ -726,6 +727,7 @@ module decoder import ariane_pkg::*; (
                         default: illegal_instr = 1'b1;
                     endcase
                     instruction_o.ex.tinst = {7'b0,instr.stype.rs2,5'b0,instr.stype.funct3,5'b0,instr.stype.opcode};
+                    instruction_o.ex.tinst[1] = is_compressed_i ? 1'b1 : 'b0;
                 end
 
                 riscv::OpcodeLoad: begin
@@ -746,6 +748,7 @@ module decoder import ariane_pkg::*; (
                         default: illegal_instr = 1'b1;
                     endcase
                     instruction_o.ex.tinst = {17'b0,instr.itype.funct3,instr.itype.rd,instr.itype.opcode};
+                    instruction_o.ex.tinst[1] = is_compressed_i ? 1'b1 : 'b0;
                 end
 
                 // --------------------------------
@@ -771,6 +774,7 @@ module decoder import ariane_pkg::*; (
                             default: illegal_instr = 1'b1;
                         endcase
                         instruction_o.ex.tinst = {7'b0,instr.stype.rs2,5'b0,instr.stype.funct3,5'b0,instr.stype.opcode};
+                        instruction_o.ex.tinst[1] = is_compressed_i ? 1'b1 : 'b0;
                     end else
                         illegal_instr = 1'b1;
                 end
@@ -795,6 +799,7 @@ module decoder import ariane_pkg::*; (
                             default: illegal_instr = 1'b1;
                         endcase
                         instruction_o.ex.tinst = {17'b0,instr.itype.funct3,instr.itype.rd,instr.itype.opcode};
+                        instruction_o.ex.tinst[1] = is_compressed_i ? 1'b1 : 'b0;
                     end else
                         illegal_instr = 1'b1;
                 end
@@ -1056,6 +1061,8 @@ module decoder import ariane_pkg::*; (
                     end else begin
                         illegal_instr = 1'b1;
                     end
+                    instruction_o.ex.tinst = {instr.instr[31:25],instr.atype.rs2,5'b0,instr.stype.funct3,instr.atype.rd,instr.atype.opcode};
+                    instruction_o.ex.tinst[1] = is_compressed_i ? 1'b1 : 1'b0;
                 end
 
                 // --------------------------------
