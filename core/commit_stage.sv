@@ -290,7 +290,7 @@ module commit_stage import ariane_pkg::*; #(
         exception_o.tval2 = '0;
         exception_o.tinst = '0;
         exception_o.gva   = 1'b0;
-        funct = extract_funct(commit_instr_i[0].op);
+
         // we need a valid instruction in the commit stage
         if (commit_instr_i[0].valid) begin
             // ------------------------
@@ -312,16 +312,6 @@ module commit_stage import ariane_pkg::*; #(
             // faults for example
             if (commit_instr_i[0].ex.valid) begin
                 exception_o = commit_instr_i[0].ex;
-                if((commit_instr_i[0].op inside {LB, LBU, LH, LHU, LW, LWU, LD}))
-                  exception_o.tinst = {12'b0,commit_instr_i[0].ex.tinst[19:15],funct,commit_instr_i[0].rd,7'b0000011};
-                if((commit_instr_i[0].op inside {FLW, FLD}))
-                  exception_o.tinst = {12'b0,commit_instr_i[0].ex.tinst[19:15],funct,commit_instr_i[0].rd,7'b0000111};
-                if((commit_instr_i[0].op inside {SB, SH, SW, SD}))
-                  exception_o.tinst = {12'b0,commit_instr_i[0].ex.tinst[19:15],funct,commit_instr_i[0].rd,7'b0100011};
-                if((commit_instr_i[0].op inside {FSW, FSD}))
-                  exception_o.tinst = {12'b0,commit_instr_i[0].ex.tinst[19:15],funct,commit_instr_i[0].rd,7'b0100111};
-                if((commit_instr_i[0].op inside {HLV_B, HLV_BU, HLV_H, HLV_HU, HLVX_HU, HLV_W, HLVX_WU, HSV_B, HSV_H, HSV_W, HLV_WU, HLV_D, HSV_D}))
-                  exception_o.tinst = {{4'b0110,funct},commit_instr_i[0].rs2,commit_instr_i[0].ex.tinst[19:15],3'b100,commit_instr_i[0].rd,7'b1110011};
             end
         end
         // Don't take any exceptions iff:

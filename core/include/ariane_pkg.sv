@@ -890,37 +890,4 @@ package ariane_pkg;
             LB, LBU, HLV_B, HLV_BU, SB, HSV_B, FLB, FSB: return 2'b00;
         endcase
     endfunction
-
-    // ----------------------
-    // Get funct from OP
-    // ----------------------
-    function automatic logic [2:0] extract_funct(fu_op op);
-        case (op)
-            LD, SD, FLD, FSD: begin
-                return 3'b011;
-            end
-            LW, LWU, SW, FLW, FSW, HLV_H, HLV_HU, HLVX_HU: begin
-                return 3'b010;
-            end
-            LH, LHU, SH, HSV_B: return 3'b001;
-            LB, LBU, SB,HLV_B, HLV_BU: return 3'b000;
-            HLV_W, HLVX_WU, HLV_WU: begin
-                return 3'b100;
-            end
-            HSV_W: begin
-                return 3'b101;
-            end
-            HSV_H: begin
-                return 3'b011;
-            end
-            HLV_D: begin
-                return 3'b110;
-            end
-            HSV_D: begin
-                return 3'b111;
-            end
-            default:     return 3'b000;
-        endcase
-    endfunction
-
 endpackage

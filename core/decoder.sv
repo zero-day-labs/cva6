@@ -86,6 +86,7 @@ module decoder import ariane_pkg::*; (
         instruction_o.is_compressed = is_compressed_i;
         instruction_o.use_zimm      = 1'b0;
         instruction_o.bp            = branch_predict_i;
+        instruction_o.ex.tinst      = '0;
         ecall                       = 1'b0;
         ebreak                      = 1'b0;
         check_fprm                  = 1'b0;
@@ -271,6 +272,7 @@ module decoder import ariane_pkg::*; (
                                 instruction_o.op = ariane_pkg::HSV_D;
                             end
                             endcase
+                            instruction_o.ex.tinst = {instr.rtype.funct7,instr.rtype.rs2,5'b0,instr.rtype.funct3,instr.rtype.rd,instr.rtype.opcode};
                         end
                         // atomically swaps values in the CSR and integer register
                         3'b001: begin// CSRRW
@@ -723,6 +725,7 @@ module decoder import ariane_pkg::*; (
                                 else illegal_instr = 1'b1;
                         default: illegal_instr = 1'b1;
                     endcase
+                    instruction_o.ex.tinst = {7'b0,instr.stype.rs2,5'b0,instr.stype.funct3,5'b0,instr.stype.opcode};
                 end
 
                 riscv::OpcodeLoad: begin
@@ -742,6 +745,7 @@ module decoder import ariane_pkg::*; (
                                 else illegal_instr = 1'b1;
                         default: illegal_instr = 1'b1;
                     endcase
+                    instruction_o.ex.tinst = {17'b0,instr.itype.funct3,instr.itype.rd,instr.itype.opcode};
                 end
 
                 // --------------------------------
@@ -766,6 +770,7 @@ module decoder import ariane_pkg::*; (
                                     else illegal_instr = 1'b1;
                             default: illegal_instr = 1'b1;
                         endcase
+                        instruction_o.ex.tinst = {7'b0,instr.stype.rs2,5'b0,instr.stype.funct3,5'b0,instr.stype.opcode};
                     end else
                         illegal_instr = 1'b1;
                 end
@@ -789,6 +794,7 @@ module decoder import ariane_pkg::*; (
                                     else illegal_instr = 1'b1;
                             default: illegal_instr = 1'b1;
                         endcase
+                        instruction_o.ex.tinst = {17'b0,instr.itype.funct3,instr.itype.rd,instr.itype.opcode};
                     end else
                         illegal_instr = 1'b1;
                 end
