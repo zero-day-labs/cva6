@@ -87,12 +87,14 @@ module mmu import ariane_pkg::*; #(
 
     logic        itlb_lu_access;
     riscv::pte_t itlb_content;
+    riscv::pte_t itlb_guest_content;
     logic        itlb_is_2M;
     logic        itlb_is_1G;
     logic        itlb_lu_hit;
 
     logic        dtlb_lu_access;
     riscv::pte_t dtlb_content;
+    riscv::pte_t dtlb_guest_content;
     logic        dtlb_is_2M;
     logic        dtlb_is_1G;
     logic        dtlb_lu_hit;
@@ -105,20 +107,27 @@ module mmu import ariane_pkg::*; #(
 
     tlb #(
         .TLB_ENTRIES      ( INSTR_TLB_ENTRIES          ),
-        .ASID_WIDTH       ( ASID_WIDTH                 )
+        .ASID_WIDTH       ( ASID_WIDTH                 ),
+        .VMID_WIDTH       ( VMID_WIDTH                 )
     ) i_itlb (
         .clk_i            ( clk_i                      ),
         .rst_ni           ( rst_ni                     ),
         .flush_i          ( flush_tlb_i                ),
+        .vs_st_enbl_i     ( enable_translation_i && !enable_g_translation_i ),
+        .g_st_enbl_i      ( enable_g_translation_i ),
+        .v_i              ( v_i ),
 
         .update_i         ( update_ptw_itlb            ),
 
         .lu_access_i      ( itlb_lu_access             ),
         .lu_asid_i        ( asid_i                     ),
+        .lu_vmid_i        ( vmid_i                     ),
         .asid_to_be_flushed_i  ( asid_to_be_flushed_i  ),
+        .vmid_to_be_flushed_i  ( vmid_to_be_flushed_i  ),
         .vaddr_to_be_flushed_i ( vaddr_to_be_flushed_i ),
         .lu_vaddr_i       ( icache_areq_i.fetch_vaddr  ),
         .lu_content_o     ( itlb_content               ),
+        .lu_guest_content_o     ( itlb_guest_content   ),
 
         .lu_is_2M_o       ( itlb_is_2M                 ),
         .lu_is_1G_o       ( itlb_is_1G                 ),
@@ -127,20 +136,27 @@ module mmu import ariane_pkg::*; #(
 
     tlb #(
         .TLB_ENTRIES     ( DATA_TLB_ENTRIES             ),
-        .ASID_WIDTH      ( ASID_WIDTH                   )
+        .ASID_WIDTH      ( ASID_WIDTH                   ),
+        .VMID_WIDTH      ( VMID_WIDTH                   )
     ) i_dtlb (
         .clk_i            ( clk_i                       ),
         .rst_ni           ( rst_ni                      ),
         .flush_i          ( flush_tlb_i                 ),
+        .vs_st_enbl_i     ( enable_translation_i && !enable_g_translation_i ),
+        .g_st_enbl_i      ( enable_g_translation_i ),
+        .v_i              ( v_i ),
 
         .update_i         ( update_ptw_dtlb             ),
 
         .lu_access_i      ( dtlb_lu_access              ),
         .lu_asid_i        ( asid_i                      ),
+        .lu_vmid_i        ( vmid_i                      ),
 	      .asid_to_be_flushed_i  ( asid_to_be_flushed_i   ),
+        .vmid_to_be_flushed_i  ( vmid_to_be_flushed_i   ),
 	      .vaddr_to_be_flushed_i ( vaddr_to_be_flushed_i  ),
         .lu_vaddr_i       ( lsu_vaddr_i                 ),
         .lu_content_o     ( dtlb_content                ),
+        .lu_guest_content_o    ( dtlb_guest_content     ),
 
         .lu_is_2M_o       ( dtlb_is_2M                  ),
         .lu_is_1G_o       ( dtlb_is_1G                  ),
