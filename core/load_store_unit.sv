@@ -23,6 +23,7 @@ module load_store_unit import ariane_pkg::*; #(
     input  logic                     flush_i,
     output logic                     no_st_pending_o,
     input  logic                     amo_valid_commit_i,
+    input  riscv::xlen_t             trans_instr_i,
 
     input  fu_data_t                 fu_data_i,
     output logic                     lsu_ready_o,              // FU is ready e.g. not busy
