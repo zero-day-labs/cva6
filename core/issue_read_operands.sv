@@ -44,6 +44,7 @@ module issue_read_operands import ariane_pkg::*; #(
     output logic [riscv::VLEN-1:0]                 rs2_forwarding_o,  // unregistered version of fu_data_o.operandb
     output logic [riscv::VLEN-1:0]                 pc_o,
     output logic                                   is_compressed_instr_o,
+    output riscv::xlen_t                           trans_instr_o,
     // ALU 1
     input  logic                                   flu_ready_i,      // Fixed latency unit ready to accept a new request
     output logic                                   alu_valid_o,      // Output is valid
@@ -120,6 +121,8 @@ module issue_read_operands import ariane_pkg::*; #(
     assign fpu_valid_o         = fpu_valid_q;
     assign fpu_fmt_o           = fpu_fmt_q;
     assign fpu_rm_o            = fpu_rm_q;
+
+    assign trans_instr_o = issue_instr_i.ex.tinst;
     // ---------------
     // Issue Stage
     // ---------------
