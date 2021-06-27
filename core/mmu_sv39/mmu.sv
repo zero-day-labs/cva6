@@ -281,7 +281,13 @@ module mmu import ariane_pkg::*; #(
             // watch out for exceptions happening during walking the page table
             if (ptw_active && walking_instr) begin
                 icache_areq_o.fetch_valid = ptw_error | ptw_access_exception;
-                if (ptw_error) icache_areq_o.fetch_exception = {riscv::INSTR_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{1'b0}}, update_vaddr}, {riscv::XLEN{1'b0}}, 1'b1};
+                if (ptw_error) begin
+                    if (ptw_error_at_g_st) begin
+                        icache_areq_o.fetch_exception = {riscv::INSTR_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{1'b0}}, update_vaddr}, {riscv::XLEN{1'b0}}, 1'b1};
+                    end else begin
+                        icache_areq_o.fetch_exception = {riscv::INSTR_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{1'b0}}, update_vaddr}, {riscv::XLEN{1'b0}}, 1'b1};
+                    end
+                end
                 // TODO(moschn,zarubaf): What should the value of tval be in this case?
                 else icache_areq_o.fetch_exception = {riscv::INSTR_ACCESS_FAULT, {{riscv::XLEN-riscv::VLEN{1'b0}}, ptw_bad_paddr}, {riscv::XLEN{1'b0}}, 1'b1};
             end
@@ -317,6 +323,7 @@ module mmu import ariane_pkg::*; #(
     //-----------------------
     logic [riscv::VLEN-1:0] lsu_vaddr_n,     lsu_vaddr_q;
     riscv::pte_t dtlb_pte_n,      dtlb_pte_q;
+    riscv::pte_t dtlb_guest_pte_n,      dtlb_guest_pte_q;
     exception_t  misaligned_ex_n, misaligned_ex_q;
     logic        lsu_req_n,       lsu_req_q;
     logic        lsu_is_store_n,  lsu_is_store_q;
@@ -338,6 +345,7 @@ module mmu import ariane_pkg::*; #(
         lsu_req_n             = lsu_req_i;
         misaligned_ex_n       = misaligned_ex_i;
         dtlb_pte_n            = dtlb_content;
+        dtlb_guest_pte_n      = dtlb_guest_content;
         dtlb_hit_n            = dtlb_lu_hit;
         lsu_is_store_n        = lsu_is_store_i;
         dtlb_is_2M_n          = dtlb_is_2M;
@@ -386,7 +394,11 @@ module mmu import ariane_pkg::*; #(
                 if (lsu_is_store_q) begin
                     // check if the page is write-able and we are not violating privileges
                     // also check if the dirty flag is set
-                    if (!dtlb_pte_q.w || daccess_err || !dtlb_pte_q.d) begin
+                    if((enable_g_translation_i && enable_translation_i) && (!(dtlb_pte_q.w || !dtlb_pte_q.d)))
+                        lsu_exception_o = {riscv::STORE_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, 1'b1};
+                    else if (v_i && (!dtlb_guest_pte_q.w || daccess_err || !dtlb_guest_pte_q.d)) begin
+                        lsu_exception_o = {riscv::STORE_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, 1'b1};
+                    end else if (!v_i && (!dtlb_pte_q.w || daccess_err || !dtlb_pte_q.d)) begin
                         lsu_exception_o = {riscv::STORE_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, 1'b1};
                     // Check if any PMPs are violated
                     end else if (!pmp_data_allow) begin
@@ -416,7 +428,11 @@ module mmu import ariane_pkg::*; #(
                     lsu_valid_o = 1'b1;
                     // the page table walker can only throw page faults
                     if (lsu_is_store_q) begin
-                        lsu_exception_o = {riscv::STORE_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {riscv::XLEN{1'b0}}, 1'b1};
+                        if(ptw_error_at_g_st) begin
+                            lsu_exception_o = {riscv::STORE_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {riscv::XLEN{1'b0}}, 1'b1};
+                        end else begin
+                            lsu_exception_o = {riscv::STORE_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {riscv::XLEN{1'b0}}, 1'b1};
+                        end
                     end else begin
                         lsu_exception_o = {riscv::LOAD_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {riscv::XLEN{1'b0}}, 1'b1};
                     end
@@ -464,6 +480,7 @@ module mmu import ariane_pkg::*; #(
             lsu_req_q        <= '0;
             misaligned_ex_q  <= '0;
             dtlb_pte_q       <= '0;
+            dtlb_guest_pte_q <= '0;
             dtlb_hit_q       <= '0;
             lsu_is_store_q   <= '0;
             dtlb_is_2M_q     <= '0;
@@ -473,6 +490,7 @@ module mmu import ariane_pkg::*; #(
             lsu_req_q        <=  lsu_req_n;
             misaligned_ex_q  <=  misaligned_ex_n;
             dtlb_pte_q       <=  dtlb_pte_n;
+            dtlb_guest_pte_q <=  dtlb_guest_pte_n;
             dtlb_hit_q       <=  dtlb_hit_n;
             lsu_is_store_q   <=  lsu_is_store_n;
             dtlb_is_2M_q     <=  dtlb_is_2M_n;
