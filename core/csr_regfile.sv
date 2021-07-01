@@ -970,6 +970,7 @@ module csr_regfile import ariane_pkg::*; #(
         // update exception CSRs
         // we got an exception update cause, pc and stval register
         trap_to_priv_lvl = riscv::PRIV_LVL_M;
+        trap_to_v        = 1'b0;
         // Exception is taken and we are not in debug mode
         // exceptions in debug mode don't update any fields
         if (!debug_mode_q && ex_i.cause != riscv::DEBUG_REQUEST && ex_i.valid) begin
