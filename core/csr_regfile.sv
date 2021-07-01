@@ -151,6 +151,7 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::xlen_t mcause_q,    mcause_d;
     riscv::xlen_t mtval_q,     mtval_d;
     riscv::xlen_t mtinst_q,    mtinst_d;
+    riscv::xlen_t mtval2_q,    mtval2_d;
 
     riscv::xlen_t stvec_q,     stvec_d;
     riscv::xlen_t scounteren_q,scounteren_d;
@@ -162,6 +163,7 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::xlen_t hideleg_q,   hideleg_d;
     riscv::xlen_t hcounteren_q,hcounteren_d;
     riscv::xlen_t hgeie_q,     hgeie_d;
+    riscv::xlen_t htval_q,     htval_d;
     riscv::xlen_t htinst_q,    htinst_d;
 
     riscv::xlen_t vstvec_q,    vstvec_d;
@@ -331,6 +333,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_HIP:                csr_rdata = mip_q & HS_DELEG_INTERRUPTS;
                 riscv::CSR_HVIP:               csr_rdata = mip_q & VS_DELEG_INTERRUPTS;
                 riscv::CSR_HCOUNTEREN:         csr_rdata = hcounteren_q;
+                riscv::CSR_HTVAL:              csr_rdata = htval_q;
                 riscv::CSR_HTINST:             csr_rdata = htinst_q;
                 riscv::CSR_HGEIE:;             //TODO: implement hgeie
                 riscv::CSR_HGEIP:;             //TODO: implement hgeip
@@ -363,6 +366,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MCYCLE:             csr_rdata = cycle_q;
                 riscv::CSR_MINSTRET:           csr_rdata = instret_q;
                 riscv::CSR_MTINST:             csr_rdata = mtinst_q;
+                riscv::CSR_MTVAL2:             csr_rdata = mtval2_q;
                 // Counters and Timers
                 riscv::CSR_CYCLE:              csr_rdata = cycle_q;
                 riscv::CSR_INSTRET:            csr_rdata = instret_q;
@@ -504,6 +508,7 @@ module csr_regfile import ariane_pkg::*; #(
         mscratch_d              = mscratch_q;
         mtval_d                 = mtval_q;
         mtinst_d                = mtinst_q;
+        mtval2_d                = mtval2_q;
         dcache_d                = dcache_q;
         icache_d                = icache_q;
 
@@ -526,6 +531,7 @@ module csr_regfile import ariane_pkg::*; #(
         hgeie_d                 = hgeie_q;
         hgatp_d                 = hgatp_q;
         hcounteren_d            = hcounteren_q;
+        htval_d                 = htval_q;
         htinst_d                = htinst_q;
 
         en_ld_st_translation_d  = en_ld_st_translation_q;
@@ -769,6 +775,7 @@ module csr_regfile import ariane_pkg::*; #(
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                 end
                 riscv::CSR_HCOUNTEREN:         hcounteren_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
+                riscv::CSR_HTVAL:              htval_d = csr_wdata;
                 riscv::CSR_HTINST:             htinst_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
                 riscv::CSR_HGEIE:; //TODO: implement htinst write
                 riscv::CSR_HGATP: begin
@@ -847,7 +854,8 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MEPC:               mepc_d      = {csr_wdata[riscv::XLEN-1:1], 1'b0};
                 riscv::CSR_MCAUSE:             mcause_d    = csr_wdata;
                 riscv::CSR_MTVAL:              mtval_d     = csr_wdata;
-                riscv::CSR_MTINST:             mtinst_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
+                riscv::CSR_MTINST:             mtinst_d    = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
+                riscv::CSR_MTVAL2:             mtval2_d    = csr_wdata;
                 riscv::CSR_MIP: begin
                     mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | VS_DELEG_INTERRUPTS;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
@@ -1568,6 +1576,7 @@ module csr_regfile import ariane_pkg::*; #(
             hgeie_q                <= {riscv::XLEN{1'b0}};
             hgatp_q                <= {riscv::XLEN{1'b0}};
             hcounteren_q           <= {riscv::XLEN{1'b0}};
+            htval_q                <= {riscv::XLEN{1'b0}};
             htinst_q               <= {riscv::XLEN{1'b0}};
             // virtual supervisor mode registers
             vsstatus_q              <= 64'b0;
@@ -1630,6 +1639,7 @@ module csr_regfile import ariane_pkg::*; #(
             hgeie_q                <= hgeie_d;
             hgatp_q                <= hgatp_d;
             hcounteren_q           <= hcounteren_d;
+            htval_q                <= htval_d;
             htinst_q               <= htinst_d;
             // virtual supervisor mode registers
             vsstatus_q              <= vsstatus_d;
