@@ -34,12 +34,14 @@ module tlb import ariane_pkg::*; #(
     input  logic [VMID_WIDTH-1:0]   lu_vmid_i,
     input  logic [riscv::VLEN-1:0]  lu_vaddr_i,
     output riscv::pte_t             lu_content_o,
-    output riscv::pte_t             lu_guest_content_o,
+    output riscv::pte_t             lu_g_content_o,
     input  logic [ASID_WIDTH-1:0]   asid_to_be_flushed_i,
     input  logic [VMID_WIDTH-1:0]   vmid_to_be_flushed_i,
     input  logic [riscv::VLEN-1:0]  vaddr_to_be_flushed_i,
     output logic                    lu_is_2M_o,
     output logic                    lu_is_1G_o,
+    output logic                    lu_is_g_2M_o,
+    output logic                    lu_is_g_1G_o,
     output logic                    lu_hit_o
 );
 
@@ -52,6 +54,8 @@ module tlb import ariane_pkg::*; #(
       logic [8:0]            vpn0;
       logic                  is_2M;
       logic                  is_1G;
+      logic                  is_g_2M;
+      logic                  is_g_1G;
       logic                  vs_st_enbl;  // vs-stage translation
       logic                  g_st_enbl;   // g-stage translation
       logic                  v;           // virtualization mode
@@ -82,7 +86,7 @@ module tlb import ariane_pkg::*; #(
         lu_hit       = '{default: 0};
         lu_hit_o     = 1'b0;
         lu_content_o = '{default: 0};
-        lu_guest_content_o = '{default: 0};
+        lu_g_content_o = '{default: 0};
         lu_is_1G_o   = 1'b0;
         lu_is_2M_o   = 1'b0;
 
@@ -95,20 +99,22 @@ module tlb import ariane_pkg::*; #(
             match_stage = tags_q[i].g_st_enbl ==  g_st_enbl_i && tags_q[i].vs_st_enbl ==  vs_st_enbl_i && tags_q[i].v == v_i;
             if (tags_q[i].valid && match_asid && vpn2 == tags_q[i].vpn2 && match_stage) begin
                 // second level
-                if (tags_q[i].is_1G) begin
-                    lu_is_1G_o = 1'b1;
+                if ((tags_q[i].is_1G && vs_st_enbl_i) || (tags_q[i].is_g_1G && !vs_st_enbl_i)) begin
+                    lu_is_1G_o = tags_q[i].is_1G;
+                    lu_is_g_1G_o = tags_q[i].is_g_1G;
                     lu_content_o = content_q[i].pte;
-                    lu_guest_content_o = content_q[i].gpte;
+                    lu_g_content_o = content_q[i].gpte;
                     lu_hit_o   = 1'b1;
                     lu_hit[i]  = 1'b1;
                 // not a giga page hit so check further
                 end else if (vpn1 == tags_q[i].vpn1) begin
                     // this could be a 2 mega page hit or a 4 kB hit
                     // output accordingly
-                    if (tags_q[i].is_2M || vpn0 == tags_q[i].vpn0) begin
+                    if (((tags_q[i].is_2M && vs_st_enbl_i) || (tags_q[i].is_g_2M && !vs_st_enbl_i)) || vpn0 == tags_q[i].vpn0) begin
                         lu_is_2M_o   = tags_q[i].is_2M;
+                        lu_is_g_2M_o = tags_q[i].is_g_2M;
                         lu_content_o = content_q[i].pte;
-                        lu_guest_content_o = content_q[i].gpte;
+                        lu_g_content_o = content_q[i].gpte;
                         lu_hit_o     = 1'b1;
                         lu_hit[i]    = 1'b1;
                     end
@@ -171,11 +177,13 @@ module tlb import ariane_pkg::*; #(
                     v:     v_i,
                     is_1G: update_i.is_1G,
                     is_2M: update_i.is_2M,
+                    is_g_1G: update_i.is_g_1G,
+                    is_g_2M: update_i.is_g_2M,
                     valid: 1'b1
                 };
                 // and content as well
                 content_n[i].pte  = update_i.content;
-                content_n[i].gpte = update_i.guest_content;
+                content_n[i].gpte = update_i.g_content;
             end
         end
     end
