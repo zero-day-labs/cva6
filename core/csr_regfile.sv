@@ -1451,10 +1451,10 @@ module csr_regfile import ariane_pkg::*; #(
     assign vmid_o           = hgatp_q.vmid[VmidWidth-1:0];
     assign sum_o            = v_q ? vsstatus_q.sum : mstatus_q.sum;
     // we support bare memory addressing and SV39
-    assign en_translation_o = ((riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV &&
+    assign en_translation_o = ((((riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV && !v_q) || (riscv::vm_mode_t'(vsatp_q.mode) == riscv::MODE_SV && v_q))&&
                                priv_lvl_o != riscv::PRIV_LVL_M)
                               ? 1'b1
-                              : 1'b0) | en_g_translation_o;
+                              : 1'b0);
     assign en_g_translation_o = (riscv::vm_mode_t'(hgatp_q.mode) == riscv::MODE_SV &&
                                priv_lvl_o != riscv::PRIV_LVL_M && v_q)
                               ? 1'b1
