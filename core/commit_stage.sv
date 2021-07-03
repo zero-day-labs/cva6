@@ -259,6 +259,7 @@ module commit_stage import ariane_pkg::*; #(
         exception_o.valid = 1'b0;
         exception_o.cause = '0;
         exception_o.tval  = '0;
+        exception_o.tval2  = '0;
         exception_o.tinst = '0;
         funct = extract_funct(commit_instr_i[0].op);
         // we need a valid instruction in the commit stage
@@ -272,6 +273,7 @@ module commit_stage import ariane_pkg::*; #(
                 // the instruction bits from the ID stage. If a earlier exception happened we don't care
                 // as we will overwrite it anyway in the next IF bl
                 exception_o.tval = commit_instr_i[0].ex.tval;
+                exception_o.tval2 = commit_instr_i[0].ex.tval2;
             end
             // ------------------------
             // Earlier Exceptions

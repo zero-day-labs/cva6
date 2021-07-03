@@ -692,7 +692,8 @@ package ariane_pkg;
     typedef enum logic [1:0] {
       FE_NONE,
       FE_INSTR_ACCESS_FAULT,
-      FE_INSTR_PAGE_FAULT
+      FE_INSTR_PAGE_FAULT,
+      FE_INSTR_GUEST_PAGE_FAULT
     } frontend_exception_t;
 
     // ----------------------
