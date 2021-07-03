@@ -73,7 +73,9 @@ module mmu import ariane_pkg::*; #(
 );
 
     logic                   iaccess_err;   // insufficient privilege to access this instruction page
+    logic                   i_g_st_access_err;   // insufficient privilege at g stage to access this instruction page
     logic                   daccess_err;   // insufficient privilege to access this data page
+    logic                   d_g_st_access_err;   // insufficient privilege to access this data page
     logic                   ptw_active;    // PTW is currently walking a page table
     logic                   walking_instr; // PTW is walking because of an ITLB miss
     logic                   ptw_error;     // PTW threw an exception
@@ -87,7 +89,6 @@ module mmu import ariane_pkg::*; #(
 
     logic        itlb_lu_access;
     riscv::pte_t itlb_content;
-    riscv::pte_t itlb_guest_content;
     logic        itlb_is_2M;
     logic        itlb_is_1G;
     // data from G-stage translation
@@ -98,7 +99,6 @@ module mmu import ariane_pkg::*; #(
 
     logic        dtlb_lu_access;
     riscv::pte_t dtlb_content;
-    riscv::pte_t dtlb_guest_content;
     logic        dtlb_is_2M;
     logic        dtlb_is_1G;
     // data from G-stage translation
@@ -247,14 +247,15 @@ module mmu import ariane_pkg::*; #(
         // 2. We got an access error because of insufficient permissions -> throw an access exception
         icache_areq_o.fetch_exception      = '0;
         // Check whether we are allowed to access this memory region from a fetch perspective
-        iaccess_err   = icache_areq_i.fetch_req && (((priv_lvl_i == riscv::PRIV_LVL_U) && ~itlb_content.u)
-                                                 || ((priv_lvl_i == riscv::PRIV_LVL_S) && itlb_content.u));
+        iaccess_err   = icache_areq_i.fetch_req && enable_translation_i && (((priv_lvl_i == riscv::PRIV_LVL_U) && ~itlb_content.u)
+                                                    || ((priv_lvl_i == riscv::PRIV_LVL_S) && itlb_content.u));
 
+        i_g_st_access_err = icache_areq_i.fetch_req && enable_g_translation_i && !itlb_g_content.u;
         // MMU enabled: address from TLB, request delayed until hit. Error when TLB
         // hit and no access right or TLB hit and translated address not valid (e.g.
         // AXI decode error), or when PTW performs walk due to ITLB miss and raises
         // an error.
-        if (enable_translation_i) begin
+        if ((enable_translation_i || enable_g_translation_i)) begin
             // we work with SV39 or SV32, so if VM is enabled, check that all bits [riscv::VLEN-1:riscv::SV-1] are equal
             if (icache_areq_i.fetch_req && !((&icache_areq_i.fetch_vaddr[riscv::VLEN-1:riscv::SV-1]) == 1'b1 || (|icache_areq_i.fetch_vaddr[riscv::VLEN-1:riscv::SV-1]) == 1'b0)) begin
                 icache_areq_o.fetch_exception = {riscv::INSTR_ACCESS_FAULT, {{riscv::XLEN-riscv::VLEN{1'b0}}, icache_areq_i.fetch_vaddr}, {{riscv::XLEN{1'b0}}}, 1'b1};
@@ -335,7 +336,7 @@ module mmu import ariane_pkg::*; #(
     //-----------------------
     logic [riscv::VLEN-1:0] lsu_vaddr_n,     lsu_vaddr_q;
     riscv::pte_t dtlb_pte_n,      dtlb_pte_q;
-    riscv::pte_t dtlb_guest_pte_n,      dtlb_guest_pte_q;
+    riscv::pte_t dtlb_gpte_n,     dtlb_gpte_q;
     exception_t  misaligned_ex_n, misaligned_ex_q;
     logic        lsu_req_n,       lsu_req_q;
     logic        lsu_is_store_n,  lsu_is_store_q;
@@ -357,7 +358,7 @@ module mmu import ariane_pkg::*; #(
         lsu_req_n             = lsu_req_i;
         misaligned_ex_n       = misaligned_ex_i;
         dtlb_pte_n            = dtlb_content;
-        dtlb_guest_pte_n      = dtlb_guest_content;
+        dtlb_gpte_n           = dtlb_g_content;
         dtlb_hit_n            = dtlb_lu_hit;
         lsu_is_store_n        = lsu_is_store_i;
         dtlb_is_2M_n          = dtlb_is_2M;
@@ -374,8 +375,10 @@ module mmu import ariane_pkg::*; #(
 
         // Check if the User flag is set, then we may only access it in supervisor mode
         // if SUM is enabled
-        daccess_err = (ld_st_priv_lvl_i == riscv::PRIV_LVL_S && !sum_i && dtlb_pte_q.u) || // SUM is not set and we are trying to access a user page in supervisor mode
-                      (ld_st_priv_lvl_i == riscv::PRIV_LVL_U && !dtlb_pte_q.u);            // this is not a user page but we are in user mode and trying to access it
+        daccess_err = enable_translation_i &&
+                        ((ld_st_priv_lvl_i == riscv::PRIV_LVL_S && !sum_i && dtlb_pte_q.u) || // SUM is not set and we are trying to access a user page in supervisor mode
+                        (ld_st_priv_lvl_i == riscv::PRIV_LVL_U && !dtlb_pte_q.u));
+         d_g_st_access_err = enable_g_translation_i && !dtlb_gpte_q.u;
         // translation is enabled and no misaligned exception occurred
         if (en_ld_st_translation_i && !misaligned_ex_q.valid) begin
             lsu_valid_o = 1'b0;
