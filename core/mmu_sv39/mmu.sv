@@ -239,6 +239,7 @@ module mmu import ariane_pkg::*; #(
 
     // The instruction interface is a simple request response interface
     always_comb begin : instr_interface
+        automatic logic [riscv::PLEN-1:0] i_gpaddr;
         // MMU disabled: just pass through
         icache_areq_o.fetch_valid  = icache_areq_i.fetch_req;
         icache_areq_o.fetch_paddr  = icache_areq_i.fetch_vaddr[riscv::PLEN-1:0]; // play through in case we disabled address translation
@@ -251,6 +252,7 @@ module mmu import ariane_pkg::*; #(
                                                     || ((priv_lvl_i == riscv::PRIV_LVL_S) && itlb_content.u));
 
         i_g_st_access_err = icache_areq_i.fetch_req && enable_g_translation_i && !itlb_g_content.u;
+        i_gpaddr = icache_areq_i.fetch_vaddr[riscv::PLEN-1:0];
         // MMU enabled: address from TLB, request delayed until hit. Error when TLB
         // hit and no access right or TLB hit and translated address not valid (e.g.
         // AXI decode error), or when PTW performs walk due to ITLB miss and raises
@@ -263,17 +265,32 @@ module mmu import ariane_pkg::*; #(
 
             icache_areq_o.fetch_valid = 1'b0;
 
-            // 4K page
-            icache_areq_o.fetch_paddr = {itlb_content.ppn, icache_areq_i.fetch_vaddr[11:0]};
-            // Mega page
-            if (itlb_is_2M) begin
-                icache_areq_o.fetch_paddr[20:12] = icache_areq_i.fetch_vaddr[20:12];
+            if(enable_translation_i) begin
+                // 4K page
+                i_gpaddr = {itlb_content.ppn, icache_areq_i.fetch_vaddr[11:0]};
+                // Mega page
+                if (itlb_is_2M) begin
+                    i_gpaddr[20:12] = icache_areq_i.fetch_vaddr[20:12];
+                end
+                // Giga page
+                if (itlb_is_1G) begin
+                    i_gpaddr[29:12] = icache_areq_i.fetch_vaddr[29:12];
+                end
             end
-            // Giga page
-            if (itlb_is_1G) begin
-                icache_areq_o.fetch_paddr[29:12] = icache_areq_i.fetch_vaddr[29:12];
+              if(enable_g_translation_i) begin
+                // 4K page
+                icache_areq_o.fetch_paddr = {itlb_g_content.ppn, icache_areq_i.fetch_vaddr[11:0]};
+                // Mega page
+                if (itlb_is_g_2M) begin
+                    icache_areq_o.fetch_paddr[20:12] = i_gpaddr[20:12];
+                end
+                // Giga page
+                if (itlb_is_g_1G) begin
+                    icache_areq_o.fetch_paddr[29:12] = i_gpaddr[29:12];
+                end
+            end else begin
+                icache_areq_o.fetch_paddr = i_gpaddr;
             end
-
             // ---------
             // ITLB Hit
             // --------
@@ -343,6 +360,8 @@ module mmu import ariane_pkg::*; #(
     logic        dtlb_hit_n,      dtlb_hit_q;
     logic        dtlb_is_2M_n,    dtlb_is_2M_q;
     logic        dtlb_is_1G_n,    dtlb_is_1G_q;
+    logic        dtlb_is_g_2M_n,  dtlb_is_g_2M_q;
+    logic        dtlb_is_g_1G_n,  dtlb_is_g_1G_q;
 
     // check if we need to do translation or if we are always ready (e.g.: we are not translating anything)
     assign lsu_dtlb_hit_o = (en_ld_st_translation_i) ? dtlb_lu_hit :  1'b1;
@@ -353,8 +372,11 @@ module mmu import ariane_pkg::*; #(
     localparam   PPNWMin = (riscv::PPNW-1 > 29) ? 29 : riscv::PPNW-1;
     // The data interface is simpler and only consists of a request/response interface
     always_comb begin : data_interface
+        automatic logic [riscv::PLEN-1:0] d_gpaddr;
+        automatic logic [riscv::PLEN-1:0] lsu_gpaddr;
         // save request and DTLB response
         lsu_vaddr_n           = lsu_vaddr_i;
+        lsu_gpaddr            = lsu_vaddr_i;
         lsu_req_n             = lsu_req_i;
         misaligned_ex_n       = misaligned_ex_i;
         dtlb_pte_n            = dtlb_content;
@@ -363,6 +385,9 @@ module mmu import ariane_pkg::*; #(
         lsu_is_store_n        = lsu_is_store_i;
         dtlb_is_2M_n          = dtlb_is_2M;
         dtlb_is_1G_n          = dtlb_is_1G;
+        dtlb_is_g_2M_n        = dtlb_is_g_2M;
+        dtlb_is_g_1G_n        = dtlb_is_g_1G;
+        d_gpaddr              = lsu_vaddr_q[riscv::PLEN-1:0];
 
         lsu_paddr_o           = lsu_vaddr_q[riscv::PLEN-1:0];
         lsu_dtlb_ppn_o        = lsu_vaddr_n[riscv::PLEN-1:12];
@@ -382,18 +407,41 @@ module mmu import ariane_pkg::*; #(
         // translation is enabled and no misaligned exception occurred
         if (en_ld_st_translation_i && !misaligned_ex_q.valid) begin
             lsu_valid_o = 1'b0;
-            // 4K page
-            lsu_paddr_o = {dtlb_pte_q.ppn, lsu_vaddr_q[11:0]};
-            lsu_dtlb_ppn_o = dtlb_content.ppn;
-            // Mega page
-            if (dtlb_is_2M_q) begin
-              lsu_paddr_o[20:12] = lsu_vaddr_q[20:12];
-              lsu_dtlb_ppn_o[20:12] = lsu_vaddr_n[20:12];
+          if(enable_translation_i) begin
+              // 4K page
+              d_gpaddr = {dtlb_pte_q.ppn, lsu_vaddr_q[11:0]};
+              lsu_gpaddr = {dtlb_pte_n.ppn, lsu_vaddr_i[11:0]};
+              lsu_dtlb_ppn_o = dtlb_content.ppn;
+              // Mega page
+              if (dtlb_is_2M_q) begin
+                  d_gpaddr[20:12] = lsu_vaddr_q[20:12];
+                  lsu_gpaddr[20:12] = lsu_vaddr_n[20:12];
+                  lsu_dtlb_ppn_o[20:12] = lsu_vaddr_n[20:12];
+                end
+              // Giga page
+              if (dtlb_is_1G_q) begin
+                  d_gpaddr[29:12] = lsu_vaddr_q[29:12];
+                  lsu_gpaddr[29:12] = lsu_vaddr_n[29:12];
+                  lsu_dtlb_ppn_o[PPNWMin:12] = lsu_vaddr_n[PPNWMin:12];
+                end
             end
-            // Giga page
-            if (dtlb_is_1G_q) begin
-                lsu_paddr_o[PPNWMin:12] = lsu_vaddr_q[PPNWMin:12];
-                lsu_dtlb_ppn_o[PPNWMin:12] = lsu_vaddr_n[PPNWMin:12];
+
+          if(enable_g_translation_i) begin
+              // 4K page
+              lsu_paddr_o = {dtlb_gpte_q.ppn, d_gpaddr[11:0]};
+              lsu_dtlb_ppn_o = dtlb_g_content.ppn;
+              // Mega page
+              if (dtlb_is_g_2M_q) begin
+                    lsu_paddr_o[20:12]    = d_gpaddr[20:12];
+                    lsu_dtlb_ppn_o[20:12] =  lsu_gpaddr[20:12];
+                  end
+              // Giga page
+              if (dtlb_is_g_1G_q) begin
+                    lsu_paddr_o[PPNWMin:12]    = d_gpaddr[PPNWMin:12];
+                    lsu_dtlb_ppn_o[PPNWMin:12] =  lsu_gpaddr[PPNWMin:12];
+                  end
+            end else begin
+              lsu_paddr_o    = d_gpaddr[riscv::PLEN-1:0];
             end
             // ---------
             // DTLB Hit
@@ -495,21 +543,25 @@ module mmu import ariane_pkg::*; #(
             lsu_req_q        <= '0;
             misaligned_ex_q  <= '0;
             dtlb_pte_q       <= '0;
-            dtlb_guest_pte_q <= '0;
+            dtlb_gpte_q      <= '0;
             dtlb_hit_q       <= '0;
             lsu_is_store_q   <= '0;
             dtlb_is_2M_q     <= '0;
             dtlb_is_1G_q     <= '0;
+            dtlb_is_g_2M_q   <= '0;
+            dtlb_is_g_1G_q   <= '0;
         end else begin
             lsu_vaddr_q      <=  lsu_vaddr_n;
             lsu_req_q        <=  lsu_req_n;
             misaligned_ex_q  <=  misaligned_ex_n;
             dtlb_pte_q       <=  dtlb_pte_n;
-            dtlb_guest_pte_q <=  dtlb_guest_pte_n;
+            dtlb_gpte_q      <=  dtlb_gpte_n;
             dtlb_hit_q       <=  dtlb_hit_n;
             lsu_is_store_q   <=  lsu_is_store_n;
             dtlb_is_2M_q     <=  dtlb_is_2M_n;
             dtlb_is_1G_q     <=  dtlb_is_1G_n;
+            dtlb_is_g_2M_q   <=  dtlb_is_g_2M_n;
+            dtlb_is_g_1G_q   <=  dtlb_is_g_1G_n;
         end
     end
 endmodule
