@@ -163,7 +163,7 @@ package ariane_pkg;
     localparam bit RVD = riscv::IS_XLEN64; // Is D extension enabled
 `else
     // Floating-point extensions configuration
-    localparam bit RVF = (riscv::IS_XLEN64 | riscv::IS_XLEN32) & riscv::FPU_EN; // Is F extension enabled for both 32 Bit and 64 bit CPU  
+    localparam bit RVF = (riscv::IS_XLEN64 | riscv::IS_XLEN32) & riscv::FPU_EN; // Is F extension enabled for both 32 Bit and 64 bit CPU
     localparam bit RVD = (riscv::IS_XLEN64 ? 1:0) & riscv::FPU_EN;              // Is D extension enabled for only 64 bit CPU
 `endif
     localparam bit RVA = 1'b1; // Is A extension enabled
@@ -668,11 +668,13 @@ package ariane_pkg;
         logic                  valid;      // valid flag
         logic                  is_2M;      //
         logic                  is_1G;      //
-        logic [27-1:0]         vpn;        // VPN (39bits) = 27bits + 12bits offset
+        logic                  is_g_2M;
+        logic                  is_g_1G;
+        logic [26:0]           vpn;
         logic [ASID_WIDTH-1:0] asid;
         logic [VMID_WIDTH-1:0] vmid;
         riscv::pte_t           content;
-        riscv::pte_t           guest_content;
+        riscv::pte_t           g_content;
     } tlb_update_t;
 
     // Bits required for representation of physical address space as 4K pages

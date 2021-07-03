@@ -227,6 +227,8 @@ module ptw import ariane_pkg::*; #(
         tlb_update_asid_n     = tlb_update_asid_q;
         tlb_update_vmid_n     = tlb_update_vmid_q;
         vaddr_n               = vaddr_q;
+        gpaddr_n              = gpaddr_q;
+        pptr                  = ptw_pptr_q;
 
         itlb_miss_o           = 1'b0;
         dtlb_miss_o           = 1'b0;
@@ -239,8 +241,10 @@ module ptw import ariane_pkg::*; #(
                 gptw_lvl_n       = LVL1;
                 global_mapping_n = 1'b0;
                 is_instr_ptw_n   = 1'b0;
+                gpaddr_n         = '0;
+                gpte_d           = '0;
                 // if we got an ITLB miss
-                if (enable_translation_i & itlb_access_i & ~itlb_hit_i & ~dtlb_access_i) begin
+                if ((enable_translation_i | enable_g_translation_i) & itlb_access_i & ~itlb_hit_i & ~dtlb_access_i) begin
                     if (enable_translation_i && enable_g_translation_i) begin
                         ptw_stage_d = VS_INTERMED_STAGE;
                         pptr = {satp_ppn_i, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
@@ -248,6 +252,7 @@ module ptw import ariane_pkg::*; #(
                         ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], pptr[riscv::SVX-1:30], 3'b0};
                     end else if (!enable_translation_i && enable_g_translation_i) begin
                         ptw_stage_d = G_STAGE;
+                        gpaddr_n = {{2{itlb_vaddr_i[riscv::SV-1]}}, itlb_vaddr_i};
                         ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], {2{itlb_vaddr_i[riscv::SV-1]}}, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
                     end else if (enable_translation_i && !enable_g_translation_i) begin
                         ptw_stage_d = VS_STAGE;
@@ -267,7 +272,8 @@ module ptw import ariane_pkg::*; #(
                         ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], pptr[riscv::SVX-1:30], 3'b0};
                     end else if (!enable_translation_i && enable_g_translation_i) begin
                         ptw_stage_d = G_STAGE;
-                        ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], {2{itlb_vaddr_i[riscv::SV-1]}}, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                        gpaddr_n = {{2{dtlb_vaddr_i[riscv::SV-1]}}, dtlb_vaddr_i};
+                        ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], {2{dtlb_vaddr_i[riscv::SV-1]}}, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
                     end else if (enable_translation_i && !enable_g_translation_i) begin
                         ptw_stage_d = VS_STAGE;
                         ptw_pptr_n  = {satp_ppn_i, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
@@ -320,9 +326,9 @@ module ptw import ariane_pkg::*; #(
                                             gpte_d = pte;
                                             gptw_lvl_n = ptw_lvl_q;
                                             if(ptw_lvl_q == LVL1)
-                                                gpaddr = {pte.ppn[riscv::GPPNW-1:17], vaddr_q[29:0]};
+                                                gpaddr = {pte.ppn[riscv::GPPNW-1:18], vaddr_q[29:0]};
                                             else if (ptw_lvl_q == LVL2)
-                                                gpaddr = {pte.ppn[riscv::GPPNW-1:8], vaddr_q[20:0]};
+                                                gpaddr = {pte.ppn[riscv::GPPNW-1:9], vaddr_q[20:0]};
                                             else if (ptw_lvl_q == LVL3)
                                                 gpaddr = {pte.ppn[riscv::GPPNW-1:0], vaddr_q[11:0]};
                                             gpaddr_n = gpaddr;
@@ -333,13 +339,13 @@ module ptw import ariane_pkg::*; #(
                                 VS_INTERMED_STAGE: begin
                                             state_d = WAIT_GRANT;
                                             ptw_stage_d = VS_STAGE;
-                                            ptw_lvl_q = gptw_lvl_n;
+                                            ptw_lvl_n = gptw_lvl_q;
                                             if(ptw_lvl_q == LVL1)
-                                                pptr = {pte.ppn, gptw_pptr_q[29:0]};
+                                                pptr = {pte.ppn[riscv::GPPNW-1:18], gptw_pptr_q[29:0]};
                                             else if (ptw_lvl_q == LVL2)
-                                                pptr = {pte.ppn, gptw_pptr_q[20:0]};
+                                                pptr = {pte.ppn[riscv::GPPNW-1:9], gptw_pptr_q[20:0]};
                                             else if (ptw_lvl_q == LVL3)
-                                                pptr = {pte.ppn, gptw_pptr_q[11:0]};
+                                                pptr = {pte.ppn[riscv::GPPNW-1:0], gptw_pptr_q[11:0]};
                                             ptw_pptr_n = pptr;
                                 end
                             endcase
@@ -521,6 +527,7 @@ module ptw import ariane_pkg::*; #(
             tlb_update_asid_q  <= '0;
             tlb_update_vmid_q  <= '0;
             vaddr_q            <= '0;
+            gpaddr_q           <= '0;
             ptw_pptr_q         <= '0;
             gptw_pptr_q        <= '0;
             global_mapping_q   <= 1'b0;
@@ -539,6 +546,7 @@ module ptw import ariane_pkg::*; #(
             tlb_update_asid_q  <= tlb_update_asid_n;
             tlb_update_vmid_q  <= tlb_update_vmid_n;
             vaddr_q            <= vaddr_n;
+            gpaddr_q           <= gpaddr_n;
             global_mapping_q   <= global_mapping_n;
             data_rdata_q       <= req_port_i.data_rdata;
             gpte_q             <= gpte_d;
