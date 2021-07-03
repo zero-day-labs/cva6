@@ -137,10 +137,15 @@ module ptw import ariane_pkg::*; #(
     assign itlb_update_o.vpn = {{39-riscv::SV{1'b0}}, vaddr_q[riscv::SV-1:12]};
     assign dtlb_update_o.vpn = {{39-riscv::SV{1'b0}}, vaddr_q[riscv::SV-1:12]};
     // update the correct page table level
-    assign itlb_update_o.is_2M = (ptw_lvl_q == LVL2);
-    assign itlb_update_o.is_1G = (ptw_lvl_q == LVL1);
-    assign dtlb_update_o.is_2M = (ptw_lvl_q == LVL2);
-    assign dtlb_update_o.is_1G = (ptw_lvl_q == LVL1);
+    assign itlb_update_o.is_2M = (enable_translation_i && enable_g_translation_i) ? (gptw_lvl_q == LVL2) : (enable_translation_i) ? (ptw_lvl_q == LVL2) : '0;
+    assign itlb_update_o.is_1G = (enable_translation_i && enable_g_translation_i) ? (gptw_lvl_q == LVL1) : (enable_translation_i) ? (ptw_lvl_q == LVL1) : '0;
+    assign dtlb_update_o.is_2M = (enable_translation_i && enable_g_translation_i) ? (gptw_lvl_q == LVL2) : (enable_translation_i) ? (ptw_lvl_q == LVL2) : '0;
+    assign dtlb_update_o.is_1G = (enable_translation_i && enable_g_translation_i) ? (gptw_lvl_q == LVL1) : (enable_translation_i) ? (ptw_lvl_q == LVL1) : '0;
+    // update G-Stage with the correct page table level when enabled
+    assign itlb_update_o.is_g_2M = (enable_g_translation_i) ? (ptw_lvl_q == LVL2) : '0;
+    assign itlb_update_o.is_g_1G = (enable_g_translation_i) ? (ptw_lvl_q == LVL1) : '0;
+    assign dtlb_update_o.is_g_2M = (enable_g_translation_i) ? (ptw_lvl_q == LVL2) : '0;
+    assign dtlb_update_o.is_g_1G = (enable_g_translation_i) ? (ptw_lvl_q == LVL1) : '0;
     // output the correct ASID
     assign itlb_update_o.asid = tlb_update_asid_q;
     assign dtlb_update_o.asid = tlb_update_asid_q;
@@ -148,10 +153,10 @@ module ptw import ariane_pkg::*; #(
     assign itlb_update_o.vmid = tlb_update_vmid_q;
     assign dtlb_update_o.vmid = tlb_update_vmid_q;
     // set the global mapping bit
-    assign itlb_update_o.content = pte | (global_mapping_q << 5);
-    assign dtlb_update_o.content = pte | (global_mapping_q << 5);
-    assign itlb_update_o.guest_content = (enable_translation_i && enable_g_translation_i) ? gpte_q | (global_mapping_q << 5) : gpte_q;
-    assign dtlb_update_o.guest_content = (enable_translation_i && enable_g_translation_i) ? gpte_q | (global_mapping_q << 5) : gpte_q;
+    assign itlb_update_o.content = (enable_g_translation_i) ? gpte_q | (global_mapping_q << 5) : pte | (global_mapping_q << 5);
+    assign dtlb_update_o.content = (enable_g_translation_i) ? gpte_q | (global_mapping_q << 5) : pte | (global_mapping_q << 5);
+    assign itlb_update_o.g_content = (enable_g_translation_i) ? pte : '0;
+    assign dtlb_update_o.g_content = (enable_g_translation_i) ? pte : '0;
 
     assign req_port_o.tag_valid      = tag_valid_q;
 
