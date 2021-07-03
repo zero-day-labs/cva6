@@ -80,7 +80,7 @@ module mmu import ariane_pkg::*; #(
     logic                   ptw_error_at_g_st;    // PTW threw an exception at the G-Stage
     logic                   ptw_access_exception; // PTW threw an access exception (PMPs)
     logic [riscv::PLEN-1:0] ptw_bad_paddr; // PTW PMP exception bad physical addr
-    logic [riscv::GPLEN-1:0] ptw_bad_gpaddr; // PTW exception bad guest physical addr
+    logic [riscv::GPLEN-1:0] ptw_bad_gpaddr; // PTW guest page fault bad guest physical addr
 
     logic [riscv::VLEN-1:0] update_vaddr;
     tlb_update_t update_ptw_itlb, update_ptw_dtlb;
@@ -90,6 +90,10 @@ module mmu import ariane_pkg::*; #(
     riscv::pte_t itlb_guest_content;
     logic        itlb_is_2M;
     logic        itlb_is_1G;
+    // data from G-stage translation
+    riscv::pte_t itlb_g_content;
+    logic        itlb_is_g_2M;
+    logic        itlb_is_g_1G;
     logic        itlb_lu_hit;
 
     logic        dtlb_lu_access;
@@ -97,6 +101,10 @@ module mmu import ariane_pkg::*; #(
     riscv::pte_t dtlb_guest_content;
     logic        dtlb_is_2M;
     logic        dtlb_is_1G;
+    // data from G-stage translation
+    riscv::pte_t dtlb_g_content;
+    logic        dtlb_is_g_2M;
+    logic        dtlb_is_g_1G;
     logic        dtlb_lu_hit;
 
 
@@ -113,9 +121,9 @@ module mmu import ariane_pkg::*; #(
         .clk_i            ( clk_i                      ),
         .rst_ni           ( rst_ni                     ),
         .flush_i          ( flush_tlb_i                ),
-        .vs_st_enbl_i     ( enable_translation_i && !enable_g_translation_i ),
-        .g_st_enbl_i      ( enable_g_translation_i ),
-        .v_i              ( v_i ),
+        .vs_st_enbl_i     ( enable_translation_i       ),
+        .g_st_enbl_i      ( enable_g_translation_i     ),
+        .v_i              ( v_i                        ),
 
         .update_i         ( update_ptw_itlb            ),
 
@@ -127,10 +135,12 @@ module mmu import ariane_pkg::*; #(
         .vaddr_to_be_flushed_i ( vaddr_to_be_flushed_i ),
         .lu_vaddr_i       ( icache_areq_i.fetch_vaddr  ),
         .lu_content_o     ( itlb_content               ),
-        .lu_guest_content_o     ( itlb_guest_content   ),
+        .lu_g_content_o   ( itlb_g_content             ),
 
         .lu_is_2M_o       ( itlb_is_2M                 ),
         .lu_is_1G_o       ( itlb_is_1G                 ),
+        .lu_is_g_2M_o     ( itlb_is_g_2M               ),
+        .lu_is_g_1G_o     ( itlb_is_g_1G               ),
         .lu_hit_o         ( itlb_lu_hit                )
     );
 
@@ -142,9 +152,9 @@ module mmu import ariane_pkg::*; #(
         .clk_i            ( clk_i                       ),
         .rst_ni           ( rst_ni                      ),
         .flush_i          ( flush_tlb_i                 ),
-        .vs_st_enbl_i     ( enable_translation_i && !enable_g_translation_i ),
-        .g_st_enbl_i      ( enable_g_translation_i ),
-        .v_i              ( v_i ),
+        .vs_st_enbl_i     ( enable_translation_i        ),
+        .g_st_enbl_i      ( enable_g_translation_i      ),
+        .v_i              ( v_i                         ),
 
         .update_i         ( update_ptw_dtlb             ),
 
@@ -156,10 +166,12 @@ module mmu import ariane_pkg::*; #(
 	      .vaddr_to_be_flushed_i ( vaddr_to_be_flushed_i  ),
         .lu_vaddr_i       ( lsu_vaddr_i                 ),
         .lu_content_o     ( dtlb_content                ),
-        .lu_guest_content_o    ( dtlb_guest_content     ),
+        .lu_g_content_o   ( dtlb_g_content              ),
 
         .lu_is_2M_o       ( dtlb_is_2M                  ),
         .lu_is_1G_o       ( dtlb_is_1G                  ),
+        .lu_is_g_2M_o     ( dtlb_is_g_2M                ),
+        .lu_is_g_1G_o     ( dtlb_is_g_1G                ),
         .lu_hit_o         ( dtlb_lu_hit                 )
     );
 
