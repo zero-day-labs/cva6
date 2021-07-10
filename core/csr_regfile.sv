@@ -1560,6 +1560,7 @@ module csr_regfile import ariane_pkg::*; #(
             mcounteren_q           <= {riscv::XLEN{1'b0}};
             mscratch_q             <= {riscv::XLEN{1'b0}};
             mtval_q                <= {riscv::XLEN{1'b0}};
+            mtval2_q               <= {riscv::XLEN{1'b0}};
             mtinst_q               <= {riscv::XLEN{1'b0}};
             dcache_q               <= {{riscv::XLEN-1{1'b0}}, 1'b1};
             icache_q               <= {{riscv::XLEN-1{1'b0}}, 1'b1};
@@ -1622,6 +1623,7 @@ module csr_regfile import ariane_pkg::*; #(
             mcounteren_q           <= mcounteren_d;
             mscratch_q             <= mscratch_d;
             mtval_q                <= mtval_d;
+            mtval2_q               <= mtval2_d;
             mtinst_q               <= mtinst_d;
             dcache_q               <= dcache_d;
             icache_q               <= icache_d;
