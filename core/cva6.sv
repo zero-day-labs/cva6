@@ -232,9 +232,13 @@ module cva6 import ariane_pkg::*; #(
   logic                     flush_ctrl_ex;
   logic                     flush_ctrl_bp;
   logic                     flush_tlb_ctrl_ex;
+  logic                     flush_tlb_vvma_ctrl_ex;
+  logic                     flush_tlb_gvma_ctrl_ex;
   logic                     fence_i_commit_controller;
   logic                     fence_commit_controller;
   logic                     sfence_vma_commit_controller;
+  logic                     hfence_vvma_commit_controller;
+  logic                     hfence_gvma_commit_controller;
   logic                     halt_ctrl;
   logic                     halt_csr_ctrl;
   logic                     dcache_flush_ctrl_cache;
@@ -470,6 +474,8 @@ module cva6 import ariane_pkg::*; #(
     .enable_g_translation_i ( enable_g_translation_csr_ex ), // from CSR
     .en_ld_st_translation_i ( en_ld_st_translation_csr_ex ),
     .flush_tlb_i            ( flush_tlb_ctrl_ex           ),
+    .flush_tlb_vvma_i       ( flush_tlb_vvma_ctrl_ex      ),
+    .flush_tlb_gvma_i       ( flush_tlb_gvma_ctrl_ex      ),
     .priv_lvl_i             ( priv_lvl                    ), // from CSR
     .v_i                    ( v                           ), // from CSR
     .ld_st_priv_lvl_i       ( ld_st_priv_lvl_csr_ex       ), // from CSR
@@ -531,6 +537,8 @@ module cva6 import ariane_pkg::*; #(
     .fence_i_o              ( fence_i_commit_controller     ),
     .fence_o                ( fence_commit_controller       ),
     .sfence_vma_o           ( sfence_vma_commit_controller  ),
+    .hfence_vvma_o          ( hfence_vvma_commit_controller ),
+    .hfence_gvma_o          ( hfence_gvma_commit_controller ),
     .flush_commit_o         ( flush_commit                  ),
     .*
   );
@@ -631,6 +639,8 @@ module cva6 import ariane_pkg::*; #(
   // Controller
   // ------------
   controller controller_i (
+    // virtualization mode
+    .v_i                    ( v                             ),
     // flush ports
     .set_pc_commit_o        ( set_pc_ctrl_pcgen             ),
     .flush_unissued_instr_o ( flush_unissued_instr_ctrl_id  ),
@@ -639,6 +649,8 @@ module cva6 import ariane_pkg::*; #(
     .flush_ex_o             ( flush_ctrl_ex                 ),
     .flush_bp_o             ( flush_ctrl_bp                 ),
     .flush_tlb_o            ( flush_tlb_ctrl_ex             ),
+    .flush_tlb_vvma_o       ( flush_tlb_vvma_ctrl_ex        ),
+    .flush_tlb_gvma_o       ( flush_tlb_gvma_ctrl_ex        ),
     .flush_dcache_o         ( dcache_flush_ctrl_cache       ),
     .flush_dcache_ack_i     ( dcache_flush_ack_cache_ctrl   ),
 
@@ -653,6 +665,8 @@ module cva6 import ariane_pkg::*; #(
     .fence_i_i              ( fence_i_commit_controller     ),
     .fence_i                ( fence_commit_controller       ),
     .sfence_vma_i           ( sfence_vma_commit_controller  ),
+    .hfence_vvma_i          ( hfence_vvma_commit_controller ),
+    .hfence_gvma_i          ( hfence_gvma_commit_controller ),
     .flush_commit_i         ( flush_commit                  ),
 
     .flush_icache_o         ( icache_flush_ctrl_cache       ),
