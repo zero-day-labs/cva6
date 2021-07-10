@@ -60,7 +60,10 @@ module mmu import ariane_pkg::*; #(
     input logic [VMID_WIDTH-1:0]            vmid_i,
     input logic [VMID_WIDTH-1:0]            vmid_to_be_flushed_i,
     input logic [riscv::VLEN-1:0]           vaddr_to_be_flushed_i,
+    input logic [riscv::GPLEN-1:0]          gpaddr_to_be_flushed_i,
     input logic                             flush_tlb_i,
+    input logic                             flush_tlb_vvma_i,
+    input logic                             flush_tlb_gvma_i,
     // Performance counters
     output logic                            itlb_miss_o,
     output logic                            dtlb_miss_o,
@@ -121,6 +124,8 @@ module mmu import ariane_pkg::*; #(
         .clk_i            ( clk_i                      ),
         .rst_ni           ( rst_ni                     ),
         .flush_i          ( flush_tlb_i                ),
+        .flush_vvma_i     ( flush_tlb_vvma_i           ),
+        .flush_gvma_i     ( flush_tlb_gvma_i           ),
         .vs_st_enbl_i     ( enable_translation_i       ),
         .g_st_enbl_i      ( enable_g_translation_i     ),
         .v_i              ( v_i                        ),
@@ -133,6 +138,7 @@ module mmu import ariane_pkg::*; #(
         .asid_to_be_flushed_i  ( asid_to_be_flushed_i  ),
         .vmid_to_be_flushed_i  ( vmid_to_be_flushed_i  ),
         .vaddr_to_be_flushed_i ( vaddr_to_be_flushed_i ),
+        .gpaddr_to_be_flushed_i( gpaddr_to_be_flushed_i),
         .lu_vaddr_i       ( icache_areq_i.fetch_vaddr  ),
         .lu_content_o     ( itlb_content               ),
         .lu_g_content_o   ( itlb_g_content             ),
@@ -152,6 +158,8 @@ module mmu import ariane_pkg::*; #(
         .clk_i            ( clk_i                       ),
         .rst_ni           ( rst_ni                      ),
         .flush_i          ( flush_tlb_i                 ),
+        .flush_vvma_i     ( flush_tlb_vvma_i           ),
+        .flush_gvma_i     ( flush_tlb_gvma_i           ),
         .vs_st_enbl_i     ( enable_translation_i        ),
         .g_st_enbl_i      ( enable_g_translation_i      ),
         .v_i              ( v_i                         ),
@@ -164,6 +172,7 @@ module mmu import ariane_pkg::*; #(
 	      .asid_to_be_flushed_i  ( asid_to_be_flushed_i   ),
         .vmid_to_be_flushed_i  ( vmid_to_be_flushed_i   ),
 	      .vaddr_to_be_flushed_i ( vaddr_to_be_flushed_i  ),
+        .gpaddr_to_be_flushed_i( gpaddr_to_be_flushed_i ),
         .lu_vaddr_i       ( lsu_vaddr_i                 ),
         .lu_content_o     ( dtlb_content                ),
         .lu_g_content_o   ( dtlb_g_content              ),
@@ -236,7 +245,6 @@ module mmu import ariane_pkg::*; #(
     //-----------------------
     logic match_any_execute_region;
     logic pmp_instr_allow;
-
     // The instruction interface is a simple request response interface
     always_comb begin : instr_interface
         automatic logic [riscv::PLEN-1:0] i_gpaddr;

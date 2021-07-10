@@ -95,6 +95,8 @@ module ex_stage import ariane_pkg::*; #(
     input  logic                                   enable_g_translation_i,
     input  logic                                   en_ld_st_translation_i,
     input  logic                                   flush_tlb_i,
+    input  logic                                   flush_tlb_vvma_i,
+    input  logic                                   flush_tlb_gvma_i,
 
     input  riscv::priv_lvl_t                       priv_lvl_i,
     input logic                                    v_i,
@@ -145,11 +147,14 @@ module ex_stage import ariane_pkg::*; #(
 
 
     logic current_instruction_is_sfence_vma;
+    logic current_instruction_is_hfence_vvma;
+    logic current_instruction_is_hfence_gvma;
     // These two register store the rs1 and rs2 parameters in case of `SFENCE_VMA`
     // instruction to be used for TLB flush in the next clock cycle.
+    logic [VMID_WIDTH-1:0] vmid_to_be_flushed;
     logic [ASID_WIDTH-1:0] asid_to_be_flushed;
     logic [riscv::VLEN-1:0] vaddr_to_be_flushed;
-
+    logic [riscv::GPLEN-1:0] gpaddr_to_be_flushed;
     // from ALU to branch unit
     logic alu_branch_res; // branch comparison result
     riscv::xlen_t alu_result, csr_result, mult_result;
@@ -324,9 +329,12 @@ module ex_stage import ariane_pkg::*; #(
         .asid_i,
         .asid_to_be_flushed_i (asid_to_be_flushed),
         .vmid_i,
-        .vmid_to_be_flushed_i ('0),
+        .vmid_to_be_flushed_i (vmid_to_be_flushed),
         .vaddr_to_be_flushed_i (vaddr_to_be_flushed),
+        .gpaddr_to_be_flushed_i(gpaddr_to_be_flushed),
         .flush_tlb_i,
+        .flush_tlb_vvma_i,
+        .flush_tlb_gvma_i,
         .itlb_miss_o,
         .dtlb_miss_o,
         .dcache_req_ports_i,
@@ -369,11 +377,19 @@ module ex_stage import ariane_pkg::*; #(
 	always_ff @(posedge clk_i or negedge rst_ni) begin
 	    if (~rst_ni) begin
           current_instruction_is_sfence_vma <= 1'b0;
+          current_instruction_is_hfence_vvma <= 1'b0;
+          current_instruction_is_hfence_gvma <= 1'b0;
 		  end else begin
           if (flush_i) begin
               current_instruction_is_sfence_vma <= 1'b0;
-          end else if ((fu_data_i.operator == SFENCE_VMA) && csr_valid_i) begin
+              current_instruction_is_hfence_vvma <= 1'b0;
+              current_instruction_is_hfence_gvma <= 1'b0;
+          end else if ((fu_data_i.operator == SFENCE_VMA && !v_i) && csr_valid_i) begin
               current_instruction_is_sfence_vma <= 1'b1;
+          end else if (((fu_data_i.operator == SFENCE_VMA && v_i) || fu_data_i.operator == HFENCE_VVMA) && csr_valid_i) begin
+              current_instruction_is_hfence_vvma <= 1'b1;
+          end else if ((fu_data_i.operator == HFENCE_GVMA) && csr_valid_i) begin
+              current_instruction_is_hfence_gvma <= 1'b1;
           end
       end
   end
@@ -381,12 +397,16 @@ module ex_stage import ariane_pkg::*; #(
   // This process stores the rs1 and rs2 parameters of a SFENCE_VMA instruction.
 	always_ff @(posedge clk_i or negedge rst_ni) begin
 		if (~rst_ni) begin
+        vmid_to_be_flushed  <= '0;
 		    asid_to_be_flushed  <= '0;
 			  vaddr_to_be_flushed <=  '0;
-    // if the current instruction in EX_STAGE is a sfence.vma, in the next cycle no writes will happen
-		end else if ((~current_instruction_is_sfence_vma) && (~((fu_data_i.operator == SFENCE_VMA) && csr_valid_i))) begin
+        gpaddr_to_be_flushed <=  '0;
+    // If the current instruction in EX_STAGE is a sfence.vma, in the next cycle no writes will happen
+		end else if ((~(current_instruction_is_sfence_vma || current_instruction_is_hfence_vvma || current_instruction_is_hfence_gvma)) && (~((fu_data_i.operator == SFENCE_VMA || fu_data_i.operator == HFENCE_VVMA || fu_data_i.operator == HFENCE_GVMA ) && csr_valid_i))) begin
 			  vaddr_to_be_flushed <=  rs1_forwarding_i;
+        gpaddr_to_be_flushed <=  rs1_forwarding_i << 2;
 			  asid_to_be_flushed  <= rs2_forwarding_i[ASID_WIDTH-1:0];
+        vmid_to_be_flushed  <= rs2_forwarding_i[VMID_WIDTH-1:0];
 		end
 	end
 

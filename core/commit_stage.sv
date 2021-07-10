@@ -51,7 +51,9 @@ module commit_stage import ariane_pkg::*; #(
     output logic                                    fence_i_o,          // flush I$ and pipeline
     output logic                                    fence_o,            // flush D$ and pipeline
     output logic                                    flush_commit_o,     // request a pipeline flush
-    output logic                                    sfence_vma_o        // flush TLBs and pipeline
+    output logic                                    sfence_vma_o,       // flush TLBs and pipeline
+    output logic                                    hfence_vvma_o,      // flush TLBs and pipeline
+    output logic                                    hfence_gvma_o       // flush TLBs and pipeline
 );
 
 // ila_0 i_ila_commit (
@@ -109,6 +111,8 @@ module commit_stage import ariane_pkg::*; #(
         fence_i_o          = 1'b0;
         fence_o            = 1'b0;
         sfence_vma_o       = 1'b0;
+        hfence_vvma_o      = 1'b0;
+        hfence_gvma_o      = 1'b0;
         csr_write_fflags_o = 1'b0;
         flush_commit_o  = 1'b0;
 
@@ -170,6 +174,30 @@ module commit_stage import ariane_pkg::*; #(
             if (commit_instr_i[0].op == SFENCE_VMA) begin
                 // no store pending so we can flush the TLBs and pipeline
                 sfence_vma_o = no_st_pending_i;
+                // wait for the store buffer to drain until flushing the pipeline
+                commit_ack_o[0] = no_st_pending_i;
+            end
+            // ------------------
+            // HFENCE.VVMA Logic
+            // ------------------
+            // hfence.vvma is idempotent so we can safely re-execute it after returning
+            // from interrupt service routine
+            // check if this instruction was a HFENCE_VVMA
+            if (commit_instr_i[0].op == HFENCE_VVMA) begin
+                // no store pending so we can flush the TLBs and pipeline
+                hfence_vvma_o = no_st_pending_i;
+                // wait for the store buffer to drain until flushing the pipeline
+                commit_ack_o[0] = no_st_pending_i;
+            end
+            // ------------------
+            // HFENCE.GVMA Logic
+            // ------------------
+            // hfence.gvma is idempotent so we can safely re-execute it after returning
+            // from interrupt service routine
+            // check if this instruction was a HFENCE_GVMA
+            if (commit_instr_i[0].op == HFENCE_GVMA) begin
+                // no store pending so we can flush the TLBs and pipeline
+                hfence_gvma_o = no_st_pending_i;
                 // wait for the store buffer to drain until flushing the pipeline
                 commit_ack_o[0] = no_st_pending_i;
             end
