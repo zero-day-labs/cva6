@@ -60,10 +60,10 @@ package riscv;
     // Privilege Spec
     // --------------------
     typedef enum logic[1:0] {
-      PRIV_LVL_M  = 3'b011,
-      PRIV_LVL_HS = 3'b010,
-      PRIV_LVL_S  = 3'b001,
-      PRIV_LVL_U  = 3'b000
+      PRIV_LVL_M  = 2'b11,
+      PRIV_LVL_HS = 2'b10,
+      PRIV_LVL_S  = 2'b01,
+      PRIV_LVL_U  = 2'b00
     } priv_lvl_t;
 
     // type which holds xlen
