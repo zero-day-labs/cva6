@@ -1010,9 +1010,7 @@ module csr_regfile import ariane_pkg::*; #(
                                       && (ex_i.cause inside {
                                         riscv::ILLEGAL_INSTR,
                                         riscv::BREAKPOINT,
-                                        riscv::ENV_CALL_UMODE,
-                                        riscv::ENV_CALL_SMODE,
-                                        riscv::ENV_CALL_MMODE
+                                        riscv::ENV_CALL_UMODE
                                       } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tval;
                 end else begin
                 // update sstatus
