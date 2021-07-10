@@ -671,6 +671,7 @@ package ariane_pkg;
         logic                  is_g_2M;
         logic                  is_g_1G;
         logic [26:0]           vpn;
+        logic [28:0]           gppn;
         logic [ASID_WIDTH-1:0] asid;
         logic [VMID_WIDTH-1:0] vmid;
         riscv::pte_t           content;
