@@ -1071,6 +1071,8 @@ module csr_regfile import ariane_pkg::*; #(
                                   } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tval;
                 mtinst_d       = (ariane_pkg::ZERO_TVAL
                                   && (ex_i.cause inside {
+                                    riscv::INSTR_ADDR_MISALIGNED,
+                                    riscv::INSTR_ACCESS_FAULT,
                                     riscv::ILLEGAL_INSTR,
                                     riscv::BREAKPOINT,
                                     riscv::ENV_CALL_UMODE,
