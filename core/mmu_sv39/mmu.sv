@@ -50,6 +50,7 @@ module mmu import ariane_pkg::*; #(
     input riscv::priv_lvl_t                 priv_lvl_i,
     input logic                             v_i,
     input riscv::priv_lvl_t                 ld_st_priv_lvl_i,
+    input logic                             ld_st_v_i,
     input logic                             sum_i,
     input logic                             mxr_i,
     // input logic flag_mprv_i,
@@ -158,11 +159,11 @@ module mmu import ariane_pkg::*; #(
         .clk_i            ( clk_i                       ),
         .rst_ni           ( rst_ni                      ),
         .flush_i          ( flush_tlb_i                 ),
-        .flush_vvma_i     ( flush_tlb_vvma_i           ),
-        .flush_gvma_i     ( flush_tlb_gvma_i           ),
+        .flush_vvma_i     ( flush_tlb_vvma_i            ),
+        .flush_gvma_i     ( flush_tlb_gvma_i            ),
         .vs_st_enbl_i     ( enable_translation_i        ),
         .g_st_enbl_i      ( enable_g_translation_i      ),
-        .v_i              ( v_i                         ),
+        .v_i              ( ld_st_v_i                   ),
 
         .update_i         ( update_ptw_dtlb             ),
 
