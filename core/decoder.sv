@@ -214,6 +214,17 @@ module decoder import ariane_pkg::*; (
                             endcase
                         end
                         3'b100: begin
+                            if(instr.rtype.funct7[0] == 1'b1) begin
+                                instruction_o.fu  = STORE;
+                                imm_select = SIMM;
+                                instruction_o.rs1[4:0]  = instr.stype.rs1;
+                                instruction_o.rs2[4:0]  = instr.stype.rs2;
+                            end else begin
+                                instruction_o.fu  = LOAD;
+                                imm_select = IIMM;
+                                instruction_o.rs1[4:0] = instr.itype.rs1;
+                                instruction_o.rd[4:0]  = instr.itype.rd;
+                            end
                             // Hypervisor load/store instructions when V=1 cause virtual instruction
                             if (v_i)
                                 virtual_illegal_instr = 1'b1;
@@ -251,21 +262,12 @@ module decoder import ariane_pkg::*; (
                                     instruction_o.op = ariane_pkg::HLVX_WU;
                                 end
                             end
-                            7'b011_0001: begin
-                                instruction_o.op = ariane_pkg::HSV_B;
-                            end
-                            7'b011_0011: begin
-                                instruction_o.op = ariane_pkg::HSV_H;
-                            end
-                            7'b011_0101: begin
-                                instruction_o.op = ariane_pkg::HSV_W;
-                            end
-                            7'b011_0110: begin
-                                instruction_o.op = ariane_pkg::HLV_D;
-                            end
-                            7'b011_0111: begin
-                                instruction_o.op = ariane_pkg::HSV_D;
-                            end
+                            7'b011_0001: instruction_o.op = ariane_pkg::HSV_B;
+                            7'b011_0011: instruction_o.op = ariane_pkg::HSV_H;
+                            7'b011_0101: instruction_o.op = ariane_pkg::HSV_W;
+                            7'b011_0110: instruction_o.op = ariane_pkg::HLV_D;
+                            7'b011_0111: instruction_o.op = ariane_pkg::HSV_D;
+
                             endcase
                             instruction_o.ex.tinst = {instr.rtype.funct7,instr.rtype.rs2,5'b0,instr.rtype.funct3,instr.rtype.rd,instr.rtype.opcode};
                             instruction_o.ex.tinst[1] = is_compressed_i ? 1'b1 : 'b0;
