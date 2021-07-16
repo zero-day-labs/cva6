@@ -138,6 +138,7 @@ module ariane import ariane_pkg::*; #(
   exception_t               fpu_exception_ex_id;
   // CSR
   logic                     csr_valid_id_ex;
+  logic                     csr_hs_ld_st_inst_ex;
   // --------------
   // EX <-> COMMIT
   // --------------
@@ -174,6 +175,7 @@ module ariane import ariane_pkg::*; #(
   logic                     enable_g_translation_csr_ex;
   logic                     en_ld_st_translation_csr_ex;
   riscv::priv_lvl_t         ld_st_priv_lvl_csr_ex;
+  logic                     ld_st_v_csr_ex;
   logic                     sum_csr_ex;
   logic                     mxr_csr_ex;
   logic [riscv::PPNW-1:0]   satp_ppn_csr_ex;
@@ -405,6 +407,7 @@ module ariane import ariane_pkg::*; #(
     .csr_valid_i            ( csr_valid_id_ex             ),
     .csr_addr_o             ( csr_addr_ex_csr             ),
     .csr_commit_i           ( csr_commit_commit_ex        ), // from commit
+    .csr_hs_ld_st_inst_o    ( csr_hs_ld_st_inst_ex        ), // signals a Hypervisor Load/Store Instruction
     // MULT
     .mult_valid_i           ( mult_valid_id_ex            ),
     // LSU
@@ -452,6 +455,7 @@ module ariane import ariane_pkg::*; #(
     .priv_lvl_i             ( priv_lvl                    ), // from CSR
     .v_i                    ( v                           ), // from CSR
     .ld_st_priv_lvl_i       ( ld_st_priv_lvl_csr_ex       ), // from CSR
+    .ld_st_v_i              ( ld_st_v_csr_ex              ), // from CSR
     .sum_i                  ( sum_csr_ex                  ), // from CSR
     .mxr_i                  ( mxr_csr_ex                  ), // from CSR
     .satp_ppn_i             ( satp_ppn_csr_ex             ), // from CSR
@@ -547,12 +551,14 @@ module ariane import ariane_pkg::*; #(
     .priv_lvl_o             ( priv_lvl                      ),
     .v_o                    ( v                             ),
     .fs_o                   ( fs                            ),
-    .vfs_o                  ( vfs                            ),
+    .vfs_o                  ( vfs                           ),
     .fflags_o               ( fflags_csr_commit             ),
     .frm_o                  ( frm_csr_id_issue_ex           ),
     .fprec_o                ( fprec_csr_ex                  ),
     .irq_ctrl_o             ( irq_ctrl_csr_id               ),
     .ld_st_priv_lvl_o       ( ld_st_priv_lvl_csr_ex         ),
+    .ld_st_v_o              ( ld_st_v_csr_ex                ),
+    .csr_hs_ld_st_inst_i    ( csr_hs_ld_st_inst_ex          ),
     .en_translation_o       ( enable_translation_csr_ex     ),
     .en_g_translation_o     ( enable_g_translation_csr_ex   ),
     .en_ld_st_translation_o ( en_ld_st_translation_csr_ex   ),

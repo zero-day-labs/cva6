@@ -64,6 +64,8 @@ module csr_regfile import ariane_pkg::*; #(
     output logic                  en_g_translation_o,         // enable G-Stage translation
     output logic                  en_ld_st_translation_o,     // enable VA translation for load and stores
     output riscv::priv_lvl_t      ld_st_priv_lvl_o,           // Privilege level at which load and stores should happen
+    output logic                  ld_st_v_o,                  // Virtualization mode at which load and stores should happen
+    input  logic                  csr_hs_ld_st_inst_i,        // Current instruction is a Hypervisor Load/Store Instruction
     output logic                  sum_o,
     output logic                  mxr_o,
     output logic[riscv::PPNW-1:0] satp_ppn_o,
@@ -1150,12 +1152,18 @@ module csr_regfile import ariane_pkg::*; #(
         // ------------------------------
         // Set the address translation at which the load and stores should occur
         // we can use the previous values since changing the address translation will always involve a pipeline flush
-        if (mprv && riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV && (mstatus_q.mpp != riscv::PRIV_LVL_M))
+        if (mprv && ((riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV && (mstatus_q.mpp != riscv::PRIV_LVL_M)) || (mstatus_q.mpv == 1'b1 && (riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV || riscv::vm_mode_t'(hgatp_q.mode) == riscv::MODE_SV))))
             en_ld_st_translation_d = 1'b1;
         else // otherwise we go with the regular settings
             en_ld_st_translation_d = en_translation_o || en_g_translation_o;
 
-        ld_st_priv_lvl_o = (mprv) ? mstatus_q.mpp : priv_lvl_o;
+        if(csr_hs_ld_st_inst_i)
+          ld_st_priv_lvl_o = hstatus_q.spvp;
+        else
+          ld_st_priv_lvl_o = (mprv) ? mstatus_q.mpp : priv_lvl_o;
+
+        ld_st_v_o = ((mprv) ? mstatus_q.mpv : v_q ) || csr_hs_ld_st_inst_i;
+
         en_ld_st_translation_o = en_ld_st_translation_q;
         // ------------------------------
         // Return from Environment
@@ -1445,18 +1453,18 @@ module csr_regfile import ariane_pkg::*; #(
     assign frm_o            = fcsr_q.frm;
     assign fprec_o          = fcsr_q.fprec;
     // MMU outputs
-    assign satp_ppn_o       = v_q ? vsatp_q.ppn : satp_q.ppn;
+    assign satp_ppn_o       = (v_q || csr_hs_ld_st_inst_i) ? vsatp_q.ppn : satp_q.ppn;
     assign hgatp_ppn_o      = hgatp_q.ppn;
     assign asid_o           = satp_q.asid[AsidWidth-1:0];
     assign vmid_o           = hgatp_q.vmid[VmidWidth-1:0];
     assign sum_o            = v_q ? vsstatus_q.sum : mstatus_q.sum;
     // we support bare memory addressing and SV39
-    assign en_translation_o = ((((riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV && !v_q) || (riscv::vm_mode_t'(vsatp_q.mode) == riscv::MODE_SV && v_q))&&
+    assign en_translation_o = ((((riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV && (!v_q || csr_hs_ld_st_inst_i)) || (riscv::vm_mode_t'(vsatp_q.mode) == riscv::MODE_SV && v_q))&&
                                priv_lvl_o != riscv::PRIV_LVL_M)
                               ? 1'b1
                               : 1'b0);
     assign en_g_translation_o = (riscv::vm_mode_t'(hgatp_q.mode) == riscv::MODE_SV &&
-                               priv_lvl_o != riscv::PRIV_LVL_M && v_q)
+                               priv_lvl_o != riscv::PRIV_LVL_M && (v_q || csr_hs_ld_st_inst_i))
                               ? 1'b1
                               : 1'b0;
     assign mxr_o            = v_q ? vsstatus_q.mxr : mstatus_q.mxr;
