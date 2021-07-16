@@ -53,6 +53,8 @@ module load_store_unit import ariane_pkg::*; #(
     input  riscv::priv_lvl_t         priv_lvl_i,               // From CSR register file
     input logic                      v_i,                      // From CSR register file
     input  riscv::priv_lvl_t         ld_st_priv_lvl_i,         // From CSR register file
+    input  logic                     ld_st_v_i,                // From CSR register file
+    output logic                     csr_hs_ld_st_inst_o,      // To   CSR register file
     input  logic                     sum_i,                    // From CSR register file
     input  logic                     mxr_i,                    // From CSR register file
     input  logic [riscv::PPNW-1:0]   satp_ppn_i,               // From CSR register file
@@ -355,7 +357,24 @@ module load_store_unit import ariane_pkg::*; #(
         endcase
     end
 
-
+    // ------------------------
+    // Hypervisor Load/Store
+    // ------------------------
+    // determine whether this is a hypervisor load or store
+    always_comb begin : hyp_ld_st
+        // check the operator to activate the right functional unit accordingly
+        if (lsu_ctrl.valid) begin
+        unique case (lsu_ctrl.operator)
+            // all loads go here
+            HLV_B, HLV_BU, HLV_H, HLV_HU, HLVX_HU,
+            HLV_W, HLVX_WU, HSV_B, HSV_H, HSV_W,
+            HLV_WU, HLV_D, HSV_D:  begin
+                csr_hs_ld_st_inst_o = 1'b1;
+            end
+            default: csr_hs_ld_st_inst_o = 1'b0;
+        endcase
+        end
+    end
     // ---------------
     // Byte Enable
     // ---------------
@@ -388,7 +407,7 @@ module load_store_unit import ariane_pkg::*; #(
                 AMO_LRD, AMO_SCD,
                 AMO_SWAPD, AMO_ADDD, AMO_ANDD, AMO_ORD,
                 AMO_XORD, AMO_MAXD, AMO_MAXDU, AMO_MIND,
-                AMO_MINDU: begin
+                AMO_MINDU, HLV_D, HSV_D: begin
                     if (lsu_ctrl.vaddr[2:0] != 3'b000) begin
                         data_misaligned = 1'b1;
                     end
@@ -398,13 +417,13 @@ module load_store_unit import ariane_pkg::*; #(
                 AMO_LRW, AMO_SCW,
                 AMO_SWAPW, AMO_ADDW, AMO_ANDW, AMO_ORW,
                 AMO_XORW, AMO_MAXW, AMO_MAXWU, AMO_MINW,
-                AMO_MINWU: begin
+                AMO_MINWU, HLV_W, HLV_WU, HLVX_WU, HSV_W: begin
                     if (lsu_ctrl.vaddr[1:0] != 2'b00) begin
                         data_misaligned = 1'b1;
                     end
                 end
                 // half word
-                LH, LHU, SH, FLH, FSH: begin
+                LH, LHU, SH, FLH, FSH, HLV_H, HLV_HU, HLVX_HU, HSV_H: begin
                     if (lsu_ctrl.vaddr[0] != 1'b0) begin
                         data_misaligned = 1'b1;
                     end
