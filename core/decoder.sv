@@ -165,8 +165,10 @@ module decoder import ariane_pkg::*; (
                                     end
                                     // we don't support U mode interrupts so WFI is illegal in this context
                                     if (priv_lvl_i == riscv::PRIV_LVL_U) begin
-                                        virtual_illegal_instr = v_i;
-                                        illegal_instr = !v_i;
+                                        if(v_i)
+                                          virtual_illegal_instr = 1'b1;
+                                        else
+                                          illegal_instr = 1'b1;
                                         instruction_o.op = ariane_pkg::ADD;
                                     end
                                 end
@@ -183,8 +185,10 @@ module decoder import ariane_pkg::*; (
                                         instruction_o.op = ariane_pkg::SFENCE_VMA;
                                         // check TVM flag and intercept SFENCE.VMA call if necessary
                                         if (priv_lvl_i == riscv::PRIV_LVL_S && tvm_i) begin
-                                            virtual_illegal_instr = v_i;
-                                            illegal_instr = !v_i;
+                                            if(v_i)
+                                              virtual_illegal_instr = 1'b1;
+                                            else
+                                              illegal_instr = 1'b1;
                                         end
                                     end
                                     if (instr.instr[31:25] == 7'b10001) begin
