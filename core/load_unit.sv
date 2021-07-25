@@ -341,10 +341,10 @@ module load_unit import ariane_pkg::*; #(
 
 
     // prepare these signals for faster selection in the next cycle
-    assign signed_d  = load_data_d.operator  inside {ariane_pkg::LW,  ariane_pkg::LH,  ariane_pkg::LB};
+    assign signed_d  = load_data_d.operator  inside {ariane_pkg::LW,  ariane_pkg::LH,  ariane_pkg::LB, ariane_pkg::HLV_W, ariane_pkg::LB, HLV_H, ariane_pkg::LB, ariane_pkg::HLV_B};
     assign fp_sign_d = load_data_d.operator  inside {ariane_pkg::FLW, ariane_pkg::FLH, ariane_pkg::FLB};
-    assign idx_d     = (load_data_d.operator inside {ariane_pkg::LW,  ariane_pkg::FLW}) ? load_data_d.address_offset + 3 :
-                       (load_data_d.operator inside {ariane_pkg::LH,  ariane_pkg::FLH}) ? load_data_d.address_offset + 1 :
+    assign idx_d     = (load_data_d.operator inside {ariane_pkg::LW,  ariane_pkg::FLW, ariane_pkg::LB, ariane_pkg::HLV_W}) ? load_data_d.address_offset + 3 :
+                       (load_data_d.operator inside {ariane_pkg::LH,  ariane_pkg::FLH, ariane_pkg::LB, ariane_pkg::HLV_H}) ? load_data_d.address_offset + 1 :
                                                                                           load_data_d.address_offset;
 
 
@@ -364,9 +364,9 @@ module load_unit import ariane_pkg::*; #(
     // result mux
     always_comb begin
         unique case (load_data_q.operator)
-            ariane_pkg::LW, ariane_pkg::LWU, ariane_pkg::FLW:    result_o = {{riscv::XLEN-32{sign_bit}}, shifted_data[31:0]};
-            ariane_pkg::LH, ariane_pkg::LHU, ariane_pkg::FLH:    result_o = {{riscv::XLEN-32+16{sign_bit}}, shifted_data[15:0]};
-            ariane_pkg::LB, ariane_pkg::LBU, ariane_pkg::FLB:    result_o = {{riscv::XLEN-32+24{sign_bit}}, shifted_data[7:0]};
+            ariane_pkg::LW, ariane_pkg::LWU, ariane_pkg::FLW, ariane_pkg::HLV_W, ariane_pkg::HLV_WU, ariane_pkg::HLVX_WU:    result_o = {{riscv::XLEN-32{sign_bit}}, shifted_data[31:0]};
+            ariane_pkg::LH, ariane_pkg::LHU, ariane_pkg::FLH, ariane_pkg::HLV_H, ariane_pkg::HLV_HU, ariane_pkg::HLVX_HU:    result_o = {{riscv::XLEN-32+16{sign_bit}}, shifted_data[15:0]};
+            ariane_pkg::LB, ariane_pkg::LBU, ariane_pkg::FLB, ariane_pkg::HLV_B, ariane_pkg::HLV_BU:    result_o = {{riscv::XLEN-32+24{sign_bit}}, shifted_data[7:0]};
             default:    result_o = shifted_data[riscv::XLEN-1:0];
         endcase
     end
@@ -392,11 +392,11 @@ module load_unit import ariane_pkg::*; #(
 `ifndef VERILATOR
     // check invalid offsets
     addr_offset0: assert property (@(posedge clk_i) disable iff (~rst_ni)
-        valid_o |->  (load_data_q.operator inside {ariane_pkg::LW, ariane_pkg::LWU}) |-> load_data_q.address_offset < 5) else $fatal (1,"invalid address offset used with {LW, LWU}");
+        valid_o |->  (load_data_q.operator inside {ariane_pkg::LW, ariane_pkg::LWU, ariane_pkg::HLV_W, ariane_pkg::HLV_WU, ariane_pkg::HLVX_WU}) |-> load_data_q.address_offset < 5) else $fatal (1,"invalid address offset used with {LW, LWU}");
     addr_offset1: assert property (@(posedge clk_i) disable iff (~rst_ni)
-        valid_o |->  (load_data_q.operator inside {ariane_pkg::LH, ariane_pkg::LHU}) |-> load_data_q.address_offset < 7) else $fatal (1,"invalid address offset used with {LH, LHU}");
+        valid_o |->  (load_data_q.operator inside {ariane_pkg::LH, ariane_pkg::LHU, ariane_pkg::HLV_H, ariane_pkg::HLV_HU, ariane_pkg::HLVX_HU}) |-> load_data_q.address_offset < 7) else $fatal (1,"invalid address offset used with {LH, LHU}");
     addr_offset2: assert property (@(posedge clk_i) disable iff (~rst_ni)
-        valid_o |->  (load_data_q.operator inside {ariane_pkg::LB, ariane_pkg::LBU}) |-> load_data_q.address_offset < 8) else $fatal (1,"invalid address offset used with {LB, LBU}");
+        valid_o |->  (load_data_q.operator inside {ariane_pkg::LB, ariane_pkg::LBU, ariane_pkg::HLV_B, ariane_pkg::HLV_BU}) |-> load_data_q.address_offset < 8) else $fatal (1,"invalid address offset used with {LB, LBU}");
 `endif
 //pragma translate_on
 
