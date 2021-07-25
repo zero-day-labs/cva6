@@ -28,6 +28,7 @@ module mmu import ariane_pkg::*; #(
     input  logic                            enable_translation_i,
     input  logic                            enable_g_translation_i,
     input  logic                            en_ld_st_translation_i,   // enable virtual memory translation for load/stores
+    input  logic                            en_ld_st_g_translation_i, // enable G-Stage translation for load/stores
     // IF interface
     input  icache_areq_o_t                  icache_areq_i,
     output icache_areq_i_t                  icache_areq_o,
@@ -52,11 +53,16 @@ module mmu import ariane_pkg::*; #(
     input riscv::priv_lvl_t                 ld_st_priv_lvl_i,
     input logic                             ld_st_v_i,
     input logic                             sum_i,
+    input logic                             vs_sum_i,
     input logic                             mxr_i,
+    input logic                             vmxr_i,
+    input logic                             hlvx_inst_i,
     // input logic flag_mprv_i,
     input logic [riscv::PPNW-1:0]           satp_ppn_i,
+    input logic [riscv::PPNW-1:0]           vsatp_ppn_i,
     input logic [riscv::PPNW-1:0]           hgatp_ppn_i,
     input logic [ASID_WIDTH-1:0]            asid_i,
+    input logic [ASID_WIDTH-1:0]            vs_asid_i,
     input logic [ASID_WIDTH-1:0]            asid_to_be_flushed_i,
     input logic [VMID_WIDTH-1:0]            vmid_i,
     input logic [VMID_WIDTH-1:0]            vmid_to_be_flushed_i,
@@ -100,11 +106,13 @@ module mmu import ariane_pkg::*; #(
     logic        itlb_is_g_2M;
     logic        itlb_is_g_1G;
     logic        itlb_lu_hit;
+    logic        itlb_lu_asid;
 
     logic        dtlb_lu_access;
     riscv::pte_t dtlb_content;
     logic        dtlb_is_2M;
     logic        dtlb_is_1G;
+    logic        dtlb_lu_asid;
     // data from G-stage translation
     riscv::pte_t dtlb_g_content;
     logic        dtlb_is_g_2M;
@@ -115,6 +123,8 @@ module mmu import ariane_pkg::*; #(
     // Assignments
     assign itlb_lu_access = icache_areq_i.fetch_req;
     assign dtlb_lu_access = lsu_req_i;
+    assign itlb_lu_asid = v_i ? vs_asid_i : asid_i;
+    assign dtlb_lu_asid = (v_i || ld_st_v_i) ? vs_asid_i : asid_i;
 
 
     tlb #(
@@ -134,7 +144,7 @@ module mmu import ariane_pkg::*; #(
         .update_i         ( update_ptw_itlb            ),
 
         .lu_access_i      ( itlb_lu_access             ),
-        .lu_asid_i        ( asid_i                     ),
+        .lu_asid_i        ( itlb_lu_asid               ),
         .lu_vmid_i        ( vmid_i                     ),
         .asid_to_be_flushed_i  ( asid_to_be_flushed_i  ),
         .vmid_to_be_flushed_i  ( vmid_to_be_flushed_i  ),
@@ -161,14 +171,14 @@ module mmu import ariane_pkg::*; #(
         .flush_i          ( flush_tlb_i                 ),
         .flush_vvma_i     ( flush_tlb_vvma_i            ),
         .flush_gvma_i     ( flush_tlb_gvma_i            ),
-        .vs_st_enbl_i     ( enable_translation_i        ),
-        .g_st_enbl_i      ( enable_g_translation_i      ),
+        .vs_st_enbl_i     ( en_ld_st_translation_i      ),
+        .g_st_enbl_i      ( en_ld_st_g_translation_i    ),
         .v_i              ( ld_st_v_i                   ),
 
         .update_i         ( update_ptw_dtlb             ),
 
         .lu_access_i      ( dtlb_lu_access              ),
-        .lu_asid_i        ( asid_i                      ),
+        .lu_asid_i        ( dtlb_lu_asid                ),
         .lu_vmid_i        ( vmid_i                      ),
 	      .asid_to_be_flushed_i  ( asid_to_be_flushed_i   ),
         .vmid_to_be_flushed_i  ( vmid_to_be_flushed_i   ),
@@ -375,7 +385,7 @@ module mmu import ariane_pkg::*; #(
     logic        dtlb_is_g_1G_n,  dtlb_is_g_1G_q;
 
     // check if we need to do translation or if we are always ready (e.g.: we are not translating anything)
-    assign lsu_dtlb_hit_o = (en_ld_st_translation_i) ? dtlb_lu_hit :  1'b1;
+    assign lsu_dtlb_hit_o = (en_ld_st_translation_i || en_ld_st_g_translation_i) ? dtlb_lu_hit :  1'b1;
 
     // Wires to PMP checks
     riscv::pmp_access_t pmp_access_type;
@@ -411,14 +421,14 @@ module mmu import ariane_pkg::*; #(
 
         // Check if the User flag is set, then we may only access it in supervisor mode
         // if SUM is enabled
-        daccess_err = enable_translation_i &&
-                        ((ld_st_priv_lvl_i == riscv::PRIV_LVL_S && !sum_i && dtlb_pte_q.u) || // SUM is not set and we are trying to access a user page in supervisor mode
+        daccess_err = en_ld_st_translation_i &&
+                        ((ld_st_priv_lvl_i == riscv::PRIV_LVL_S && (ld_st_v_i ? !vs_sum_i : !sum_i ) && dtlb_pte_q.u) || // SUM is not set and we are trying to access a user page in supervisor mode
                         (ld_st_priv_lvl_i == riscv::PRIV_LVL_U && !dtlb_pte_q.u));
          d_g_st_access_err = enable_g_translation_i && !dtlb_gpte_q.u;
         // translation is enabled and no misaligned exception occurred
-        if (en_ld_st_translation_i && !misaligned_ex_q.valid) begin
+        if ((en_ld_st_translation_i || en_ld_st_g_translation_i) && !misaligned_ex_q.valid) begin
             lsu_valid_o = 1'b0;
-          if(enable_translation_i) begin
+          if(en_ld_st_translation_i) begin
               // 4K page
               d_gpaddr = {dtlb_pte_q.ppn, lsu_vaddr_q[11:0]};
               lsu_gpaddr = {dtlb_pte_n.ppn, lsu_vaddr_i[11:0]};
@@ -437,7 +447,7 @@ module mmu import ariane_pkg::*; #(
                 end
             end
 
-          if(enable_g_translation_i) begin
+          if(en_ld_st_g_translation_i) begin
               // 4K page
               lsu_paddr_o = {dtlb_gpte_q.ppn, d_gpaddr[11:0]};
               lsu_dtlb_ppn_o = dtlb_g_content.ppn;
@@ -468,9 +478,9 @@ module mmu import ariane_pkg::*; #(
                 if (lsu_is_store_q) begin
                     // check if the page is write-able and we are not violating privileges
                     // also check if the dirty flag is set
-                    if(enable_g_translation_i && (!dtlb_gpte_q.w || d_g_st_access_err || !dtlb_gpte_q.d)) begin
+                    if(en_ld_st_g_translation_i && (!dtlb_gpte_q.w || d_g_st_access_err || !dtlb_gpte_q.d)) begin
                         lsu_exception_o = {riscv::STORE_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {{riscv::XLEN-riscv::GPLEN{1'b0}},d_gpaddr}, {riscv::XLEN{1'b0}}, 1'b1};
-                    end else if (enable_translation_i && (!dtlb_pte_q.w || daccess_err || !dtlb_pte_q.d)) begin
+                    end else if (en_ld_st_translation_i && (!dtlb_pte_q.w || daccess_err || !dtlb_pte_q.d)) begin
                         lsu_exception_o = {riscv::STORE_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, {riscv::XLEN{1'b0}}, 1'b1};
                     // Check if any PMPs are violated
                     end else if (!pmp_data_allow) begin
