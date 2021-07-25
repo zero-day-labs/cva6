@@ -174,12 +174,17 @@ module ariane import ariane_pkg::*; #(
   logic                     enable_translation_csr_ex;
   logic                     enable_g_translation_csr_ex;
   logic                     en_ld_st_translation_csr_ex;
+  logic                     en_ld_st_g_translation_csr_ex;
   riscv::priv_lvl_t         ld_st_priv_lvl_csr_ex;
   logic                     ld_st_v_csr_ex;
   logic                     sum_csr_ex;
+  logic                     vs_sum_csr_ex;
   logic                     mxr_csr_ex;
+  logic                     vmxr_csr_ex;
   logic [riscv::PPNW-1:0]   satp_ppn_csr_ex;
   logic [ASID_WIDTH-1:0]    asid_csr_ex;
+  logic [riscv::PPNW-1:0]   vsatp_ppn_csr_ex;
+  logic [ASID_WIDTH-1:0]    vs_asid_csr_ex;
   logic [riscv::PPNW-1:0]   hgatp_ppn_csr_ex;
   logic [VMID_WIDTH-1:0]    vmid_csr_ex;
   logic [11:0]              csr_addr_ex_csr;
@@ -449,6 +454,7 @@ module ariane import ariane_pkg::*; #(
     .enable_translation_i   ( enable_translation_csr_ex   ), // from CSR
     .enable_g_translation_i ( enable_g_translation_csr_ex ), // from CSR
     .en_ld_st_translation_i ( en_ld_st_translation_csr_ex ),
+    .en_ld_st_g_translation_i ( en_ld_st_g_translation_csr_ex ),
     .flush_tlb_i            ( flush_tlb_ctrl_ex           ),
     .flush_tlb_vvma_i       ( flush_tlb_vvma_ctrl_ex      ),
     .flush_tlb_gvma_i       ( flush_tlb_gvma_ctrl_ex      ),
@@ -457,9 +463,13 @@ module ariane import ariane_pkg::*; #(
     .ld_st_priv_lvl_i       ( ld_st_priv_lvl_csr_ex       ), // from CSR
     .ld_st_v_i              ( ld_st_v_csr_ex              ), // from CSR
     .sum_i                  ( sum_csr_ex                  ), // from CSR
+    .vs_sum_i               ( vs_sum_csr_ex               ), // from CSR
     .mxr_i                  ( mxr_csr_ex                  ), // from CSR
+    .vmxr_i                 ( vmxr_csr_ex                 ), // from CSR
     .satp_ppn_i             ( satp_ppn_csr_ex             ), // from CSR
     .asid_i                 ( asid_csr_ex                 ), // from CSR
+    .vsatp_ppn_i            ( vsatp_ppn_csr_ex            ), // from CSR
+    .vs_asid_i              ( vs_asid_csr_ex              ), // from CSR
     .hgatp_ppn_i            ( hgatp_ppn_csr_ex            ), // from CSR
     .vmid_i                 ( vmid_csr_ex                 ), // from CSR
     .icache_areq_i          ( icache_areq_cache_ex        ),
@@ -562,10 +572,15 @@ module ariane import ariane_pkg::*; #(
     .en_translation_o       ( enable_translation_csr_ex     ),
     .en_g_translation_o     ( enable_g_translation_csr_ex   ),
     .en_ld_st_translation_o ( en_ld_st_translation_csr_ex   ),
+    .en_ld_st_g_translation_o ( en_ld_st_g_translation_csr_ex   ),
     .sum_o                  ( sum_csr_ex                    ),
+    .vs_sum_o               ( vs_sum_csr_ex                 ),
     .mxr_o                  ( mxr_csr_ex                    ),
+    .vmxr_o                 ( vmxr_csr_ex                   ),
     .satp_ppn_o             ( satp_ppn_csr_ex               ),
     .asid_o                 ( asid_csr_ex                   ),
+    .vsatp_ppn_o            ( vsatp_ppn_csr_ex              ),
+    .vs_asid_o              ( vs_asid_csr_ex                ),
     .hgatp_ppn_o            ( hgatp_ppn_csr_ex              ),
     .vmid_o                 ( vmid_csr_ex                   ),
     .tvm_o                  ( tvm_csr_id                    ),

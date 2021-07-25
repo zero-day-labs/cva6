@@ -856,7 +856,7 @@ package ariane_pkg;
     // ----------------------
     function automatic logic [1:0] extract_transfer_size(fu_op op);
         case (op)
-            LD, SD, FLD, FSD,
+            LD, HLV_D, SD, HSV_D, FLD, FSD,
             AMO_LRD,   AMO_SCD,
             AMO_SWAPD, AMO_ADDD,
             AMO_ANDD,  AMO_ORD,
@@ -865,7 +865,8 @@ package ariane_pkg;
             AMO_MINDU: begin
                 return 2'b11;
             end
-            LW, LWU, SW, FLW, FSW,
+            LW, LWU, HLV_W, HLV_WU, HLVX_WU,
+            SW, HSV_W, FLW, FSW,
             AMO_LRW,   AMO_SCW,
             AMO_SWAPW, AMO_ADDW,
             AMO_ANDW,  AMO_ORW,
@@ -874,9 +875,8 @@ package ariane_pkg;
             AMO_MINWU: begin
                 return 2'b10;
             end
-            LH, LHU, SH, FLH, FSH: return 2'b01;
-            LB, LBU, SB, FLB, FSB: return 2'b00;
-            default:     return 2'b11;
+            LH, LHU, HLV_H, HLV_HU, HLVX_HU, SH, HSV_H, FLH, FSH: return 2'b01;
+            LB, LBU, HLV_B, HLV_BU, SB, HSV_B, FLB, FSB: return 2'b00;
         endcase
     endfunction
 

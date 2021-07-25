@@ -23,6 +23,7 @@ module load_store_unit import ariane_pkg::*; #(
     input  logic                     flush_i,
     output logic                     no_st_pending_o,
     input  logic                     amo_valid_commit_i,
+    input  riscv::xlen_t             trans_instr_i,
 
     input  fu_data_t                 fu_data_i,
     output logic                     lsu_ready_o,              // FU is ready e.g. not busy
@@ -45,6 +46,7 @@ module load_store_unit import ariane_pkg::*; #(
     input  logic                     enable_translation_i,     // enable virtual memory translation
     input  logic                     enable_g_translation_i,   // enable G-Stage translation
     input  logic                     en_ld_st_translation_i,   // enable virtual memory translation for load/stores
+    input  logic                     en_ld_st_g_translation_i, // enable G-stage translation for load/stores
 
     // icache translation requests
     input  icache_areq_o_t           icache_areq_i,
@@ -54,11 +56,15 @@ module load_store_unit import ariane_pkg::*; #(
     input logic                      v_i,                      // From CSR register file
     input  riscv::priv_lvl_t         ld_st_priv_lvl_i,         // From CSR register file
     input  logic                     ld_st_v_i,                // From CSR register file
-    output logic                     csr_hs_ld_st_inst_o,      // To   CSR register file
+    output logic                     csr_hs_ld_st_inst_o,
     input  logic                     sum_i,                    // From CSR register file
+    input  logic                     vs_sum_i,                    // From CSR register file
     input  logic                     mxr_i,                    // From CSR register file
+    input  logic                     vmxr_i,                   // From CSR register file
     input  logic [riscv::PPNW-1:0]   satp_ppn_i,               // From CSR register file
     input  logic [ASID_WIDTH-1:0]    asid_i,                   // From CSR register file
+    input  logic [riscv::PPNW-1:0]   vsatp_ppn_i,              // From CSR register file
+    input  logic [ASID_WIDTH-1:0]    vs_asid_i,                // From CSR register file
     input  logic [ASID_WIDTH-1:0]    asid_to_be_flushed_i,
     input  logic [riscv::PPNW-1:0]   hgatp_ppn_i,              // From CSR register file
     input  logic [VMID_WIDTH-1:0]    vmid_i,                   // From CSR register file
@@ -138,6 +144,8 @@ module load_store_unit import ariane_pkg::*; #(
     exception_t               ld_ex;
     exception_t               st_ex;
 
+    logic                    csr_hs_ld_st_inst;
+    logic                    mmu_hlvx_inst;
     // -------------------
     // MMU e.g.: TLBs/PTW
     // -------------------
@@ -169,6 +177,8 @@ module load_store_unit import ariane_pkg::*; #(
             .icache_areq_o          ( icache_areq_o          ),
             .pmpcfg_i,
             .pmpaddr_i,
+            // Hypervisor load/store signals
+            .hlvx_inst_i            ( mmu_hlvx_inst          ),
             .*
         );
     end else if (MMU_PRESENT && (riscv::XLEN == 32)) begin : gen_mmu_sv32
@@ -363,18 +373,26 @@ module load_store_unit import ariane_pkg::*; #(
     // determine whether this is a hypervisor load or store
     always_comb begin : hyp_ld_st
         // check the operator to activate the right functional unit accordingly
-        if (lsu_ctrl.valid) begin
         unique case (lsu_ctrl.operator)
             // all loads go here
-            HLV_B, HLV_BU, HLV_H, HLV_HU, HLVX_HU,
-            HLV_W, HLVX_WU, HSV_B, HSV_H, HSV_W,
-            HLV_WU, HLV_D, HSV_D:  begin
-                csr_hs_ld_st_inst_o = 1'b1;
+            HLV_B, HLV_BU, HLV_H, HLV_HU,
+            HLV_W, HSV_B, HSV_H, HSV_W,
+            HLV_WU, HLV_D, HSV_D: begin
+                    csr_hs_ld_st_inst = 1'b1;
             end
-            default: csr_hs_ld_st_inst_o = 1'b0;
+            HLVX_WU, HLVX_HU: begin
+                    csr_hs_ld_st_inst = 1'b1;
+                    mmu_hlvx_inst     = 1'b1;
+            end
+            default: begin
+                csr_hs_ld_st_inst = 1'b0;
+                mmu_hlvx_inst     = 1'b0;
+            end
         endcase
-        end
     end
+
+    assign csr_hs_ld_st_inst_o = csr_hs_ld_st_inst;
+
     // ---------------
     // Byte Enable
     // ---------------
@@ -454,7 +472,7 @@ module load_store_unit import ariane_pkg::*; #(
             end
         end
 
-        if (en_ld_st_translation_i && lsu_ctrl.overflow) begin
+        if ((en_ld_st_translation_i || en_ld_st_g_translation_i)  && lsu_ctrl.overflow) begin
 
             if (lsu_ctrl.fu == LOAD) begin
                 misaligned_exception = {
@@ -597,4 +615,3 @@ module lsu_bypass import ariane_pkg::*; (
         end
     end
 endmodule
-
