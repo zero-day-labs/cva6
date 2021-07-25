@@ -218,14 +218,14 @@ module decoder import ariane_pkg::*; (
                             endcase
                         end
                         3'b100: begin
-                            if(instr.rtype.funct7[0] == 1'b1) begin
+                            if(instr.instr[25] != 1'b0) begin
                                 instruction_o.fu  = STORE;
-                                imm_select = SIMM;
+                                imm_select = NOIMM;
                                 instruction_o.rs1[4:0]  = instr.stype.rs1;
                                 instruction_o.rs2[4:0]  = instr.stype.rs2;
                             end else begin
                                 instruction_o.fu  = LOAD;
-                                imm_select = IIMM;
+                                imm_select = NOIMM;
                                 instruction_o.rs1[4:0] = instr.itype.rs1;
                                 instruction_o.rd[4:0]  = instr.itype.rd;
                             end
@@ -235,7 +235,7 @@ module decoder import ariane_pkg::*; (
                             // Hypervisor load/store instructions in U-mode when hstatus.HU=0 cause an illegal instruction trap.
                             if(!hu_i && !v_i && priv_lvl_i == riscv::PRIV_LVL_U)
                                 illegal_instr = 1'b1;
-                            case (instr.rtype.funct7)
+                            unique case (instr.rtype.funct7)
                             7'b011_0000: begin
                                 if(instr.rtype.rs2 == 5'b0) begin
                                     instruction_o.op = ariane_pkg::HLV_B;
