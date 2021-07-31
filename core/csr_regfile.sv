@@ -1040,7 +1040,7 @@ module csr_regfile import ariane_pkg::*; #(
                                   } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tinst;
                 hstatus_d.spvp = v_q ? priv_lvl_q[0] : hstatus_d.spvp;
                 htval_d        = ex_i.tval2 << 2;
-                // TODO: set GVA bit
+                hstatus_d.gva  = (|ex_i.tval2);
                 hstatus_d.spv  = v_q;
                 end
             // trap to machine mode
