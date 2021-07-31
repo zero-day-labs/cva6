@@ -424,6 +424,10 @@ module ptw import ariane_pkg::*; #(
                                 dtlb_update_o.valid = 1'b0;
                                 itlb_update_o.valid = 1'b0;
                             end
+                            // check if 63:41 are all zeros
+                            if ((v_i || ld_st_v_i) && ptw_stage_q == VS_STAGE && pte.ppn[riscv::PPNW:riscv::GPPNW] != '0 ) begin
+                                state_d = PROPAGATE_ERROR;
+                            end
                         // this is a pointer to the next TLB level
                         end else begin
                             // pointer to next level of page table
@@ -488,7 +492,8 @@ module ptw import ariane_pkg::*; #(
                               state_d = PROPAGATE_ERROR;
                               ptw_stage_d = ptw_stage_q;
                             end
-                            if (ptw_stage_q == VS_STAGE || pte.ppn[riscv::PPNW:riscv::GPPNW] != '0 ) begin
+                            // check if 63:41 are all zeros
+                            if ((v_i || ld_st_v_i) && ptw_stage_q == VS_STAGE && pte.ppn[riscv::PPNW:riscv::GPPNW] != '0 ) begin
                                 state_d = PROPAGATE_ERROR;
                             end
                         end
