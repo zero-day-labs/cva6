@@ -657,7 +657,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_SIE: begin
                     mask = v_q ? hideleg_q : mideleg_q & ~HS_DELEG_INTERRUPTS;
                     // the mideleg makes sure only delegate-able register (and therefore also only implemented registers) are written
-                    mie_d = (mie_q & ~mask) | (csr_wdata & mask);
+                    mie_d = (mie_q & ~mask) | ((csr_wdata << 1) & mask);
                 end
 
                 riscv::CSR_SIP: begin
@@ -1315,7 +1315,8 @@ module csr_regfile import ariane_pkg::*; #(
 
     assign irq_ctrl_o.mie = mie_q;
     assign irq_ctrl_o.mip = mip_q;
-    assign irq_ctrl_o.sie = v_q ? vsstatus_q.sie : mstatus_q.sie;
+    assign irq_ctrl_o.sie = mstatus_q.sie;
+    assign irq_ctrl_o.vsie = vsstatus_q.sie;
     assign irq_ctrl_o.mideleg = mideleg_q;
     assign irq_ctrl_o.hideleg = hideleg_q;
     assign irq_ctrl_o.global_enable = (~debug_mode_q)
