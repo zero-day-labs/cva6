@@ -1070,8 +1070,7 @@ module csr_regfile import ariane_pkg::*; #(
                                     riscv::ENV_CALL_SMODE,
                                     riscv::ENV_CALL_MMODE
                                   } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tval;
-                mtinst_d       = (ariane_pkg::ZERO_TVAL
-                                  && (ex_i.cause inside {
+                mtinst_d       = (ex_i.cause inside {
                                     riscv::INSTR_ADDR_MISALIGNED,
                                     riscv::INSTR_ACCESS_FAULT,
                                     riscv::ILLEGAL_INSTR,
@@ -1082,7 +1081,7 @@ module csr_regfile import ariane_pkg::*; #(
                                     riscv::INSTR_PAGE_FAULT,
                                     riscv::INSTR_GUEST_PAGE_FAULT,
                                     riscv::VIRTUAL_INSTRUCTION
-                                  } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tinst;
+                                  } || ex_i.cause[riscv::XLEN-1]) ? '0 : ex_i.tinst;
                 mtval2_d       = ex_i.tval2 >> 2;
                 mstatus_d.gva  = ex_i.gva;
             end
