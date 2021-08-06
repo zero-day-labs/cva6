@@ -657,7 +657,11 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_SIE: begin
                     mask = v_q ? hideleg_q : mideleg_q & ~HS_DELEG_INTERRUPTS;
                     // the mideleg makes sure only delegate-able register (and therefore also only implemented registers) are written
-                    mie_d = (mie_q & ~mask) | ((csr_wdata << 1) & mask);
+                    if(v_q) begin
+                        mie_d = (mie_q & ~mask) | ((csr_wdata << 1) & mask);
+                    end else begin
+                        mie_d = (mie_q & ~mask) | (csr_wdata & mask);
+                    end
                 end
 
                 riscv::CSR_SIP: begin
@@ -777,7 +781,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_HCOUNTEREN:         hcounteren_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
                 riscv::CSR_HTVAL:              htval_d = csr_wdata;
                 riscv::CSR_HTINST:             htinst_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
-                riscv::CSR_HGEIE:; //TODO: implement htinst write
+                riscv::CSR_HGEIE:; //TODO Hyp: implement hgeie write
                 riscv::CSR_HGATP: begin
                     // intercept HGATP writes if in HS-Mode and TVM is enabled
                     if (priv_lvl_o == riscv::PRIV_LVL_S && !v_q && mstatus_q.tvm)
@@ -857,7 +861,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MTINST:             mtinst_d    = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
                 riscv::CSR_MTVAL2:             mtval2_d    = csr_wdata;
                 riscv::CSR_MIP: begin
-                    mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | VS_DELEG_INTERRUPTS;
+                    mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | riscv::MIP_VSSIP;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                 end
                 // performance counters
@@ -1316,7 +1320,6 @@ module csr_regfile import ariane_pkg::*; #(
     assign irq_ctrl_o.mie = mie_q;
     assign irq_ctrl_o.mip = mip_q;
     assign irq_ctrl_o.sie = mstatus_q.sie;
-    assign irq_ctrl_o.vsie = vsstatus_q.sie;
     assign irq_ctrl_o.mideleg = mideleg_q;
     assign irq_ctrl_o.hideleg = hideleg_q;
     assign irq_ctrl_o.global_enable = (~debug_mode_q)
