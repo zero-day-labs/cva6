@@ -23,7 +23,7 @@ module load_store_unit import ariane_pkg::*; #(
     input  logic                     flush_i,
     output logic                     no_st_pending_o,
     input  logic                     amo_valid_commit_i,
-    input  riscv::xlen_t             trans_instr_i,
+    input  riscv::xlen_t             tinst_i,
 
     input  fu_data_t                 fu_data_i,
     output logic                     lsu_ready_o,              // FU is ready e.g. not busy
@@ -121,14 +121,17 @@ module load_store_unit import ariane_pkg::*; #(
     logic                     ld_translation_req;
     logic                     st_translation_req;
     logic [riscv::VLEN-1:0]   ld_vaddr;
+    logic [riscv::XLEN-1:0]   ld_tinst;
     logic                     ld_hs_ld_st_inst;
     logic                     ld_hlvx_inst;
     logic [riscv::VLEN-1:0]   st_vaddr;
+    logic [riscv::XLEN-1:0]   st_tinst;
     logic                     st_hs_ld_st_inst;
     logic                     st_hlvx_inst;
     logic                     translation_req;
     logic                     translation_valid;
     logic [riscv::VLEN-1:0]   mmu_vaddr;
+    logic [riscv::XLEN-1:0]   mmu_tinst;
     logic [riscv::PLEN-1:0]   mmu_paddr;
     logic                     mmu_hs_ld_st_inst;
     logic                     mmu_hlvx_inst;
@@ -168,6 +171,7 @@ module load_store_unit import ariane_pkg::*; #(
             .lsu_is_store_i         ( st_translation_req     ),
             .lsu_req_i              ( translation_req        ),
             .lsu_vaddr_i            ( mmu_vaddr              ),
+            .lsu_tinst_i            ( mmu_tinst              ),
             .lsu_valid_o            ( translation_valid      ),
             .lsu_paddr_o            ( mmu_paddr              ),
             .lsu_exception_o        ( mmu_exception          ),
@@ -276,6 +280,7 @@ module load_store_unit import ariane_pkg::*; #(
         // MMU port
         .translation_req_o     ( st_translation_req   ),
         .vaddr_o               ( st_vaddr             ),
+        .tinst_o               ( st_tinst             ),
         .hs_ld_st_inst_o       ( st_hs_ld_st_inst     ),
         .hlvx_inst_o           ( st_hlvx_inst         ),
         .paddr_i               ( mmu_paddr            ),
@@ -309,6 +314,7 @@ module load_store_unit import ariane_pkg::*; #(
         // MMU port
         .translation_req_o     ( ld_translation_req   ),
         .vaddr_o               ( ld_vaddr             ),
+        .tinst_o               ( ld_tinst             ),
         .hs_ld_st_inst_o       ( ld_hs_ld_st_inst     ),
         .hlvx_inst_o           ( ld_hlvx_inst         ),
         .paddr_i               ( mmu_paddr            ),
@@ -477,7 +483,7 @@ module load_store_unit import ariane_pkg::*; #(
                     riscv::LD_ADDR_MISALIGNED,
                     {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
                     {riscv::XLEN{1'b0}},
-                    tinst_addr_offset,
+                    lsu_ctrl.tinst,
                     1'b0,
                     1'b1
                 };
@@ -487,7 +493,7 @@ module load_store_unit import ariane_pkg::*; #(
                     riscv::ST_ADDR_MISALIGNED,
                     {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
                     {riscv::XLEN{1'b0}},
-                    tinst_addr_offset,
+                    lsu_ctrl.tinst,
                     1'b0,
                     1'b1
                 };
@@ -501,6 +507,7 @@ module load_store_unit import ariane_pkg::*; #(
                     riscv::LD_ACCESS_FAULT,
                     {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
                     {riscv::XLEN{1'b0}},
+                    lsu_ctrl.tinst,
                     1'b0,
                     1'b1
                 };
@@ -510,6 +517,7 @@ module load_store_unit import ariane_pkg::*; #(
                     riscv::ST_ACCESS_FAULT,
                     {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
                     {riscv::XLEN{1'b0}},
+                    lsu_ctrl.tinst,
                     1'b0,
                     1'b1
                 };

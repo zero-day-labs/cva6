@@ -31,6 +31,7 @@ module load_unit import ariane_pkg::*; #(
     // MMU -> Address Translation
     output logic                     translation_req_o,   // request address translation
     output logic [riscv::VLEN-1:0]   vaddr_o,             // virtual address out
+    output logic [riscv::XLEN-1:0]   tinst_o,             // transformed instruction out
     output logic                     hs_ld_st_inst_o,     // instruction is a hyp load store instruction
     output logic                     hlvx_inst_o,         // hyp load store with execute permissions
     input  logic [riscv::PLEN-1:0]   paddr_i,             // physical address in
@@ -65,6 +66,8 @@ module load_unit import ariane_pkg::*; #(
     assign vaddr_o = lsu_ctrl_i.vaddr;
     assign hs_ld_st_inst_o  = lsu_ctrl_i.hs_ld_st_inst;
     assign hlvx_inst_o      = lsu_ctrl_i.hlvx_inst;
+    // feed-through the transformed instruction for mmu
+    assign tinst_o = lsu_ctrl_i.tinst;
     // this is a read-only interface so set the write enable to 0
     assign req_port_o.data_we = 1'b0;
     assign req_port_o.data_wdata = '0;
