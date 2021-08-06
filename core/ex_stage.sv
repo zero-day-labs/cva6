@@ -322,6 +322,7 @@ module ex_stage import ariane_pkg::*; #(
         .ld_st_v_i,
         .csr_hs_ld_st_inst_o,
         .sum_i,
+        .vs_sum_i,
         .mxr_i,
         .vmxr_i,
         .satp_ppn_i,
