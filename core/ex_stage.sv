@@ -30,7 +30,7 @@ module ex_stage import ariane_pkg::*; #(
     input  logic [riscv::VLEN-1:0]                 pc_i,                  // PC of current instruction
     input  logic                                   is_compressed_instr_i, // we need to know if this was a compressed instruction
                                                                           // in order to calculate the next PC on a mis-predict
-    input  riscv::xlen_t                           trans_instr_i,
+    input  riscv::xlen_t                           tinst_i,
     // Fixed latency unit(s)
     output riscv::xlen_t                           flu_result_o,
     output logic [TRANS_ID_BITS-1:0]               flu_trans_id_o,        // ID of scoreboard entry at which to write back
@@ -183,7 +183,6 @@ module ex_stage import ariane_pkg::*; #(
         .fu_data_i,
         .pc_i,
         .is_compressed_instr_i,
-        .trans_instr_i,
         // any functional unit is valid, check that there is no accidental mis-predict
         .fu_valid_i ( alu_valid_i || lsu_valid_i || csr_valid_i || mult_valid_i || fpu_valid_i ) ,
         .branch_valid_i,
@@ -347,7 +346,7 @@ module ex_stage import ariane_pkg::*; #(
         .dcache_wbuffer_empty_i,
         .dcache_wbuffer_not_ni_i,
         .amo_valid_commit_i,
-        .trans_instr_i,
+        .tinst_i,
         .amo_req_o,
         .amo_resp_i,
         .pmpcfg_i,

@@ -99,7 +99,7 @@ module ariane import ariane_pkg::*; #(
   fu_data_t                 fu_data_id_ex;
   logic [riscv::VLEN-1:0]   pc_id_ex;
   logic                     is_compressed_instr_id_ex;
-  riscv::instruction_t      trans_instr_ex;
+  riscv::xlen_t             tinst_ex;
   // fixed latency units
   logic                     flu_ready_ex_id;
   logic [TRANS_ID_BITS-1:0] flu_trans_id_ex_id;
@@ -343,7 +343,7 @@ module ariane import ariane_pkg::*; #(
     .fu_data_o                  ( fu_data_id_ex                ),
     .pc_o                       ( pc_id_ex                     ),
     .is_compressed_instr_o      ( is_compressed_instr_id_ex    ),
-    .trans_instr_o              ( trans_instr_ex               ),
+    .tinst_o                    ( tinst_ex                     ),
     // fixed latency unit ready
     .flu_ready_i                ( flu_ready_ex_id              ),
     // ALU
@@ -397,7 +397,7 @@ module ariane import ariane_pkg::*; #(
     .fu_data_i              ( fu_data_id_ex               ),
     .pc_i                   ( pc_id_ex                    ),
     .is_compressed_instr_i  ( is_compressed_instr_id_ex   ),
-    .trans_instr_i           ( trans_instr_ex               ),
+    .tinst_i                ( tinst_ex                    ),
     // fixed latency units
     .flu_result_o           ( flu_result_ex_id            ),
     .flu_trans_id_o         ( flu_trans_id_ex_id          ),

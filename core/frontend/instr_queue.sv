@@ -230,6 +230,8 @@ module instr_queue (
     fetch_entry_o.ex.tval = '0;
     fetch_entry_o.ex.tval2= '0;
     fetch_entry_o.ex.gva  = 1'b0;
+    // tinst hardwire to 0 for Instruction page fault and access fault exceptions
+    fetch_entry_o.ex.tinst = '0;
     fetch_entry_o.branch_predict.predict_address = address_out;
     fetch_entry_o.branch_predict.cf = ariane_pkg::NoCF;
     // output mux select
