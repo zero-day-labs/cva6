@@ -19,7 +19,6 @@ module branch_unit (
     input  ariane_pkg::fu_data_t      fu_data_i,
     input  logic [riscv::VLEN-1:0]    pc_i,                   // PC of instruction
     input  logic                      is_compressed_instr_i,
-    input riscv::xlen_t               trans_instr_i,
     input  logic                      fu_valid_i,             // any functional unit is valid, check that there is no accidental mis-predict
     input  logic                      branch_valid_i,
     input  logic                      branch_comp_res_i,      // branch comparison result from ALU
