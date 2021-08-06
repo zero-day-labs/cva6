@@ -1284,11 +1284,14 @@ module decoder import ariane_pkg::*; (
                 // (SIE or UIE in mstatus) is set, or if the current privilege mode is less than the delegated privilege mode.
                 if (irq_ctrl_i.mideleg[interrupt_cause[$clog2(riscv::XLEN)-1:0]]) begin
                     if (v_i &&  irq_ctrl_i.hideleg[interrupt_cause[$clog2(riscv::XLEN)-1:0]]) begin
-                        if ((irq_ctrl_i.vsie && priv_lvl_i == riscv::PRIV_LVL_S) || priv_lvl_i == riscv::PRIV_LVL_U) begin
+                        if ((irq_ctrl_i.sie && priv_lvl_i == riscv::PRIV_LVL_S) || priv_lvl_i == riscv::PRIV_LVL_U) begin
                             instruction_o.ex.valid = 1'b1;
                             instruction_o.ex.cause = interrupt_cause;
                         end
-                    end else if ((irq_ctrl_i.sie && priv_lvl_i == riscv::PRIV_LVL_S) || priv_lvl_i == riscv::PRIV_LVL_U) begin
+                    end else if (v_i && ~irq_ctrl_i.hideleg[interrupt_cause[$clog2(riscv::XLEN)-1:0]]) begin
+                            instruction_o.ex.valid = 1'b1;
+                            instruction_o.ex.cause = interrupt_cause;
+                    end else if (!v_i && ((irq_ctrl_i.sie && priv_lvl_i == riscv::PRIV_LVL_S) || priv_lvl_i == riscv::PRIV_LVL_U)) begin
                         instruction_o.ex.valid = 1'b1;
                         instruction_o.ex.cause = interrupt_cause;
                     end
