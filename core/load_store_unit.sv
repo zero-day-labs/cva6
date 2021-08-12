@@ -476,7 +476,6 @@ module load_store_unit import ariane_pkg::*; #(
         end
 
         if (data_misaligned) begin
-        //TODO: calculate addr offset ffor tinst
 
             if (lsu_ctrl.fu == LOAD) begin
                 misaligned_exception = {
