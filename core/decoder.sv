@@ -1064,7 +1064,7 @@ module decoder import ariane_pkg::*; (
                     end else begin
                         illegal_instr = 1'b1;
                     end
-                    tinst = {instr.instr[31:25], instr.atype.rs2, 5'b0, instr.stype.funct3, instr.atype.rd, instr.atype.opcode};
+                    tinst = {instr.atype.funct5, instr.atype.aq, instr.atype.rl, instr.atype.rs2, 5'b0, instr.atype.funct3, instr.atype.rd, instr.atype.opcode};
                     tinst[1] = is_compressed_i ? 1'b0 : 1'b1;
                 end
 
