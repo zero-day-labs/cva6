@@ -472,7 +472,7 @@ module issue_read_operands import ariane_pkg::*; #(
             fu_q                  <= NONE;
             operator_q            <= ADD;
             trans_id_q            <= '0;
-            tinst_o               <= '0;
+            tinst_q               <= '0;
             pc_o                  <= '0;
             is_compressed_instr_o <= 1'b0;
             branch_predict_o      <= {cf_t'(0), {riscv::VLEN{1'b0}}};
