@@ -275,7 +275,6 @@ module decoder import ariane_pkg::*; (
 
                             endcase
                             tinst = {instr.rtype.funct7, instr.rtype.rs2, 5'b0, instr.rtype.funct3, instr.rtype.rd, instr.rtype.opcode};
-                            tinst[1] = is_compressed_i ? 1'b0 : 'b1;
                         end
                         // atomically swaps values in the CSR and integer register
                         3'b001: begin// CSRRW
@@ -1064,7 +1063,6 @@ module decoder import ariane_pkg::*; (
                         illegal_instr = 1'b1;
                     end
                     tinst = {instr.atype.funct5, instr.atype.aq, instr.atype.rl, instr.atype.rs2, 5'b0, instr.atype.funct3, instr.atype.rd, instr.atype.opcode};
-                    tinst[1] = is_compressed_i ? 1'b0 : 1'b1;
                 end
 
                 // --------------------------------
