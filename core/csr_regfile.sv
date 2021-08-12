@@ -1226,6 +1226,8 @@ module csr_regfile import ariane_pkg::*; #(
             v_d            = mstatus_q.mpv;
             //set hstatus spv to false
             mstatus_d.mpv  = 1'b0;
+            if(mstatus_q.mpp != riscv::PRIV_LVL_M)
+                mstatus_d.mprv = 1'b0;
         end
 
         if (sret && !v_q) begin
@@ -1243,7 +1245,7 @@ module csr_regfile import ariane_pkg::*; #(
             v_d            = hstatus_q.spv;
             //set hstatus spv to false
             hstatus_d.spv  = 1'b0;
-
+            mstatus_d.mprv = 1'b0;
         end
 
         if (sret && v_q) begin
