@@ -1058,6 +1058,8 @@ module csr_regfile import ariane_pkg::*; #(
                 mstatus_d.mpie = mstatus_q.mie;
                 // save the previous privilege mode
                 mstatus_d.mpp  = priv_lvl_q;
+                // save previous virtualization mode
+                mstatus_d.mpv  = v_q;
                 mcause_d       = ex_i.cause;
                 // set epc
                 mepc_d         = {{riscv::XLEN-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
