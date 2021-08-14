@@ -335,8 +335,8 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_HCOUNTEREN:         csr_rdata = hcounteren_q;
                 riscv::CSR_HTVAL:              csr_rdata = htval_q;
                 riscv::CSR_HTINST:             csr_rdata = htinst_q;
-                riscv::CSR_HGEIE:;             csr_rdata = '0;
-                riscv::CSR_HGEIP:;             csr_rdata = '0;
+                riscv::CSR_HGEIE:              csr_rdata = '0;
+                riscv::CSR_HGEIP:              csr_rdata = '0;
                 riscv::CSR_HGATP: begin
                     // intercept reads to HGATP if in HS-Mode and TVM is enabled
                     if (priv_lvl_o == riscv::PRIV_LVL_S && !v_q && mstatus_q.tvm) begin
