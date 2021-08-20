@@ -144,8 +144,8 @@ module ptw import ariane_pkg::*; #(
     // -----------
     assign itlb_update_o.vpn = {{39-riscv::SV{1'b0}}, vaddr_q[riscv::SV-1:12]};
     assign dtlb_update_o.vpn = {{39-riscv::SV{1'b0}}, vaddr_q[riscv::SV-1:12]};
-    assign itlb_update_o.gppn = {{39-riscv::SV{1'b0}}, gpaddr_q[riscv::SVX-1:12]};
-    assign dtlb_update_o.gppn = {{39-riscv::SV{1'b0}}, gpaddr_q[riscv::SVX-1:12]};
+    assign itlb_update_o.gppn = {{41-riscv::SVX{1'b0}}, gpaddr_q[riscv::SVX-1:12]};
+    assign dtlb_update_o.gppn = {{41-riscv::SVX{1'b0}}, gpaddr_q[riscv::SVX-1:12]};
     // update the correct page table level
     assign itlb_update_o.is_2M = (enable_translation_i && enable_g_translation_i) ? (gptw_lvl_q == LVL2) : (enable_translation_i) ? (ptw_lvl_q == LVL2) : '0;
     assign itlb_update_o.is_1G = (enable_translation_i && enable_g_translation_i) ? (gptw_lvl_q == LVL1) : (enable_translation_i) ? (ptw_lvl_q == LVL1) : '0;
