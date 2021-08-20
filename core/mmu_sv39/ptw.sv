@@ -245,6 +245,7 @@ module ptw import ariane_pkg::*; #(
         vaddr_n               = vaddr_q;
         gpaddr_n              = gpaddr_q;
         pptr                  = ptw_pptr_q;
+        gpaddr                = gpaddr_q;
 
         itlb_miss_o           = 1'b0;
         dtlb_miss_o           = 1'b0;
