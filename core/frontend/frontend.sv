@@ -50,6 +50,7 @@ module frontend import ariane_pkg::*; #(
     logic                   icache_valid_q;
     ariane_pkg::frontend_exception_t icache_ex_valid_q;
     logic [riscv::VLEN-1:0] icache_vaddr_q;
+    logic [riscv::GPLEN-1:0]icache_gpaddr_q;
     logic                   icache_gva_q;
     logic                   instr_queue_ready;
     logic [ariane_pkg::INSTR_PER_FETCH-1:0] instr_queue_consumed;
