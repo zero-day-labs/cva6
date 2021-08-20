@@ -518,6 +518,7 @@ module csr_regfile import ariane_pkg::*; #(
         vsepc_d                 = vsepc_q;
         vscause_d               = vscause_q;
         vstval_d                = vstval_q;
+        vsatp_d                 = vsatp_q;
 
         sepc_d                  = sepc_q;
         scause_d                = scause_q;
