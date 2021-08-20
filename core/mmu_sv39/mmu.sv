@@ -125,7 +125,7 @@ module mmu import ariane_pkg::*; #(
     assign itlb_lu_access = icache_areq_i.fetch_req;
     assign dtlb_lu_access = lsu_req_i;
     assign itlb_lu_asid = v_i ? vs_asid_i : asid_i;
-    assign dtlb_lu_asid = (v_i || ld_st_v_i) ? vs_asid_i : asid_i;
+    assign dtlb_lu_asid = (ld_st_v_i || flush_tlb_vvma_i) ? vs_asid_i : asid_i;
 
 
     tlb #(
