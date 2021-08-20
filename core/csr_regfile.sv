@@ -1040,7 +1040,7 @@ module csr_regfile import ariane_pkg::*; #(
                                   } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tinst;
                 hstatus_d.spvp = v_q ? priv_lvl_q[0] : hstatus_d.spvp;
                 htval_d        = ex_i.tval2 >> 2;
-                hstatus_d.gva  = (|ex_i.tval2);
+                hstatus_d.gva  = ex_i.gva;
                 hstatus_d.spv  = v_q;
                 end
             // trap to machine mode
@@ -1074,7 +1074,7 @@ module csr_regfile import ariane_pkg::*; #(
                                     riscv::VIRTUAL_INSTRUCTION
                                   } || ex_i.cause[riscv::XLEN-1])) ? '0 : ex_i.tinst;
                 mtval2_d       = ex_i.tval2 >> 2;
-                mstatus_d.gva  = (|ex_i.tval2);
+                mstatus_d.gva  = ex_i.gva;
             end
 
             priv_lvl_d = trap_to_priv_lvl;
