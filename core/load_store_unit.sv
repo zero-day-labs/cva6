@@ -412,6 +412,7 @@ module load_store_unit import ariane_pkg::*; #(
             {riscv::XLEN{1'b0}},
             {riscv::XLEN{1'b0}},
             {riscv::XLEN{1'b0}},
+            1'b0,
             1'b0
         };
         tinst_addr_offset = {riscv::XLEN{1'b0}};
