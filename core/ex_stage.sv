@@ -418,7 +418,7 @@ module ex_stage import ariane_pkg::*; #(
     // If the current instruction in EX_STAGE is a sfence.vma, in the next cycle no writes will happen
 		end else if ((~(current_instruction_is_sfence_vma || current_instruction_is_hfence_vvma || current_instruction_is_hfence_gvma)) && (~((fu_data_i.operator == SFENCE_VMA || fu_data_i.operator == HFENCE_VVMA || fu_data_i.operator == HFENCE_GVMA ) && csr_valid_i))) begin
 			  vaddr_to_be_flushed <=  rs1_forwarding_i;
-        gpaddr_to_be_flushed <=  rs1_forwarding_i << 2;
+        gpaddr_to_be_flushed <=  rs1_forwarding_i >> 2;
 			  asid_to_be_flushed  <= rs2_forwarding_i[ASID_WIDTH-1:0];
         vmid_to_be_flushed  <= rs2_forwarding_i[VMID_WIDTH-1:0];
 		end
