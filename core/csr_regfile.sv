@@ -1164,7 +1164,7 @@ module csr_regfile import ariane_pkg::*; #(
         // ------------------------------
         // Set the address translation at which the load and stores should occur
         // we can use the previous values since changing the address translation will always involve a pipeline flush
-        if ((mprv && ((riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV && (mstatus_q.mpp != riscv::PRIV_LVL_M)) || (mstatus_q.mpv == 1'b1 && riscv::vm_mode_t'(vsatp_q.mode) == riscv::MODE_SV))) || (riscv::vm_mode_t'(vsatp_q.mode) == riscv::MODE_SV && csr_hs_ld_st_inst_i))
+        if ((mprv && ((mstatus_q.mpv == 1'b0 && (riscv::vm_mode_t'(satp_q.mode) == riscv::MODE_SV && (mstatus_q.mpp != riscv::PRIV_LVL_M))) || (mstatus_q.mpv == 1'b1 && riscv::vm_mode_t'(vsatp_q.mode) == riscv::MODE_SV))) || (riscv::vm_mode_t'(vsatp_q.mode) == riscv::MODE_SV && csr_hs_ld_st_inst_i))
             en_ld_st_translation_d = 1'b1;
         else // otherwise we go with the regular settings
             en_ld_st_translation_d = en_translation_o;
