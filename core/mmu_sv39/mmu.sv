@@ -107,13 +107,13 @@ module mmu import ariane_pkg::*; #(
     logic        itlb_is_g_2M;
     logic        itlb_is_g_1G;
     logic        itlb_lu_hit;
-    logic        itlb_lu_asid;
+    logic [ASID_WIDTH-1:0]    itlb_lu_asid;
 
     logic        dtlb_lu_access;
     riscv::pte_t dtlb_content;
     logic        dtlb_is_2M;
     logic        dtlb_is_1G;
-    logic        dtlb_lu_asid;
+    logic [ASID_WIDTH-1:0]    dtlb_lu_asid;
     // data from G-stage translation
     riscv::pte_t dtlb_g_content;
     logic        dtlb_is_g_2M;
