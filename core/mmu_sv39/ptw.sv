@@ -263,10 +263,10 @@ module ptw import ariane_pkg::*; #(
                 if ((enable_translation_i | enable_g_translation_i) & itlb_access_i & ~itlb_hit_i & ~dtlb_access_i) begin
                     if (enable_translation_i && enable_g_translation_i) begin
                         ptw_stage_d = VS_INTERMED_STAGE;
-                        if(!v_i)
-                            pptr = {satp_ppn_i, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
-                        else
+                        if(v_i)
                             pptr = {vsatp_ppn_i, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                        else
+                            pptr = {satp_ppn_i, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
                         gptw_pptr_n = pptr;
                         ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], pptr[riscv::SVX-1:30], 3'b0};
                     end else if (!enable_translation_i && enable_g_translation_i) begin
@@ -275,13 +275,13 @@ module ptw import ariane_pkg::*; #(
                         ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], {2{itlb_vaddr_i[riscv::SV-1]}}, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
                     end else if (enable_translation_i && !enable_g_translation_i) begin
                         ptw_stage_d = VS_STAGE;
-                        if(!v_i)
-                            ptw_pptr_n  = {satp_ppn_i, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
-                        else
+                        if(v_i)
                             ptw_pptr_n  = {vsatp_ppn_i, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                        else
+                            ptw_pptr_n  = {satp_ppn_i, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
                     end
                     is_instr_ptw_n      = 1'b1;
-                    tlb_update_asid_n   = !v_i ? asid_i :vs_asid_i;
+                    tlb_update_asid_n   = v_i ? vs_asid_i : asid_i;
                     vaddr_n             = itlb_vaddr_i;
                     state_d             = WAIT_GRANT;
                     itlb_miss_o         = 1'b1;
