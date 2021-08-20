@@ -283,6 +283,7 @@ module ptw import ariane_pkg::*; #(
                     end
                     is_instr_ptw_n      = 1'b1;
                     tlb_update_asid_n   = v_i ? vs_asid_i : asid_i;
+                    tlb_update_vmid_n   = vmid_i;
                     vaddr_n             = itlb_vaddr_i;
                     state_d             = WAIT_GRANT;
                     itlb_miss_o         = 1'b1;
@@ -308,7 +309,7 @@ module ptw import ariane_pkg::*; #(
                         else
                             ptw_pptr_n  = {satp_ppn_i, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
                     end
-                    tlb_update_asid_n   = (v_i || ld_st_v_i) ? vs_asid_i : asid_i;
+                    tlb_update_vmid_n   = vmid_i;
                     vaddr_n             = dtlb_vaddr_i;
                     state_d             = WAIT_GRANT;
                     dtlb_miss_o         = 1'b1;
