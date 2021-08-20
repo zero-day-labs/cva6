@@ -143,8 +143,8 @@ module load_store_unit import ariane_pkg::*; #(
     exception_t               ld_ex;
     exception_t               st_ex;
 
-    logic                    csr_hs_ld_st_inst;
-    logic                    mmu_hlvx_inst;
+    logic                     csr_hs_ld_st_inst;
+    logic                     mmu_hlvx_inst;
     // -------------------
     // MMU e.g.: TLBs/PTW
     // -------------------
@@ -372,7 +372,9 @@ module load_store_unit import ariane_pkg::*; #(
     // determine whether this is a hypervisor load or store
     always_comb begin : hyp_ld_st
         // check the operator to activate the right functional unit accordingly
-        unique case (lsu_ctrl.operator)
+        csr_hs_ld_st_inst = 1'b0;
+        mmu_hlvx_inst     = 1'b0;
+        case (lsu_ctrl.operator)
             // all loads go here
             HLV_B, HLV_BU, HLV_H, HLV_HU,
             HLV_W, HSV_B, HSV_H, HSV_W,
@@ -383,10 +385,7 @@ module load_store_unit import ariane_pkg::*; #(
                     csr_hs_ld_st_inst = 1'b1;
                     mmu_hlvx_inst     = 1'b1;
             end
-            default: begin
-                csr_hs_ld_st_inst = 1'b0;
-                mmu_hlvx_inst     = 1'b0;
-            end
+            default:;
         endcase
     end
 
