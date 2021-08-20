@@ -291,7 +291,7 @@ module ptw import ariane_pkg::*; #(
                 end else if ((en_ld_st_translation_i || en_ld_st_g_translation_i) & dtlb_access_i & ~dtlb_hit_i) begin
                     if (en_ld_st_translation_i && en_ld_st_g_translation_i) begin
                         ptw_stage_d = VS_INTERMED_STAGE;
-                        if(v_i || ld_st_v_i)
+                        if(ld_st_v_i)
                             pptr = {vsatp_ppn_i, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
                         else
                             pptr = {satp_ppn_i, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
@@ -304,11 +304,12 @@ module ptw import ariane_pkg::*; #(
                         ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], {2{dtlb_vaddr_i[riscv::SV-1]}}, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
                     end else if (en_ld_st_translation_i && !en_ld_st_g_translation_i) begin
                         ptw_stage_d = VS_STAGE;
-                        if(v_i || ld_st_v_i)
+                        if(ld_st_v_i)
                             ptw_pptr_n  = {vsatp_ppn_i, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
                         else
                             ptw_pptr_n  = {satp_ppn_i, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
                     end
+                    tlb_update_asid_n   = ld_st_v_i ? vs_asid_i : asid_i;
                     tlb_update_vmid_n   = vmid_i;
                     vaddr_n             = dtlb_vaddr_i;
                     state_d             = WAIT_GRANT;
