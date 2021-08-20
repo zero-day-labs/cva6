@@ -318,6 +318,7 @@ package ariane_pkg;
                              // address of LD/ST fault
          riscv::xlen_t       tval2; // additional information when the causing exception in a guest exception
          riscv::xlen_t       tinst;  // transformed instruction information
+         logic        gva;          // signals when a guest virtual address is written to tval
          logic        valid;
     } exception_t;
 
