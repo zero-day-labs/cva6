@@ -405,7 +405,7 @@ module ptw import ariane_pkg::*; #(
                                 // If page is not readable (there are no write-only pages)
                                 // we can directly raise an error. This doesn't put a useless
                                 // entry into the TLB.
-                                if (pte.a && ((pte.r && !hlvx_inst_i) || (pte.x && (mxr_i || hlvx_inst_i || (ptw_stage_q == VS_STAGE && vmxr_i))))) begin
+                                if (pte.a && ((pte.r && !hlvx_inst_i) || (pte.x && (mxr_i || hlvx_inst_i || (ptw_stage_q == VS_STAGE && vmxr_i && ld_st_v_i))))) begin
                                   if((en_ld_st_translation_i && ptw_stage_q == G_STAGE) || (!en_ld_st_g_translation_i && ptw_stage_q == VS_STAGE))
                                       dtlb_update_o.valid = 1'b1;
                                 end else begin
