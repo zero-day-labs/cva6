@@ -567,7 +567,7 @@ module ptw import ariane_pkg::*; #(
             ptw_stage_q        <= VS_STAGE;
             is_instr_ptw_q     <= 1'b0;
             ptw_lvl_q          <= LVL1;
-            gptw_lvl_n         <= LVL1;
+            gptw_lvl_q         <= LVL1;
             tag_valid_q        <= 1'b0;
             tlb_update_asid_q  <= '0;
             tlb_update_vmid_q  <= '0;
