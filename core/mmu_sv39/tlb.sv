@@ -77,13 +77,13 @@ module tlb import ariane_pkg::*; #(
     logic [riscv::VPN2:0] vpn2;
     logic [TLB_ENTRIES-1:0] lu_hit;     // to replacement logic
     logic [TLB_ENTRIES-1:0] replace_en; // replace the following entry, set by replacement strategy
+    logic [TLB_ENTRIES-1:0] match_vmid;
+    logic [TLB_ENTRIES-1:0] match_asid;
+    logic [TLB_ENTRIES-1:0] match_stage;
     //-------------
     // Translation
     //-------------
     always_comb begin : translation
-        automatic logic match_vmid;
-        automatic logic match_asid;
-        automatic logic match_stage;
         vpn0 = lu_vaddr_i[20:12];
         vpn1 = lu_vaddr_i[29:21];
         vpn2 = lu_vaddr_i[30+riscv::VPN2:30];
@@ -99,11 +99,11 @@ module tlb import ariane_pkg::*; #(
         for (int unsigned i = 0; i < TLB_ENTRIES; i++) begin
             // first level match, this may be a giga page, check the ASID and VMID flags as well if needed
             // if the entry is associated to a global address, don't match the ASID (ASID is don't care)
-            match_asid = (((lu_asid_i == tags_q[i].asid) || content_q[i].pte.g) && vs_st_enbl_i) || !vs_st_enbl_i;
-            match_vmid = (lu_vmid_i == tags_q[i].vmid && g_st_enbl_i) || !g_st_enbl_i;
+            match_asid[i] = (((lu_asid_i == tags_q[i].asid) || content_q[i].pte.g) && vs_st_enbl_i) || !vs_st_enbl_i;
+            match_vmid[i] = (lu_vmid_i == tags_q[i].vmid && g_st_enbl_i) || !g_st_enbl_i;
             // check if translation is a: VS-Stage and G-Stage, VS-Stage only or G-Stage only translation and virtualization mode is on/off
-            match_stage = tags_q[i].g_st_enbl ==  g_st_enbl_i && tags_q[i].vs_st_enbl ==  vs_st_enbl_i && tags_q[i].v == v_i;
-            if (tags_q[i].valid && match_asid && vpn2 == tags_q[i].vpn2 && match_stage) begin
+            match_stage[i] = tags_q[i].g_st_enbl == g_st_enbl_i && tags_q[i].vs_st_enbl == vs_st_enbl_i && tags_q[i].v == v_i;
+            if (tags_q[i].valid && match_asid[i] && vpn2 == tags_q[i].vpn2 && match_stage[i] && match_vmid[i]) begin
                 // second level
                 if ((tags_q[i].is_1G && vs_st_enbl_i) || (tags_q[i].is_g_1G && !vs_st_enbl_i)) begin
                     lu_is_1G_o = tags_q[i].is_1G;
