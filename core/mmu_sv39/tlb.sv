@@ -142,9 +142,9 @@ module tlb import ariane_pkg::*; #(
     logic  [TLB_ENTRIES-1:0] vaddr_vpn0_match;
     logic  [TLB_ENTRIES-1:0] vaddr_vpn1_match;
     logic  [TLB_ENTRIES-1:0] vaddr_vpn2_match;
-    logic  [TLB_ENTRIES-1:0] gpaddr_vpn0_match;
-    logic  [TLB_ENTRIES-1:0] gpaddr_vpn1_match;
-    logic  [TLB_ENTRIES-1:0] gpaddr_vpn2_match;
+    logic  [TLB_ENTRIES-1:0] gpaddr_gppn0_match;
+    logic  [TLB_ENTRIES-1:0] gpaddr_gppn1_match;
+    logic  [TLB_ENTRIES-1:0] gpaddr_gppn2_match;
 
     assign asid_to_be_flushed_is0 =  ~(|asid_to_be_flushed_i);
     assign vmid_to_be_flushed_is0 =  ~(|vmid_to_be_flushed_i);
@@ -164,9 +164,9 @@ module tlb import ariane_pkg::*; #(
             vaddr_vpn1_match[i] = (vaddr_to_be_flushed_i[29:21] == tags_q[i].vpn1);
             vaddr_vpn2_match[i] = (vaddr_to_be_flushed_i[30+riscv::VPN2:30] == tags_q[i].vpn2);
 
-            gpaddr_vpn0_match[i] = (gpaddr_to_be_flushed_i[20:12] == tags_q[i].gppn0);
-            gpaddr_vpn1_match[i] = (gpaddr_to_be_flushed_i[29:21] == tags_q[i].gppn1);
-            gpaddr_vpn2_match[i] = (gpaddr_to_be_flushed_i[32+riscv::VPN2:30] == tags_q[i].gppn2);
+            gpaddr_gppn0_match[i] = (gpaddr_to_be_flushed_i[20:12] == tags_q[i].gppn0);
+            gpaddr_gppn1_match[i] = (gpaddr_to_be_flushed_i[29:21] == tags_q[i].gppn1);
+            gpaddr_gppn2_match[i] = (gpaddr_to_be_flushed_i[32+riscv::VPN2:30] == tags_q[i].gppn2);
 
             if (flush_i) begin
                 if(!tags_q[i].v && tags_q[i].vs_st_enbl) begin
