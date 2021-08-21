@@ -435,8 +435,9 @@ module ptw import ariane_pkg::*; #(
                                 itlb_update_o.valid = 1'b0;
                             end
                             // check if 63:41 are all zeros
-                            if ((v_i || ld_st_v_i) && ptw_stage_q == VS_STAGE && pte.ppn[riscv::PPNW:riscv::GPPNW] != '0 ) begin
+                            if (((v_i && is_instr_ptw_q) || (ld_st_v_i && !is_instr_ptw_q)) && ptw_stage_q == VS_STAGE && !((|pte.ppn[riscv::PPNW-1:riscv::GPPNW]) == 1'b0)) begin
                                 state_d = PROPAGATE_ERROR;
+                                ptw_stage_d = G_STAGE;
                             end
                         // this is a pointer to the next TLB level
                         end else begin
@@ -504,7 +505,7 @@ module ptw import ariane_pkg::*; #(
                               ptw_stage_d = ptw_stage_q;
                             end
                             // check if 63:41 are all zeros
-                            if ((v_i || ld_st_v_i) && ptw_stage_q == VS_STAGE && pte.ppn[riscv::PPNW:riscv::GPPNW] != '0 ) begin
+                            if (((v_i && is_instr_ptw_q) || (ld_st_v_i && !is_instr_ptw_q)) && ptw_stage_q == VS_STAGE && !((|pte.ppn[riscv::PPNW-1:riscv::GPPNW]) == 1'b0)) begin
                                 state_d = PROPAGATE_ERROR;
                                 ptw_stage_d = ptw_stage_q;
                             end
