@@ -206,13 +206,13 @@ module tlb import ariane_pkg::*; #(
                     // flush everything if VMID is 0 and addr is 0 ("HFENCE.GVMA x0 x0" case)
         				    if (vmid_to_be_flushed_is0 && gpaddr_to_be_flushed_is0 )
                         tags_n[i].valid = 1'b0;
-                    // flush vaddr in all addressing space ("HFENCE.GVMA vaddr x0" case), it should happen only for leaf pages
-                    else if (vmid_to_be_flushed_is0 && ((gpaddr_vpn0_match[i] && gpaddr_vpn1_match[i] && gpaddr_vpn2_match[i]) || (gpaddr_vpn2_match[i] && tags_q[i].is_g_1G) || (gpaddr_vpn1_match[i] && gpaddr_vpn2_match[i] && tags_q[i].is_g_2M) ) && (~gpaddr_to_be_flushed_is0))
+                    // flush gpaddr in all addressing space ("HFENCE.GVMA gpaddr x0" case), it should happen only for leaf pages
+                    else if (vmid_to_be_flushed_is0 && ((gpaddr_gppn0_match[i] && gpaddr_gppn1_match[i] && gpaddr_gppn2_match[i]) || (gpaddr_gppn2_match[i] && tags_q[i].is_g_1G) || (gpaddr_gppn1_match[i] && gpaddr_gppn2_match[i] && tags_q[i].is_g_2M) ) && (~gpaddr_to_be_flushed_is0))
                         tags_n[i].valid = 1'b0;
                     // the entry asid and gpaddr both matches with the entry to be flushed ("HFENCE.GVMA gpaddr vmid" case)
-				            else if (((vaddr_vpn0_match[i] && vaddr_vpn1_match[i] && vaddr_vpn2_match[i]) || (vaddr_vpn2_match[i] && tags_q[i].is_1G) || (vaddr_vpn1_match[i] && vaddr_vpn2_match[i] && tags_q[i].is_2M)) && (vmid_to_be_flushed_i == tags_q[i].vmid) && (!gpaddr_to_be_flushed_is0) && (!vmid_to_be_flushed_is0))
+				            else if (((gpaddr_gppn0_match[i] && gpaddr_gppn1_match[i] && gpaddr_gppn2_match[i]) || (gpaddr_gppn2_match[i] && tags_q[i].is_g_1G) || (gpaddr_gppn1_match[i] && gpaddr_gppn2_match[i] && tags_q[i].is_g_2M)) && (vmid_to_be_flushed_i == tags_q[i].vmid) && (~gpaddr_to_be_flushed_is0) && (~vmid_to_be_flushed_is0))
 				              	tags_n[i].valid = 1'b0;
-                    // the entry is flushed if it's not global, and the asid matches and vaddr is 0. ("HFENCE.GVMA 0 vmid" case)
+                    // the entry is flushed if it's not global, and the vmid matches and gpaddr is 0. ("HFENCE.GVMA 0 vmid" case)
 				            else if ((gpaddr_to_be_flushed_is0) && (vmid_to_be_flushed_i == tags_q[i].vmid) && (!vmid_to_be_flushed_is0))
 				            	  tags_n[i].valid = 1'b0;
                 end
