@@ -380,6 +380,7 @@ module ptw import ariane_pkg::*; #(
                                                 pptr = {pte.ppn[riscv::GPPNW-1:0], gptw_pptr_q[11:0]};
                                             ptw_pptr_n = pptr;
                                 end
+                                default:;
                             endcase
                             // Valid translation found (either 1G, 2M or 4K entry)
                             if (is_instr_ptw_q) begin
@@ -486,6 +487,7 @@ module ptw import ariane_pkg::*; #(
                                     G_STAGE: begin
                                             ptw_pptr_n = {pte.ppn, gpaddr_q[20:12], 3'b0};
                                     end
+                                    default:;
                                 endcase
                             end
 
