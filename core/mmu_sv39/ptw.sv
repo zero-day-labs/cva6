@@ -392,7 +392,7 @@ module ptw import ariane_pkg::*; #(
                                 // to the access flag since we let the access flag be managed by SW.
                                 if (!pte.x || !pte.a)
                                   state_d = PROPAGATE_ERROR;
-                                else if((enable_g_translation_i && ptw_stage_q == G_STAGE) || (!enable_g_translation_i && ptw_stage_q == VS_STAGE))
+                                  ptw_stage_d = ptw_stage_q;
                                   itlb_update_o.valid = 1'b1;
 
                             end else begin
@@ -409,6 +409,7 @@ module ptw import ariane_pkg::*; #(
                                       dtlb_update_o.valid = 1'b1;
                                 end else begin
                                   state_d   = PROPAGATE_ERROR;
+                                  ptw_stage_d = ptw_stage_q;
                                 end
                                 // Request is a store: perform some additional checks
                                 // If the request was a store and the page is not write-able, raise an error
@@ -416,6 +417,7 @@ module ptw import ariane_pkg::*; #(
                                 if (lsu_is_store_i && (!pte.w || !pte.d)) begin
                                     dtlb_update_o.valid = 1'b0;
                                     state_d   = PROPAGATE_ERROR;
+                                    ptw_stage_d = ptw_stage_q;
                                 end
                             end
                             // check if the ppn is correctly aligned:
@@ -423,10 +425,12 @@ module ptw import ariane_pkg::*; #(
                             // exception.
                             if (ptw_lvl_q == LVL1 && pte.ppn[17:0] != '0) begin
                                 state_d             = PROPAGATE_ERROR;
+                                ptw_stage_d         = ptw_stage_q;
                                 dtlb_update_o.valid = 1'b0;
                                 itlb_update_o.valid = 1'b0;
                             end else if (ptw_lvl_q == LVL2 && pte.ppn[8:0] != '0) begin
                                 state_d             = PROPAGATE_ERROR;
+                                ptw_stage_d         = ptw_stage_q;
                                 dtlb_update_o.valid = 1'b0;
                                 itlb_update_o.valid = 1'b0;
                             end
@@ -502,6 +506,7 @@ module ptw import ariane_pkg::*; #(
                             // check if 63:41 are all zeros
                             if ((v_i || ld_st_v_i) && ptw_stage_q == VS_STAGE && pte.ppn[riscv::PPNW:riscv::GPPNW] != '0 ) begin
                                 state_d = PROPAGATE_ERROR;
+                                ptw_stage_d = ptw_stage_q;
                             end
                         end
                     end
