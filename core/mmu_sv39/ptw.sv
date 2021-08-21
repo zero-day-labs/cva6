@@ -390,9 +390,10 @@ module ptw import ariane_pkg::*; #(
                                 // If page is not executable, we can directly raise an error. This
                                 // doesn't put a useless entry into the TLB. The same idea applies
                                 // to the access flag since we let the access flag be managed by SW.
-                                if (!pte.x || !pte.a)
+                                if (!pte.x || !pte.a) begin
                                   state_d = PROPAGATE_ERROR;
                                   ptw_stage_d = ptw_stage_q;
+                                end else if((enable_g_translation_i && ptw_stage_q == G_STAGE) || (!enable_g_translation_i && ptw_stage_q == VS_STAGE))
                                   itlb_update_o.valid = 1'b1;
 
                             end else begin
