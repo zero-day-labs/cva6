@@ -95,6 +95,8 @@ module tlb import ariane_pkg::*; #(
         lu_g_content_o = '{default: 0};
         lu_is_1G_o   = 1'b0;
         lu_is_2M_o   = 1'b0;
+        lu_is_g_1G_o = 1'b0;
+        lu_is_g_2M_o = 1'b0;
 
         for (int unsigned i = 0; i < TLB_ENTRIES; i++) begin
             // first level match, this may be a giga page, check the ASID and VMID flags as well if needed
@@ -107,6 +109,7 @@ module tlb import ariane_pkg::*; #(
                 // second level
                 if ((tags_q[i].is_1G && vs_st_enbl_i) || (tags_q[i].is_g_1G && !vs_st_enbl_i)) begin
                     lu_is_1G_o = tags_q[i].is_1G;
+                    lu_is_g_2M_o = tags_q[i].is_g_2M;
                     lu_is_g_1G_o = tags_q[i].is_g_1G;
                     lu_content_o = content_q[i].pte;
                     lu_g_content_o = content_q[i].gpte;
@@ -119,6 +122,7 @@ module tlb import ariane_pkg::*; #(
                     if (((tags_q[i].is_2M && vs_st_enbl_i) || (tags_q[i].is_g_2M && !vs_st_enbl_i)) || vpn0 == tags_q[i].vpn0) begin
                         lu_is_2M_o   = tags_q[i].is_2M;
                         lu_is_g_2M_o = tags_q[i].is_g_2M;
+                        lu_is_g_1G_o = tags_q[i].is_g_1G;
                         lu_content_o = content_q[i].pte;
                         lu_g_content_o = content_q[i].gpte;
                         lu_hit_o     = 1'b1;
