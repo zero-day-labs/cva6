@@ -527,8 +527,8 @@ module ptw import ariane_pkg::*; #(
             PROPAGATE_ERROR: begin
                 state_d     = IDLE;
                 ptw_error_o = 1'b1;
-                ptw_error_at_g_st_o = ptw_stage_q != VS_STAGE ? 1'b1 : 1'b0;
-                ptw_err_at_vs_int_st_o = ptw_stage_q == VS_INTERMED_STAGE ? 1'b1 : 1'b0;
+                ptw_error_at_g_st_o = (ptw_stage_q != VS_STAGE) ? 1'b1 : 1'b0;
+                ptw_err_at_vs_int_st_o = (ptw_stage_q == VS_INTERMED_STAGE) ? 1'b1 : 1'b0;
             end
             PROPAGATE_ACCESS_ERROR: begin
                 state_d     = IDLE;
