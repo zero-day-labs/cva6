@@ -215,6 +215,7 @@ module cva6 import ariane_pkg::*; #(
   logic                     csr_write_fflags_commit_cs;
   logic                     icache_en_csr;
   logic [31:0]              fence_t_pad_csr_ctrl;
+  logic                     fence_t_src_sel_csr_ctrl;
   logic [31:0]              fence_t_ceil_csr_ctrl;
   logic                     debug_mode;
   logic                     single_step_csr_commit;
@@ -637,6 +638,7 @@ module cva6 import ariane_pkg::*; #(
     .dcache_en_o            ( dcache_en_csr_nbdcache        ),
     .icache_en_o            ( icache_en_csr                 ),
     .fence_t_pad_o          ( fence_t_pad_csr_ctrl          ),
+    .fence_t_src_sel_o      ( fence_t_src_sel_csr_ctrl      ),
     .fence_t_ceil_i         ( fence_t_ceil_csr_ctrl         ),
     .perf_addr_o            ( addr_csr_perf                 ),
     .perf_data_o            ( data_csr_perf                 ),
@@ -698,7 +700,9 @@ module cva6 import ariane_pkg::*; #(
     .cache_busy_i           ( busy_cache_ctrl               ),
     .cache_init_no          ( init_ctrl_cache_n             ),
     .fence_t_pad_i          ( fence_t_pad_csr_ctrl          ),
+    .fence_t_src_sel_i      ( fence_t_src_sel_csr_ctrl      ),
     .fence_t_ceil_o         ( fence_t_ceil_csr_ctrl         ),
+    .priv_lvl_i             ( priv_lvl                      ),
 
     .halt_csr_i             ( halt_csr_ctrl                 ),
     .halt_o                 ( halt_ctrl                     ),
