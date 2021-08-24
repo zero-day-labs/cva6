@@ -39,6 +39,7 @@ module controller import ariane_pkg::*; (
     input  logic            cache_busy_i,           // Cache is busy
     output logic            cache_init_no,          // Do not init cache
     input  logic [31:0]     fence_t_pad_i,          // Pad cycles of fence.t end relative to time interrupt
+    output logic [31:0]     fence_t_ceil_o,
     input  logic            time_irq_i,             // Time interrupt
     input  logic            eret_i,                 // Return from exception
     input  logic            ex_valid_i,             // We got an exception, flush the pipeline
@@ -249,6 +250,7 @@ module controller import ariane_pkg::*; (
         fence_t_state_d = fence_t_state_q;
         rst_uarch_cnt_d = rst_uarch_cnt_q;
         rst_uarch_no    = 1'b1;
+        fence_t_ceil_o  = '0;
         cache_init_d[0] = 1'b0;
 
         unique case (fence_t_state_q)
@@ -261,6 +263,7 @@ module controller import ariane_pkg::*; (
             FLUSH_DCACHE: begin
                 if (flush_dcache_ack_i) begin
                     fence_t_state_d = WAIT;
+                    fence_t_ceil_o = (pad_cnt == '0) ? '0 : fence_t_pad_i - pad_cnt;
                 end
             end
 
