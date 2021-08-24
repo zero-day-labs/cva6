@@ -60,8 +60,9 @@ module controller import ariane_pkg::*; (
     logic flush_dcache;
 
     // Pad counter
-    logic [31:0] pad_cnt;
-    logic time_irq_q;
+    logic [31:0]      pad_cnt;
+    logic             time_irq_q;
+    riscv::priv_lvl_t priv_lvl_q;
 
     // cache init shift register. Keep 'no cache init' asserted for 3 cycles.
     logic [2:0] cache_init_d, cache_init_q;
@@ -296,19 +297,24 @@ module controller import ariane_pkg::*; (
         endcase
     end
 
+    logic load_pad_cnt;
+
+    assign load_pad_cnt = fence_t_src_sel_i ? ((priv_lvl_q == riscv::PRIV_LVL_U) && (priv_lvl_i != riscv::PRIV_LVL_U))
+                                            : (time_irq_i & ~time_irq_q);
+
     counter #(
         .WIDTH           ( 32 ),
         .STICKY_OVERFLOW ( 0  )
     ) i_pad_cnt (
         .clk_i,
         .rst_ni,
-        .clear_i    ( 1'b0                     ),
-        .en_i       ( |pad_cnt                 ),  // Count until 0
-        .load_i     ( time_irq_i & ~time_irq_q ),  // Start counting on positive edge of time irq
-        .down_i     ( 1'b1                     ),  // Always count down
-        .d_i        ( fence_t_pad_i            ),  // Start counting from FENCE_T_CSR value
-        .q_o        ( pad_cnt                  ),
-        .overflow_o (                          )
+        .clear_i    ( 1'b0          ),
+        .en_i       ( |pad_cnt      ),  // Count until 0
+        .load_i     ( load_pad_cnt  ),  // Start counting on positive edge of time irq
+        .down_i     ( 1'b1          ),  // Always count down
+        .d_i        ( fence_t_pad_i ),  // Start counting from FENCE_T_CSR value
+        .q_o        ( pad_cnt       ),
+        .overflow_o (               )
     );
 
     // ----------------------
@@ -322,6 +328,7 @@ module controller import ariane_pkg::*; (
             flush_dcache_o  <= 1'b0;
             rst_addr_q      <= boot_addr_i;
             time_irq_q      <= 1'b0;
+            priv_lvl_q      <= riscv::PRIV_LVL_M;
             cache_init_q    <= '0;
         end else begin
             fence_t_state_q <= fence_t_state_d;
@@ -331,6 +338,7 @@ module controller import ariane_pkg::*; (
             flush_dcache_o  <= flush_dcache;
             rst_addr_q      <= rst_addr_d;
             time_irq_q      <= time_irq_i;
+            priv_lvl_q      <= priv_lvl_i;
             cache_init_q    <= cache_init_d;
         end
     end

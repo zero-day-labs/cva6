@@ -96,6 +96,7 @@ module csr_regfile import ariane_pkg::*; #(
     input  logic                  wt_dcache_i,                // 0: WB DCache 1: WT DCache
     // fence.t
     output logic [31:0]           fence_t_pad_o,              // Padding time of fence.t relative to time interrupt
+    output logic                  fence_t_src_sel_o,          // Pad relative to selected source
     input  logic [31:0]           fence_t_ceil_i,
     // Performance Counter
     output logic  [4:0]           perf_addr_o,                // read/write address to performance counter module (up to 29 aux counters possible in riscv encoding.h)
@@ -1545,6 +1546,7 @@ module csr_regfile import ariane_pkg::*; #(
 `endif
     assign dcache_en_o      = dcache_q[0];
     assign fence_t_pad_o    = fence_t_pad_q;
+    assign fence_t_src_sel_o= fence_t_ceil_q[32];
 
     // determine if mprv needs to be considered if in debug mode
     assign mprv             = (debug_mode_q && !dcsr_q.mprven) ? 1'b0 : mstatus_q.mprv;
