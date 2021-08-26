@@ -107,7 +107,10 @@ module wt_dcache import ariane_pkg::*; import wt_cache_pkg::*; #(
   // controllers -> management
   logic [NumPorts-2:0]                          ctrl_busy;
 
-  assign busy_o = |ctrl_busy | ~wbuffer_empty_o;
+  // missunit -> management
+  logic                                         missunit_busy;
+
+  assign busy_o = |ctrl_busy | missunit_busy | ~wbuffer_empty_o;
 
 ///////////////////////////////////////////////////////
 // miss handling unit
@@ -124,6 +127,7 @@ module wt_dcache import ariane_pkg::*; import wt_cache_pkg::*; #(
     .flush_i            ( flush_i            ),
     .flush_ack_o        ( flush_ack_o        ),
     .miss_o             ( miss_o             ),
+    .busy_o             ( missunit_busy      ),
     .wbuffer_empty_i    ( wbuffer_empty_o    ),
     .cache_en_o         ( cache_en           ),
     .init_ni            ( init_ni            ),
