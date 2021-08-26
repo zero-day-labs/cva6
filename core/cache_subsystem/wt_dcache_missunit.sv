@@ -26,6 +26,7 @@ module wt_dcache_missunit import ariane_pkg::*; import wt_cache_pkg::*; #(
   input  logic                                       flush_i,     // flush request, this waits for pending tx (write, read) to finish and will clear the cache
   output logic                                       flush_ack_o, // send a single cycle acknowledge signal when the cache is flushed
   output logic                                       miss_o,      // we missed on a ld/st
+  output logic                                       busy_o,      // missunit is busy
   // local cache management signals
   input  logic                                       wbuffer_empty_i,
   output logic                                       cache_en_o,  // local cache enable signal
@@ -120,6 +121,8 @@ module wt_dcache_missunit import ariane_pkg::*; import wt_cache_pkg::*; #(
   assign miss_req_masked_d = (lock_reqs)  ? miss_req_masked_q      :
                              (mask_reads) ? miss_we_i & miss_req_i : miss_req_i;
   assign miss_is_write     = miss_we_i[miss_port_idx];
+
+  assign busy_o = state_q != IDLE;
 
   // read port arbiter
   lzc #(
