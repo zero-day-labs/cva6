@@ -92,7 +92,6 @@ module mmu import ariane_pkg::*; #(
     logic                   walking_instr; // PTW is walking because of an ITLB miss
     logic                   ptw_error;     // PTW threw an exception
     logic                   ptw_error_at_g_st;    // PTW threw an exception at the G-Stage
-    logic                   ptw_err_at_vs_int_st; // PTW threw an exception at the G-Stage during VS-Stage translation
     logic                   ptw_access_exception; // PTW threw an access exception (PMPs)
     logic [riscv::PLEN-1:0] ptw_bad_paddr; // PTW PMP exception bad physical addr
     logic [riscv::GPLEN-1:0] ptw_bad_gpaddr; // PTW guest page fault bad guest physical addr
@@ -210,7 +209,6 @@ module mmu import ariane_pkg::*; #(
         .walking_instr_o        ( walking_instr         ),
         .ptw_error_o            ( ptw_error             ),
         .ptw_error_at_g_st_o    ( ptw_error_at_g_st     ),
-        .ptw_err_at_vs_int_st_o ( ptw_err_at_vs_int_st  ),
         .ptw_access_exception_o ( ptw_access_exception  ),
         .enable_translation_i   ( enable_translation_i  ),
         .enable_g_translation_i ( enable_g_translation_i),
@@ -338,10 +336,8 @@ module mmu import ariane_pkg::*; #(
             if (ptw_active && walking_instr) begin
                 icache_areq_o.fetch_valid = ptw_error | ptw_access_exception;
                 if (ptw_error) begin
-                    if (ptw_err_at_vs_int_st) begin
+                    if (ptw_error_at_g_st) begin
                         icache_areq_o.fetch_exception = {riscv::INSTR_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{1'b0}}, update_vaddr}, {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr}, {riscv::XLEN{1'b0}}, v_i, 1'b1};
-                    end else if (ptw_error_at_g_st) begin
-                        icache_areq_o.fetch_exception = {riscv::INSTR_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{1'b0}}, update_vaddr}, {{riscv::XLEN-riscv::VLEN{1'b0}}, update_vaddr}, {riscv::XLEN{1'b0}}, v_i, 1'b1};
                     end else begin
                         icache_areq_o.fetch_exception = {riscv::INSTR_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{1'b0}}, update_vaddr}, {riscv::XLEN{1'b0}}, {riscv::XLEN{1'b0}}, v_i, 1'b1};
                     end
@@ -489,7 +485,7 @@ module mmu import ariane_pkg::*; #(
                     // check if the page is write-able and we are not violating privileges
                     // also check if the dirty flag is set
                     if(en_ld_st_g_translation_i && (!dtlb_gpte_q.w || d_g_st_access_err || !dtlb_gpte_q.d)) begin
-                        lsu_exception_o = {riscv::STORE_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
+                        lsu_exception_o = {riscv::STORE_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {{riscv::XLEN-riscv::PLEN{1'b0}},lsu_gpaddr}, riscv::IS_XLEN64 ? 64'h3020 : 64'h2020, ld_st_v_i, 1'b1};
                     end else if (en_ld_st_translation_i && (!dtlb_pte_q.w || daccess_err || !dtlb_pte_q.d)) begin
                         lsu_exception_o = {riscv::STORE_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
                     // Check if any PMPs are violated
@@ -500,7 +496,7 @@ module mmu import ariane_pkg::*; #(
                 // this is a load
                 end else begin
                     if (d_g_st_access_err) begin
-                        lsu_exception_o = {riscv::LOAD_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
+                        lsu_exception_o = {riscv::LOAD_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {{riscv::XLEN-riscv::PLEN{1'b0}},lsu_gpaddr},lsu_vaddr_q}, riscv::IS_XLEN64 ? 64'h3000 : 64'h2000, ld_st_v_i, 1'b1};
                     // check for sufficient access privileges - throw a page fault if necessary
                     end else if (daccess_err) begin
                         lsu_exception_o = {riscv::LOAD_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
@@ -522,18 +518,14 @@ module mmu import ariane_pkg::*; #(
                     lsu_valid_o = 1'b1;
                     // the page table walker can only throw page faults
                     if (lsu_is_store_q) begin
-                        if (ptw_err_at_vs_int_st) begin
+                        if (ptw_error_at_g_st) begin
                             lsu_exception_o = {riscv::STORE_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr}, riscv::IS_XLEN64 ? 64'h3020 : 64'h2020, ld_st_v_i, 1'b1};
-                        end else if (ptw_error_at_g_st) begin
-                            lsu_exception_o = {riscv::STORE_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
                         end else begin
                             lsu_exception_o = {riscv::STORE_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {riscv::XLEN{1'b0}}, {riscv::XLEN{1'b0}}, 1'b1};
                         end
                     end else begin
-                        if (ptw_err_at_vs_int_st) begin
+                        if (ptw_error_at_g_st) begin
                             lsu_exception_o = {riscv::LOAD_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr}, riscv::IS_XLEN64 ? 64'h3000 : 64'h2000, ld_st_v_i, 1'b1};
-                        end else if(ptw_error_at_g_st) begin
-                            lsu_exception_o = {riscv::LOAD_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
                         end else begin
                             lsu_exception_o = {riscv::LOAD_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {riscv::XLEN{1'b0}}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
                         end
