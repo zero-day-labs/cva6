@@ -31,6 +31,8 @@ module load_unit import ariane_pkg::*; #(
     // MMU -> Address Translation
     output logic                     translation_req_o,   // request address translation
     output logic [riscv::VLEN-1:0]   vaddr_o,             // virtual address out
+    output logic                     hs_ld_st_inst_o,     // instruction is a hyp load store instruction
+    output logic                     hlvx_inst_o,         // hyp load store with execute permissions
     input  logic [riscv::PLEN-1:0]   paddr_i,             // physical address in
     input  exception_t               ex_i,                // exception which may has happened earlier. for example: mis-aligned exception
     input  logic                     dtlb_hit_i,          // hit on the dtlb, send in the same cycle as the request
@@ -61,6 +63,8 @@ module load_unit import ariane_pkg::*; #(
     assign page_offset_o = lsu_ctrl_i.vaddr[11:0];
     // feed-through the virtual address for VA translation
     assign vaddr_o = lsu_ctrl_i.vaddr;
+    assign hs_ld_st_inst_o  = lsu_ctrl_i.hs_ld_st_inst;
+    assign hlvx_inst_o      = lsu_ctrl_i.hlvx_inst;
     // this is a read-only interface so set the write enable to 0
     assign req_port_o.data_we = 1'b0;
     assign req_port_o.data_wdata = '0;
