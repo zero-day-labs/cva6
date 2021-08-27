@@ -451,7 +451,7 @@ module mmu import ariane_pkg::*; #(
                   lsu_gpaddr[29:12] = lsu_vaddr_n[29:12];
                   lsu_dtlb_ppn_o[PPNWMin:12] = lsu_vaddr_n[PPNWMin:12];
                 end
-            end
+          end
 
           if(en_ld_st_g_translation_i) begin
               // 4K page
