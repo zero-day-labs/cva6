@@ -39,6 +39,7 @@ module mmu import ariane_pkg::*; #(
     input  logic                            lsu_req_i,        // request address translation
     input  logic [riscv::VLEN-1:0]          lsu_vaddr_i,      // virtual address in
     input  logic                            lsu_is_store_i,   // the translation is requested by a store
+    output logic                            csr_hs_ld_st_inst_o, // hyp load store instruction
     // if we need to walk the page table we can't grant in the same cycle
     // Cycle 0
     output logic                            lsu_dtlb_hit_o,   // sent in the same cycle as the request if translation hits in the DTLB
@@ -57,6 +58,7 @@ module mmu import ariane_pkg::*; #(
     input logic                             mxr_i,
     input logic                             vmxr_i,
     input logic                             hlvx_inst_i,
+    input logic                             hs_ld_st_inst_i,
     // input logic flag_mprv_i,
     input logic [riscv::PPNW-1:0]           satp_ppn_i,
     input logic [riscv::PPNW-1:0]           vsatp_ppn_i,
@@ -224,6 +226,7 @@ module mmu import ariane_pkg::*; #(
         .dtlb_access_i          ( dtlb_lu_access        ),
         .dtlb_hit_i             ( dtlb_lu_hit           ),
         .dtlb_vaddr_i           ( lsu_vaddr_i           ),
+        .hlvx_inst_i            ( hlvx_inst_i           ),
 
         .req_port_i             ( req_port_i            ),
         .req_port_o             ( req_port_o            ),
@@ -377,6 +380,7 @@ module mmu import ariane_pkg::*; #(
     // Data Interface
     //-----------------------
     logic [riscv::VLEN-1:0] lsu_vaddr_n,     lsu_vaddr_q;
+    logic                   hs_ld_st_inst_n, hs_ld_st_inst_q;
     riscv::pte_t dtlb_pte_n,      dtlb_pte_q;
     riscv::pte_t dtlb_gpte_n,     dtlb_gpte_q;
     exception_t  misaligned_ex_n, misaligned_ex_q;
@@ -403,6 +407,7 @@ module mmu import ariane_pkg::*; #(
         lsu_vaddr_n           = lsu_vaddr_i;
         lsu_gpaddr            = lsu_vaddr_i;
         lsu_req_n             = lsu_req_i;
+        hs_ld_st_inst_n       = hs_ld_st_inst_i;
         misaligned_ex_n       = misaligned_ex_i;
         dtlb_pte_n            = dtlb_content;
         dtlb_gpte_n           = dtlb_g_content;
@@ -418,6 +423,7 @@ module mmu import ariane_pkg::*; #(
         lsu_dtlb_ppn_o        = lsu_vaddr_n[riscv::PLEN-1:12];
         lsu_valid_o           = lsu_req_q;
         lsu_exception_o       = misaligned_ex_q;
+        csr_hs_ld_st_inst_o   = hs_ld_st_inst_i || hs_ld_st_inst_q;
         pmp_access_type       = lsu_is_store_q ? riscv::ACCESS_WRITE : riscv::ACCESS_READ;
 
         // mute misaligned exceptions if there is no request otherwise they will throw accidental exceptions
@@ -573,6 +579,7 @@ module mmu import ariane_pkg::*; #(
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (~rst_ni) begin
             lsu_vaddr_q      <= '0;
+            hs_ld_st_inst_q  <= hs_ld_st_inst_n;
             lsu_req_q        <= '0;
             misaligned_ex_q  <= '0;
             dtlb_pte_q       <= '0;
@@ -585,6 +592,7 @@ module mmu import ariane_pkg::*; #(
             dtlb_is_g_1G_q   <= '0;
         end else begin
             lsu_vaddr_q      <=  lsu_vaddr_n;
+            hs_ld_st_inst_q  <= hs_ld_st_inst_n;
             lsu_req_q        <=  lsu_req_n;
             misaligned_ex_q  <=  misaligned_ex_n;
             dtlb_pte_q       <=  dtlb_pte_n;

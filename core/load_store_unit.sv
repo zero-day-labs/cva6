@@ -120,11 +120,17 @@ module load_store_unit import ariane_pkg::*; #(
     logic                     ld_translation_req;
     logic                     st_translation_req;
     logic [riscv::VLEN-1:0]   ld_vaddr;
+    logic                     ld_hs_ld_st_inst;
+    logic                     ld_hlvx_inst;
     logic [riscv::VLEN-1:0]   st_vaddr;
+    logic                     st_hs_ld_st_inst;
+    logic                     st_hlvx_inst;
     logic                     translation_req;
     logic                     translation_valid;
     logic [riscv::VLEN-1:0]   mmu_vaddr;
     logic [riscv::PLEN-1:0]   mmu_paddr;
+    logic                     mmu_hs_ld_st_inst;
+    logic                     mmu_hlvx_inst;
     exception_t               mmu_exception;
     logic                     dtlb_hit;
     logic [riscv::PPNW-1:0]   dtlb_ppn;
@@ -143,8 +149,8 @@ module load_store_unit import ariane_pkg::*; #(
     exception_t               ld_ex;
     exception_t               st_ex;
 
-    logic                     csr_hs_ld_st_inst;
-    logic                     mmu_hlvx_inst;
+    logic                     hs_ld_st_inst;
+    logic                     hlvx_inst;
     // -------------------
     // MMU e.g.: TLBs/PTW
     // -------------------
@@ -178,6 +184,7 @@ module load_store_unit import ariane_pkg::*; #(
             .pmpaddr_i,
             // Hypervisor load/store signals
             .hlvx_inst_i            ( mmu_hlvx_inst          ),
+            .hs_ld_st_inst_i        ( mmu_hs_ld_st_inst      ),
             .*
         );
     end else if (MMU_PRESENT && (riscv::XLEN == 32)) begin : gen_mmu_sv32
@@ -268,6 +275,8 @@ module load_store_unit import ariane_pkg::*; #(
         // MMU port
         .translation_req_o     ( st_translation_req   ),
         .vaddr_o               ( st_vaddr             ),
+        .hs_ld_st_inst_o       ( st_hs_ld_st_inst     ),
+        .hlvx_inst_o           ( st_hlvx_inst         ),
         .paddr_i               ( mmu_paddr            ),
         .ex_i                  ( mmu_exception        ),
         .dtlb_hit_i            ( dtlb_hit             ),
@@ -299,6 +308,8 @@ module load_store_unit import ariane_pkg::*; #(
         // MMU port
         .translation_req_o     ( ld_translation_req   ),
         .vaddr_o               ( ld_vaddr             ),
+        .hs_ld_st_inst_o       ( ld_hs_ld_st_inst     ),
+        .hlvx_inst_o           ( ld_hlvx_inst         ),
         .paddr_i               ( mmu_paddr            ),
         .ex_i                  ( mmu_exception        ),
         .dtlb_hit_i            ( dtlb_hit             ),
@@ -346,6 +357,9 @@ module load_store_unit import ariane_pkg::*; #(
 
         translation_req      = 1'b0;
         mmu_vaddr            = {riscv::VLEN{1'b0}};
+        mmu_tinst            = {riscv::XLEN{1'b0}};
+        mmu_hs_ld_st_inst    = 1'b0;
+        mmu_hlvx_inst        = 1'b0;
 
         // check the operator to activate the right functional unit accordingly
         unique case (lsu_ctrl.fu)
@@ -354,12 +368,18 @@ module load_store_unit import ariane_pkg::*; #(
                 ld_valid_i           = lsu_ctrl.valid;
                 translation_req      = ld_translation_req;
                 mmu_vaddr            = ld_vaddr;
+                mmu_tinst            = ld_tinst;
+                mmu_hs_ld_st_inst    = ld_hs_ld_st_inst;
+                mmu_hlvx_inst        = ld_hlvx_inst;
             end
             // all stores go here
             STORE: begin
                 st_valid_i           = lsu_ctrl.valid;
                 translation_req      = st_translation_req;
                 mmu_vaddr            = st_vaddr;
+                mmu_tinst            = st_tinst;
+                mmu_hs_ld_st_inst    = st_hs_ld_st_inst;
+                mmu_hlvx_inst        = st_hlvx_inst;
             end
             // not relevant for the LSU
             default: ;
@@ -372,24 +392,22 @@ module load_store_unit import ariane_pkg::*; #(
     // determine whether this is a hypervisor load or store
     always_comb begin : hyp_ld_st
         // check the operator to activate the right functional unit accordingly
-        csr_hs_ld_st_inst = 1'b0;
-        mmu_hlvx_inst     = 1'b0;
+        hs_ld_st_inst = 1'b0;
+        hlvx_inst     = 1'b0;
         case (lsu_ctrl.operator)
             // all loads go here
             HLV_B, HLV_BU, HLV_H, HLV_HU,
             HLV_W, HSV_B, HSV_H, HSV_W,
             HLV_WU, HLV_D, HSV_D: begin
-                    csr_hs_ld_st_inst = 1'b1;
+                    hs_ld_st_inst = 1'b1;
             end
             HLVX_WU, HLVX_HU: begin
-                    csr_hs_ld_st_inst = 1'b1;
-                    mmu_hlvx_inst     = 1'b1;
+                    hs_ld_st_inst = 1'b1;
+                    hlvx_inst     = 1'b1;
             end
             default:;
         endcase
     end
-
-    assign csr_hs_ld_st_inst_o = csr_hs_ld_st_inst;
 
     // ---------------
     // Byte Enable
@@ -496,7 +514,7 @@ module load_store_unit import ariane_pkg::*; #(
     // new data arrives here
     lsu_ctrl_t lsu_req_i;
 
-    assign lsu_req_i = {lsu_valid_i, vaddr_i, overflow, {{64-riscv::XLEN{1'b0}}, fu_data_i.operand_b}, be_i, fu_data_i.fu, fu_data_i.operator, fu_data_i.trans_id};
+    assign lsu_req_i = {lsu_valid_i, vaddr_i, tinst_i, hs_ld_st_inst, hlvx_inst, overflow, {{64-riscv::XLEN{1'b0}}, fu_data_i.operand_b}, be_i, fu_data_i.fu, fu_data_i.operator, fu_data_i.trans_id};
 
     lsu_bypass lsu_bypass_i (
         .lsu_req_i          ( lsu_req_i   ),

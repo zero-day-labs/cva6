@@ -603,6 +603,8 @@ package ariane_pkg;
     typedef struct packed {
         logic                     valid;
         logic [riscv::VLEN-1:0]   vaddr;
+        logic                     hs_ld_st_inst;
+        logic                     hlvx_inst;
         logic                     overflow;
         logic [63:0]              data;
         logic [7:0]               be;
