@@ -1196,9 +1196,9 @@ module csr_regfile import ariane_pkg::*; #(
 
         ld_st_v_o = ((mprv ? mstatus_q.mpv : v_q ) || (csr_hs_ld_st_inst_i));
 
-        en_ld_st_translation_o = en_ld_st_translation_q || (riscv::vm_mode_t'(vsatp_q.mode) == riscv::MODE_SV && csr_hs_ld_st_inst_i);
+        en_ld_st_translation_o = (en_ld_st_translation_q && !csr_hs_ld_st_inst_i) || (riscv::vm_mode_t'(vsatp_q.mode) == riscv::MODE_SV && csr_hs_ld_st_inst_i);
 
-        en_ld_st_g_translation_o = en_ld_st_g_translation_q || (csr_hs_ld_st_inst_i && riscv::vm_mode_t'(hgatp_q.mode) == riscv::MODE_SV);
+        en_ld_st_g_translation_o = (en_ld_st_g_translation_q && !csr_hs_ld_st_inst_i) || (csr_hs_ld_st_inst_i && riscv::vm_mode_t'(hgatp_q.mode) == riscv::MODE_SV && csr_hs_ld_st_inst_i);
         // ------------------------------
         // Return from Environment
         // ------------------------------
