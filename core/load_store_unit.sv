@@ -475,7 +475,9 @@ module load_store_unit import ariane_pkg::*; #(
                 misaligned_exception = {
                     riscv::LD_ADDR_MISALIGNED,
                     {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
+                    {riscv::XLEN{1'b0}},
                     tinst_addr_offset,
+                    1'b0,
                     1'b1
                 };
 
@@ -483,7 +485,9 @@ module load_store_unit import ariane_pkg::*; #(
                 misaligned_exception = {
                     riscv::ST_ADDR_MISALIGNED,
                     {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
+                    {riscv::XLEN{1'b0}},
                     tinst_addr_offset,
+                    1'b0,
                     1'b1
                 };
             end
@@ -495,6 +499,8 @@ module load_store_unit import ariane_pkg::*; #(
                 misaligned_exception = {
                     riscv::LD_ACCESS_FAULT,
                     {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
+                    {riscv::XLEN{1'b0}},
+                    1'b0,
                     1'b1
                 };
 
@@ -502,6 +508,8 @@ module load_store_unit import ariane_pkg::*; #(
                 misaligned_exception = {
                     riscv::ST_ACCESS_FAULT,
                     {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
+                    {riscv::XLEN{1'b0}},
+                    1'b0,
                     1'b1
                 };
             end
