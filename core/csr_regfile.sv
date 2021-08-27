@@ -112,7 +112,6 @@ module csr_regfile import ariane_pkg::*; #(
     // register for enabling load store address translation, this is critical, hence the register
     logic        en_ld_st_translation_d, en_ld_st_translation_q;
     logic        en_ld_st_g_translation_d, en_ld_st_g_translation_q;
-    logic        hs_ld_st_instr_d, hs_ld_st_instr_q;
     logic  mprv;
     logic  mret;  // return from M-mode exception
     logic  sret;  // return from S-mode exception
@@ -530,7 +529,6 @@ module csr_regfile import ariane_pkg::*; #(
         htinst_d                = htinst_q;
 
         en_ld_st_translation_d  = en_ld_st_translation_q;
-        hs_ld_st_instr_d        = hs_ld_st_instr_q;
         en_ld_st_g_translation_d= en_ld_st_g_translation_q;
         dirty_fp_state_csr      = 1'b0;
 
@@ -1174,7 +1172,7 @@ module csr_regfile import ariane_pkg::*; #(
         else
             en_ld_st_g_translation_d = en_g_translation_o;
 
-        if(hs_ld_st_instr_q || csr_hs_ld_st_inst_i)
+        if(csr_hs_ld_st_inst_i)
             ld_st_priv_lvl_o = hstatus_q.spvp;
         else
             ld_st_priv_lvl_o = (mprv) ? mstatus_q.mpp : priv_lvl_o;
@@ -1578,7 +1576,6 @@ module csr_regfile import ariane_pkg::*; #(
             // aux registers
             en_ld_st_translation_q <= 1'b0;
             en_ld_st_g_translation_q <= 1'b0;
-            hs_ld_st_instr_q       <= 1'b0;
             // wait for interrupt
             wfi_q                  <= 1'b0;
             // pmp
@@ -1640,7 +1637,6 @@ module csr_regfile import ariane_pkg::*; #(
             instret_q              <= instret_d;
             // aux registers
             en_ld_st_translation_q <= en_ld_st_translation_d;
-            hs_ld_st_instr_q       <= hs_ld_st_instr_d;
             en_ld_st_g_translation_q <= en_ld_st_g_translation_d;
             // wait for interrupt
             wfi_q                  <= wfi_d;

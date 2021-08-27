@@ -34,6 +34,8 @@ module store_unit import ariane_pkg::*; (
     // MMU -> Address Translation
     output logic                     translation_req_o, // request address translation
     output logic [riscv::VLEN-1:0]   vaddr_o,           // virtual address out
+    output logic                     hs_ld_st_inst_o,
+    output logic                     hlvx_inst_o,
     input  logic [riscv::PLEN-1:0]   paddr_i,           // physical address in
     input  exception_t               ex_i,
     input  logic                     dtlb_hit_i,       // will be one in the same cycle translation_req was asserted if it hits
@@ -72,6 +74,8 @@ module store_unit import ariane_pkg::*; (
 
     // output assignments
     assign vaddr_o    = lsu_ctrl_i.vaddr; // virtual address
+    assign hs_ld_st_inst_o  = lsu_ctrl_i.hs_ld_st_inst;
+    assign hlvx_inst_o      = lsu_ctrl_i.hlvx_inst;
     assign trans_id_o = trans_id_q; // transaction id from previous cycle
 
     always_comb begin : store_control
