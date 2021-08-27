@@ -1371,7 +1371,7 @@ module csr_regfile import ariane_pkg::*; #(
     // ----------------------
     always_comb begin : exception_ctrl
         csr_exception_o = {
-            '0, '0, 1'b0
+            '0, '0, '0, '0, 1'b0, 1'b0
         };
         // ----------------------------------
         // Illegal Access (decode exception)
