@@ -430,7 +430,7 @@ module mmu import ariane_pkg::*; #(
         daccess_err = en_ld_st_translation_i &&
                         ((ld_st_priv_lvl_i == riscv::PRIV_LVL_S && (ld_st_v_i ? !vs_sum_i : !sum_i ) && dtlb_pte_q.u) || // SUM is not set and we are trying to access a user page in supervisor mode
                         (ld_st_priv_lvl_i == riscv::PRIV_LVL_U && !dtlb_pte_q.u));
-         d_g_st_access_err = enable_g_translation_i && !dtlb_gpte_q.u;
+        d_g_st_access_err = en_ld_st_g_translation_i && !dtlb_gpte_q.u;
         // translation is enabled and no misaligned exception occurred
         if ((en_ld_st_translation_i || en_ld_st_g_translation_i) && !misaligned_ex_q.valid) begin
             lsu_valid_o = 1'b0;
