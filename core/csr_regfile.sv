@@ -1189,11 +1189,6 @@ module csr_regfile import ariane_pkg::*; #(
         else
             ld_st_priv_lvl_o = (mprv) ? mstatus_q.mpp : priv_lvl_o;
 
-        if(csr_hs_ld_st_inst_i)
-            hs_ld_st_instr_d = 1'b1;
-        else
-            hs_ld_st_instr_d = 1'b0;
-
         ld_st_v_o = ((mprv ? mstatus_q.mpv : v_q ) || (csr_hs_ld_st_inst_i));
 
         en_ld_st_translation_o = (en_ld_st_translation_q && !csr_hs_ld_st_inst_i) || (riscv::vm_mode_t'(vsatp_q.mode) == riscv::MODE_SV && csr_hs_ld_st_inst_i);
