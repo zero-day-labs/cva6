@@ -496,7 +496,7 @@ module mmu import ariane_pkg::*; #(
                 // this is a load
                 end else begin
                     if (d_g_st_access_err) begin
-                        lsu_exception_o = {riscv::LOAD_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {{riscv::XLEN-riscv::PLEN{1'b0}},lsu_gpaddr},lsu_vaddr_q}, riscv::IS_XLEN64 ? 64'h3000 : 64'h2000, ld_st_v_i, 1'b1};
+                        lsu_exception_o = {riscv::LOAD_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {{riscv::XLEN-riscv::PLEN{1'b0}},lsu_gpaddr}, riscv::IS_XLEN64 ? 64'h3000 : 64'h2000, ld_st_v_i, 1'b1};
                     // check for sufficient access privileges - throw a page fault if necessary
                     end else if (daccess_err) begin
                         lsu_exception_o = {riscv::LOAD_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
