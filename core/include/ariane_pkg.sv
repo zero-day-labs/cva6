@@ -597,6 +597,7 @@ package ariane_pkg;
         logic                     hs_ld_st_inst;
         logic                     hlvx_inst;
         logic                     overflow;
+        logic                     g_overflow;
         logic [63:0]              data;
         logic [7:0]               be;
         fu_t                      fu;
