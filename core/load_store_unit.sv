@@ -108,13 +108,14 @@ module load_store_unit import ariane_pkg::*; #(
     // virtual address as calculated by the AGU in the first cycle
     logic [riscv::VLEN-1:0]   vaddr_i;
     riscv::xlen_t             vaddr_xlen;
-    logic                     overflow;
+    logic                     overflow, g_overflow;
     logic [7:0]               be_i;
 
     assign vaddr_xlen = $unsigned($signed(fu_data_i.imm) + $signed(fu_data_i.operand_a));
     assign vaddr_i = vaddr_xlen[riscv::VLEN-1:0];
     // we work with SV39 or SV32, so if VM is enabled, check that all bits [XLEN-1:38] or [XLEN-1:31] are equal
     assign overflow = !((&vaddr_xlen[riscv::XLEN-1:riscv::SV-1]) == 1'b1 || (|vaddr_xlen[riscv::XLEN-1:riscv::SV-1]) == 1'b0);
+    assign g_overflow = !((|vaddr_xlen[riscv::XLEN-1:riscv::SVX]) == 1'b0);
 
     logic                     st_valid_i;
     logic                     ld_valid_i;
@@ -499,7 +500,7 @@ module load_store_unit import ariane_pkg::*; #(
             end
         end
 
-        if ((en_ld_st_translation_i || en_ld_st_g_translation_i)  && lsu_ctrl.overflow) begin
+        if (en_ld_st_translation_i && lsu_ctrl.overflow) begin
 
             if (lsu_ctrl.fu == LOAD) begin
                 misaligned_exception = {
@@ -507,7 +508,7 @@ module load_store_unit import ariane_pkg::*; #(
                     {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
                     {riscv::XLEN{1'b0}},
                     lsu_ctrl.tinst,
-                    1'b0,
+                    ld_st_v_i,
                     1'b1
                 };
 
@@ -517,7 +518,31 @@ module load_store_unit import ariane_pkg::*; #(
                     {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
                     {riscv::XLEN{1'b0}},
                     lsu_ctrl.tinst,
-                    1'b0,
+                    ld_st_v_i,
+                    1'b1
+                };
+            end
+        end
+
+        if (en_ld_st_g_translation_i && !en_ld_st_translation_i && lsu_ctrl.g_overflow) begin
+
+            if (lsu_ctrl.fu == LOAD) begin
+                misaligned_exception = {
+                    riscv::LOAD_GUEST_PAGE_FAULT,
+                    {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
+                    {riscv::XLEN{1'b0}},
+                    lsu_ctrl.tinst,
+                    ld_st_v_i,
+                    1'b1
+                };
+
+            end else if (lsu_ctrl.fu == STORE) begin
+                misaligned_exception = {
+                    riscv::STORE_GUEST_PAGE_FAULT,
+                    {{riscv::XLEN-riscv::VLEN{1'b0}},lsu_ctrl.vaddr},
+                    {riscv::XLEN{1'b0}},
+                    lsu_ctrl.tinst,
+                    ld_st_v_i,
                     1'b1
                 };
             end
@@ -530,7 +555,7 @@ module load_store_unit import ariane_pkg::*; #(
     // new data arrives here
     lsu_ctrl_t lsu_req_i;
 
-    assign lsu_req_i = {lsu_valid_i, vaddr_i, tinst_i, hs_ld_st_inst, hlvx_inst, overflow, {{64-riscv::XLEN{1'b0}}, fu_data_i.operand_b}, be_i, fu_data_i.fu, fu_data_i.operator, fu_data_i.trans_id};
+    assign lsu_req_i = {lsu_valid_i, vaddr_i, tinst_i, hs_ld_st_inst, hlvx_inst, overflow, g_overflow, {{64-riscv::XLEN{1'b0}}, fu_data_i.operand_b}, be_i, fu_data_i.fu, fu_data_i.operator, fu_data_i.trans_id};
 
     lsu_bypass lsu_bypass_i (
         .lsu_req_i          ( lsu_req_i   ),
