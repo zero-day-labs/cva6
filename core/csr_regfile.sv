@@ -636,6 +636,8 @@ module csr_regfile import ariane_pkg::*; #(
                         // only update if we actually support this mode
                         if (riscv::vm_mode_t'(vsatp.mode) == riscv::ModeOff ||
                             riscv::vm_mode_t'(vsatp.mode) == riscv::MODE_SV) vsatp_d = vsatp;
+                        // this instruction has side-effects
+                        flush_o = 1'b1;
                 end
                 // sstatus is a subset of mstatus - mask it accordingly
                 riscv::CSR_SSTATUS: begin
