@@ -108,25 +108,36 @@ module tlb import ariane_pkg::*; #(
             if (tags_q[i].valid && match_asid[i] && vpn2 == tags_q[i].vpn2 && match_stage[i] && match_vmid[i]) begin
                 // second level
                 if ((tags_q[i].is_1G && vs_st_enbl_i) || (tags_q[i].is_g_1G && !vs_st_enbl_i)) begin
-                    lu_is_1G_o = tags_q[i].is_1G;
-                    lu_is_g_2M_o = tags_q[i].is_g_2M;
-                    lu_is_g_1G_o = tags_q[i].is_g_1G;
-                    lu_content_o = content_q[i].pte;
-                    lu_g_content_o = content_q[i].gpte;
-                    lu_hit_o   = 1'b1;
-                    lu_hit[i]  = 1'b1;
+                    if((tags_q[i].gppn1 == vpn1 && tags_q[i].gppn0 == vpn0 && g_st_enbl_i && vs_st_enbl_i) || !(g_st_enbl_i && vs_st_enbl_i)) begin
+                      lu_is_1G_o = tags_q[i].is_1G;
+                      lu_is_g_2M_o = tags_q[i].is_g_2M;
+                      lu_is_g_1G_o = tags_q[i].is_g_1G;
+                      lu_content_o = content_q[i].pte;
+                      lu_g_content_o = content_q[i].gpte;
+                      lu_hit_o   = 1'b1;
+                      lu_hit[i]  = 1'b1;
+                    end
                 // not a giga page hit so check further
                 end else if (vpn1 == tags_q[i].vpn1) begin
                     // this could be a 2 mega page hit or a 4 kB hit
                     // output accordingly
-                    if (((tags_q[i].is_2M && vs_st_enbl_i) || (tags_q[i].is_g_2M && !vs_st_enbl_i)) || vpn0 == tags_q[i].vpn0) begin
-                        lu_is_2M_o   = tags_q[i].is_2M;
-                        lu_is_g_2M_o = tags_q[i].is_g_2M;
-                        lu_is_g_1G_o = tags_q[i].is_g_1G;
-                        lu_content_o = content_q[i].pte;
-                        lu_g_content_o = content_q[i].gpte;
-                        lu_hit_o     = 1'b1;
-                        lu_hit[i]    = 1'b1;
+                    if((tags_q[i].gppn0 == vpn0 && g_st_enbl_i && vs_st_enbl_i) || !(g_st_enbl_i && vs_st_enbl_i)) begin
+                        if(tags_q[i].gppn0 == vpn0) begin
+                            lu_is_2M_o   = tags_q[i].is_2M;
+                            lu_is_g_2M_o = tags_q[i].is_g_2M;
+                            lu_is_g_1G_o = tags_q[i].is_g_1G;
+                            lu_content_o = content_q[i].pte;
+                            lu_g_content_o = content_q[i].gpte;
+                            lu_hit_o     = 1'b1;
+                            lu_hit[i]    = 1'b1;
+                        end
+                    end else if (vpn0 == tags_q[i].vpn0) begin
+                            lu_is_g_2M_o = tags_q[i].is_g_2M;
+                            lu_is_g_1G_o = tags_q[i].is_g_1G;
+                            lu_content_o = content_q[i].pte;
+                            lu_g_content_o = content_q[i].gpte;
+                            lu_hit_o   = 1'b1;
+                            lu_hit[i]  = 1'b1;
                     end
                 end
             end
