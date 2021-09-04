@@ -104,8 +104,13 @@ module decoder import ariane_pkg::*; (
                     unique case (instr.itype.funct3)
                         3'b000: begin
                             // check if the RD and and RS1 fields are zero, this may be reset for the SENCE.VMA instruction
-                            if (instr.itype.rs1 != '0 || instr.itype.rd != '0)
-                                illegal_instr = 1'b1;
+                            if (instr.itype.rs1 != '0 || instr.itype.rd != '0) begin
+                                if(v_i) begin
+                                  virtual_illegal_instr = 1'b1;
+                                end else begin
+                                  illegal_instr = 1'b1;
+                                end
+                            end
                             // decode the immiediate field
                             case (instr.itype.imm)
                                 // ECALL -> inject exception
