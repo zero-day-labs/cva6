@@ -29,6 +29,7 @@ module wt_dcache import ariane_pkg::*; import wt_cache_pkg::*; #(
   output logic                           flush_ack_o, // send a single cycle acknowledge signal when the cache is flushed
   output logic                           miss_o,      // we missed on a ld/st
   output logic                           busy_o,
+  input  logic                           stall_i,      // stall new memory requests
   input  logic                           init_ni,
   output logic                           wbuffer_empty_o,
   output logic                           wbuffer_not_ni_o,
@@ -185,6 +186,7 @@ module wt_dcache import ariane_pkg::*; import wt_cache_pkg::*; #(
       .rst_ni          ( rst_ni            ),
       .cache_en_i      ( cache_en          ),
       .busy_o          ( ctrl_busy     [k] ),
+      .stall_i         ( stall_i           ),
       // reqs from core
       .req_port_i      ( req_ports_i   [k] ),
       .req_port_o      ( req_ports_o   [k] ),
