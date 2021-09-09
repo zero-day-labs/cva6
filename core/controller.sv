@@ -37,6 +37,7 @@ module controller import ariane_pkg::*; (
     input  logic            halt_csr_i,             // Halt request from CSR (WFI instruction)
     output logic            halt_o,                 // Halt signal to commit stage
     input  logic            cache_busy_i,           // Cache is busy
+    output logic            stall_cache_o,          // Let dcache not accept any new requests
     output logic            cache_init_no,          // Do not init cache
     input  logic [31:0]     fence_t_pad_i,          // Pad cycles of fence.t end relative to time interrupt
     input  logic            fence_t_src_sel_i,
@@ -305,8 +306,11 @@ module controller import ariane_pkg::*; (
         endcase
     end
 
-    logic load_pad_cnt;
+    // Let the dcache not accept any new memory requests after flushing until reset
+    assign stall_cache_o = (fence_t_state_q inside {DRAIN_REQS, PAD, RST_UARCH});
 
+    // Start padding either from CLINT timer interrupt [0] or exetinig leaving U-mode [1]
+    logic load_pad_cnt;
     assign load_pad_cnt = fence_t_src_sel_i ? ((priv_lvl_q == riscv::PRIV_LVL_U) && (priv_lvl_i != riscv::PRIV_LVL_U))
                                             : (time_irq_i & ~time_irq_q);
 

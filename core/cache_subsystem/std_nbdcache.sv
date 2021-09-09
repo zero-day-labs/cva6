@@ -24,6 +24,7 @@ module std_nbdcache import std_cache_pkg::*; import ariane_pkg::*; #(
     output logic                           flush_ack_o, // send a single cycle acknowledge signal when the cache is flushed
     output logic                           miss_o,      // we missed on a LD/ST
     output logic                           busy_o,
+    input  logic                           stall_i,   // stall new memory requests
     input  logic                           init_ni,
     // AMOs
     input  amo_req_t                       amo_req_i,
@@ -98,6 +99,7 @@ import std_cache_pkg::*;
             ) i_cache_ctrl (
                 .bypass_i              ( ~enable_i            ),
                 .busy_o                ( busy            [i]  ),
+                .stall_i               ( stall_i              ),
                 // from core
                 .req_port_i            ( req_ports_i     [i]  ),
                 .req_port_o            ( req_ports_o     [i]  ),

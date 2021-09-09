@@ -25,6 +25,7 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
   input  logic                           clk_i,
   input  logic                           rst_ni,
   output logic                           busy_o,
+  input  logic                           stall_i,                // stall new memory requests
   input  logic                           init_ni,
   // I$
   input  logic                           icache_en_i,            // enable icache (or bypass e.g: in debug mode)
@@ -115,6 +116,7 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
     .rst_ni          ( rst_ni                  ),
     .enable_i        ( dcache_enable_i         ),
     .busy_o          ( dcache_busy             ),
+    .stall_i         ( stall_i                 ),
     .init_ni         ( init_ni                 ),
     .flush_i         ( dcache_flush_i          ),
     .flush_ack_o     ( dcache_flush_ack_o      ),
