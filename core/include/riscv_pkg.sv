@@ -390,6 +390,14 @@ package riscv;
     localparam logic [XLEN-1:0] M_EXT_INTERRUPT    = (1 << (XLEN-1)) | IRQ_M_EXT;
     localparam logic [XLEN-1:0] HS_EXT_INTERRUPT   = (1 << (XLEN-1)) | IRQ_HS_EXT;
 
+    // ----------------------
+    // PseudoInstructions Codes
+    // ----------------------
+    localparam logic [XLEN-1:0] READ_32_PSEUDOINSTRUCTION  = 32'h00002000;
+    localparam logic [XLEN-1:0] WRITE_32_PSEUDOINSTRUCTION = 32'h00002020;
+    localparam logic [XLEN-1:0] READ_64_PSEUDOINSTRUCTION  = 64'h00003000;
+    localparam logic [XLEN-1:0] WRITE_64_PSEUDOINSTRUCTION = 64'h00003020;
+
     // -----
     // CSRs
     // -----
