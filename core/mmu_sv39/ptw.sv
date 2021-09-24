@@ -29,6 +29,7 @@ module ptw import ariane_pkg::*; #(
     output logic                    walking_instr_o,        // set when walking for TLB
     output logic                    ptw_error_o,            // set when an error occurred
     output logic                    ptw_error_at_g_st_o,    // set when an error occurred at the G-Stage
+    output logic                    ptw_err_at_vs_int_st_o, // set when an error occurred at the G-Stage during VS-Stage translation
     output logic                    ptw_access_exception_o, // set when an PMP access exception occured
     input  logic                    enable_translation_i,   // CSRs indicate to enable SV39 VS-Stage translation
     input  logic                    enable_g_translation_i, // CSRs indicate to enable SV39  G-Stage translation
@@ -225,6 +226,7 @@ module ptw import ariane_pkg::*; #(
         req_port_o.data_we     = 1'b0;
         ptw_error_o            = 1'b0;
         ptw_error_at_g_st_o    = 1'b0;
+        ptw_err_at_vs_int_st_o = 1'b0;
         ptw_access_exception_o = 1'b0;
         itlb_update_o.valid    = 1'b0;
         dtlb_update_o.valid    = 1'b0;
@@ -528,6 +530,7 @@ module ptw import ariane_pkg::*; #(
                 state_d     = IDLE;
                 ptw_error_o = 1'b1;
                 ptw_error_at_g_st_o = (ptw_stage_q != VS_STAGE) ? 1'b1 : 1'b0;
+                ptw_err_at_vs_int_st_o = (ptw_stage_q == VS_INTERMED_STAGE) ? 1'b1 : 1'b0;
             end
             PROPAGATE_ACCESS_ERROR: begin
                 state_d     = IDLE;
