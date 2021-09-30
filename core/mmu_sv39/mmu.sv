@@ -344,21 +344,12 @@ module mmu import ariane_pkg::*; #(
             if (ptw_active && walking_instr) begin
                 icache_areq_o.fetch_valid = ptw_error | ptw_access_exception;
                 if (ptw_error) begin
-                    if (ptw_err_at_vs_int_st) begin
-                        icache_areq_o.fetch_exception = {
-                            riscv::INSTR_GUEST_PAGE_FAULT,
-                            {{riscv::XLEN-riscv::VLEN{1'b0}},update_vaddr},
-                            {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr},
-                            riscv::IS_XLEN64 ? riscv::READ_64_PSEUDOINSTRUCTION : riscv::READ_32_PSEUDOINSTRUCTION,
-                            v_i,
-                            1'b1
-                        };
-                    end if (ptw_error_at_g_st) begin
+                    if (ptw_error_at_g_st) begin
                         icache_areq_o.fetch_exception = {
                             riscv::INSTR_GUEST_PAGE_FAULT,
                             {{riscv::XLEN-riscv::VLEN{1'b0}}, update_vaddr},
                             {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr},
-                            {riscv::XLEN{1'b0}},
+                            (ptw_err_at_vs_int_st ? (riscv::IS_XLEN64 ? riscv::READ_64_PSEUDOINSTRUCTION : riscv::READ_32_PSEUDOINSTRUCTION) : {riscv::XLEN{1'b0}}),
                             v_i,
                             1'b1
                         };
@@ -578,21 +569,12 @@ module mmu import ariane_pkg::*; #(
                     lsu_valid_o = 1'b1;
                     // the page table walker can only throw page faults
                     if (lsu_is_store_q) begin
-                        if (ptw_err_at_vs_int_st) begin
+                        if (ptw_error_at_g_st) begin
                             lsu_exception_o = {
                                 riscv::STORE_GUEST_PAGE_FAULT,
                                 {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr},
                                 {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr},
-                                riscv::IS_XLEN64 ? riscv::READ_64_PSEUDOINSTRUCTION : riscv::READ_32_PSEUDOINSTRUCTION,
-                                ld_st_v_i,
-                                1'b1
-                            };
-                        end if (ptw_error_at_g_st) begin
-                            lsu_exception_o = {
-                                riscv::STORE_GUEST_PAGE_FAULT,
-                                {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr},
-                                {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr},
-                                {riscv::XLEN{1'b0}},
+                                (ptw_err_at_vs_int_st ? (riscv::IS_XLEN64 ? riscv::READ_64_PSEUDOINSTRUCTION : riscv::READ_32_PSEUDOINSTRUCTION) : {riscv::XLEN{1'b0}}),
                                 ld_st_v_i,
                                 1'b1
                             };
@@ -607,21 +589,12 @@ module mmu import ariane_pkg::*; #(
                             };
                         end
                     end else begin
-                        if (ptw_err_at_vs_int_st) begin
+                        if (ptw_error_at_g_st) begin
                             lsu_exception_o = {
                                 riscv::LOAD_GUEST_PAGE_FAULT,
                                 {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr},
                                 {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr},
-                                riscv::IS_XLEN64 ? riscv::READ_64_PSEUDOINSTRUCTION : riscv::READ_32_PSEUDOINSTRUCTION,
-                                ld_st_v_i,
-                                1'b1
-                            };
-                        end if (ptw_error_at_g_st) begin
-                            lsu_exception_o = {
-                                riscv::LOAD_GUEST_PAGE_FAULT,
-                                {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr},
-                                {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr},
-                                {riscv::XLEN{1'b0}},
+                                (ptw_err_at_vs_int_st ? (riscv::IS_XLEN64 ? riscv::READ_64_PSEUDOINSTRUCTION : riscv::READ_32_PSEUDOINSTRUCTION) : {riscv::XLEN{1'b0}}),
                                 ld_st_v_i,
                                 1'b1
                             };
