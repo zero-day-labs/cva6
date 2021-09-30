@@ -51,6 +51,7 @@ package riscv;
     localparam SV         = (MODE_SV == ModeSv32) ? 32 : 39;
     localparam SVX        = (MODE_SV == ModeSv32) ? 34 : 41;
     localparam VPN2       = (VLEN-31 < 8) ? VLEN-31 : 8;
+    localparam GPPN2      = (XLEN == 32) ? riscv::VLEN-33 : 10;
 
     localparam  FPU_EN     = 1'b1; // This bit is to select FPU in the design, FPU_EN = 1'b0 disables FPU in the design
 
