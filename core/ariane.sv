@@ -538,6 +538,7 @@ module ariane import ariane_pkg::*; #(
   // ---------
   csr_regfile #(
     .AsidWidth              ( ASID_WIDTH                    ),
+    .VMID_WIDTH             ( VMID_WIDTH                    ),
     .DmBaseAddress          ( ArianeCfg.DmBaseAddress       ),
     .NrCommitPorts          ( NR_COMMIT_PORTS               ),
     .NrPMPEntries           ( ArianeCfg.NrPMPEntries        )
