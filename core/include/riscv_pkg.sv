@@ -52,6 +52,7 @@ package riscv;
     localparam SV         = (MODE_SV == ModeSv32) ? 32 : 39;
     localparam SVX        = (MODE_SV == ModeSv32) ? 34 : 41;
     localparam VPN2       = (VLEN-31 < 8) ? VLEN-31 : 8;
+    localparam GPPN2      = (XLEN == 32) ? riscv::VLEN-33 : 10;
 
     typedef logic [XLEN-1:0] xlen_t;
 

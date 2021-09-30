@@ -106,9 +106,8 @@ module mmu import ariane_pkg::*; #(
     logic        itlb_is_1G;
     // data from G-stage translation
     riscv::pte_t itlb_g_content;
-    logic        itlb_is_g_2M;
-    logic        itlb_is_g_1G;
     logic        itlb_lu_hit;
+    logic [riscv::GPLEN-1:0]  itlb_gpaddr;
     logic [ASID_WIDTH-1:0]    itlb_lu_asid;
 
     logic        dtlb_lu_access;
@@ -118,9 +117,8 @@ module mmu import ariane_pkg::*; #(
     logic [ASID_WIDTH-1:0]    dtlb_lu_asid;
     // data from G-stage translation
     riscv::pte_t dtlb_g_content;
-    logic        dtlb_is_g_2M;
-    logic        dtlb_is_g_1G;
     logic        dtlb_lu_hit;
+    logic [riscv::GPLEN-1:0] dtlb_gpaddr;
 
 
     // Assignments
@@ -156,11 +154,10 @@ module mmu import ariane_pkg::*; #(
         .lu_vaddr_i       ( icache_areq_i.fetch_vaddr  ),
         .lu_content_o     ( itlb_content               ),
         .lu_g_content_o   ( itlb_g_content             ),
+        .lu_gpaddr_o      ( itlb_gpaddr                ),
 
         .lu_is_2M_o       ( itlb_is_2M                 ),
         .lu_is_1G_o       ( itlb_is_1G                 ),
-        .lu_is_g_2M_o     ( itlb_is_g_2M               ),
-        .lu_is_g_1G_o     ( itlb_is_g_1G               ),
         .lu_hit_o         ( itlb_lu_hit                )
     );
 
@@ -190,11 +187,10 @@ module mmu import ariane_pkg::*; #(
         .lu_vaddr_i       ( lsu_vaddr_i                 ),
         .lu_content_o     ( dtlb_content                ),
         .lu_g_content_o   ( dtlb_g_content              ),
+        .lu_gpaddr_o      ( dtlb_gpaddr                ),
 
         .lu_is_2M_o       ( dtlb_is_2M                  ),
         .lu_is_1G_o       ( dtlb_is_1G                  ),
-        .lu_is_g_2M_o     ( dtlb_is_g_2M                ),
-        .lu_is_g_1G_o     ( dtlb_is_g_1G                ),
         .lu_hit_o         ( dtlb_lu_hit                 )
     );
 
@@ -263,7 +259,6 @@ module mmu import ariane_pkg::*; #(
     logic pmp_instr_allow;
     // The instruction interface is a simple request response interface
     always_comb begin : instr_interface
-        automatic logic [riscv::PLEN-1:0] i_gpaddr;
         // MMU disabled: just pass through
         icache_areq_o.fetch_valid  = icache_areq_i.fetch_req;
         icache_areq_o.fetch_paddr  = icache_areq_i.fetch_vaddr[riscv::PLEN-1:0]; // play through in case we disabled address translation
@@ -276,7 +271,6 @@ module mmu import ariane_pkg::*; #(
                                                     || ((priv_lvl_i == riscv::PRIV_LVL_S) && itlb_content.u));
 
         i_g_st_access_err = icache_areq_i.fetch_req && enable_g_translation_i && !itlb_g_content.u;
-        i_gpaddr = icache_areq_i.fetch_vaddr[riscv::PLEN-1:0];
         // MMU enabled: address from TLB, request delayed until hit. Error when TLB
         // hit and no access right or TLB hit and translated address not valid (e.g.
         // AXI decode error), or when PTW performs walk due to ITLB miss and raises
@@ -289,31 +283,15 @@ module mmu import ariane_pkg::*; #(
 
             icache_areq_o.fetch_valid = 1'b0;
 
-            if(enable_translation_i) begin
-                // 4K page
-                i_gpaddr = {itlb_content.ppn, icache_areq_i.fetch_vaddr[11:0]};
-                // Mega page
-                if (itlb_is_2M) begin
-                    i_gpaddr[20:12] = icache_areq_i.fetch_vaddr[20:12];
-                end
-                // Giga page
-                if (itlb_is_1G) begin
-                    i_gpaddr[29:12] = icache_areq_i.fetch_vaddr[29:12];
-                end
+            // 4K page
+            icache_areq_o.fetch_paddr = {enable_g_translation_i ? itlb_g_content.ppn : itlb_content.ppn, icache_areq_i.fetch_vaddr[11:0]};
+            // Mega page
+            if (itlb_is_2M) begin
+                icache_areq_o.fetch_paddr[20:12] = icache_areq_i.fetch_vaddr[20:12];
             end
-              if(enable_g_translation_i) begin
-                // 4K page
-                icache_areq_o.fetch_paddr = {itlb_g_content.ppn, icache_areq_i.fetch_vaddr[11:0]};
-                // Mega page
-                if (itlb_is_g_2M) begin
-                    icache_areq_o.fetch_paddr[20:12] = i_gpaddr[20:12];
-                end
-                // Giga page
-                if (itlb_is_g_1G) begin
-                    icache_areq_o.fetch_paddr[29:12] = i_gpaddr[29:12];
-                end
-            end else begin
-                icache_areq_o.fetch_paddr = i_gpaddr;
+            // Giga page
+            if (itlb_is_1G) begin
+                icache_areq_o.fetch_paddr[29:12] = icache_areq_i.fetch_vaddr[29:12];
             end
             // ---------
             // ITLB Hit
@@ -322,7 +300,7 @@ module mmu import ariane_pkg::*; #(
             if (itlb_lu_hit) begin
                 icache_areq_o.fetch_valid = icache_areq_i.fetch_req;
                 if (i_g_st_access_err) begin
-                    icache_areq_o.fetch_exception = {riscv::INSTR_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{1'b0}}, icache_areq_i.fetch_vaddr}, {{riscv::XLEN-riscv::VLEN{1'b0}}, icache_areq_i.fetch_vaddr}, {riscv::XLEN{1'b0}}, v_i, 1'b1};
+                    icache_areq_o.fetch_exception = {riscv::INSTR_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{1'b0}}, icache_areq_i.fetch_vaddr}, {{riscv::XLEN-riscv::GPLEN{1'b0}},itlb_gpaddr[riscv::GPLEN-1:0]}, {riscv::XLEN{1'b0}}, v_i, 1'b1};
                     // we got an access error
                 end else if (iaccess_err) begin
                     // throw a page fault
@@ -380,6 +358,8 @@ module mmu import ariane_pkg::*; #(
     // Data Interface
     //-----------------------
     logic [riscv::VLEN-1:0] lsu_vaddr_n,     lsu_vaddr_q;
+    logic [riscv::VLEN-1:0] lsu_gpaddr_n,    lsu_gpaddr_q;
+    logic [riscv::XLEN-1:0] lsu_tinst_n,     lsu_tinst_q;
     logic                   hs_ld_st_inst_n, hs_ld_st_inst_q;
     riscv::pte_t dtlb_pte_n,      dtlb_pte_q;
     riscv::pte_t dtlb_gpte_n,     dtlb_gpte_q;
@@ -389,8 +369,6 @@ module mmu import ariane_pkg::*; #(
     logic        dtlb_hit_n,      dtlb_hit_q;
     logic        dtlb_is_2M_n,    dtlb_is_2M_q;
     logic        dtlb_is_1G_n,    dtlb_is_1G_q;
-    logic        dtlb_is_g_2M_n,  dtlb_is_g_2M_q;
-    logic        dtlb_is_g_1G_n,  dtlb_is_g_1G_q;
 
     // check if we need to do translation or if we are always ready (e.g.: we are not translating anything)
     assign lsu_dtlb_hit_o = (en_ld_st_translation_i || en_ld_st_g_translation_i) ? dtlb_lu_hit :  1'b1;
@@ -401,11 +379,10 @@ module mmu import ariane_pkg::*; #(
     localparam   PPNWMin = (riscv::PPNW-1 > 29) ? 29 : riscv::PPNW-1;
     // The data interface is simpler and only consists of a request/response interface
     always_comb begin : data_interface
-        automatic logic [riscv::PLEN-1:0] d_gpaddr;
-        automatic logic [riscv::PLEN-1:0] lsu_gpaddr;
         // save request and DTLB response
         lsu_vaddr_n           = lsu_vaddr_i;
-        lsu_gpaddr            = lsu_vaddr_i;
+        lsu_tinst_n           = lsu_tinst_i;
+        lsu_gpaddr_n          = dtlb_gpaddr;
         lsu_req_n             = lsu_req_i;
         hs_ld_st_inst_n       = hs_ld_st_inst_i;
         misaligned_ex_n       = misaligned_ex_i;
@@ -415,9 +392,6 @@ module mmu import ariane_pkg::*; #(
         lsu_is_store_n        = lsu_is_store_i;
         dtlb_is_2M_n          = dtlb_is_2M;
         dtlb_is_1G_n          = dtlb_is_1G;
-        dtlb_is_g_2M_n        = dtlb_is_g_2M;
-        dtlb_is_g_1G_n        = dtlb_is_g_1G;
-        d_gpaddr              = lsu_vaddr_q[riscv::PLEN-1:0];
 
         lsu_paddr_o           = lsu_vaddr_q[riscv::PLEN-1:0];
         lsu_dtlb_ppn_o        = lsu_vaddr_n[riscv::PLEN-1:12];
@@ -438,41 +412,18 @@ module mmu import ariane_pkg::*; #(
         // translation is enabled and no misaligned exception occurred
         if ((en_ld_st_translation_i || en_ld_st_g_translation_i) && !misaligned_ex_q.valid) begin
             lsu_valid_o = 1'b0;
-          if(en_ld_st_translation_i) begin
-              // 4K page
-              d_gpaddr = {dtlb_pte_q.ppn, lsu_vaddr_q[11:0]};
-              lsu_gpaddr = {dtlb_pte_n.ppn, lsu_vaddr_i[11:0]};
-              lsu_dtlb_ppn_o = dtlb_content.ppn;
-              // Mega page
-              if (dtlb_is_2M_q) begin
-                  d_gpaddr[20:12] = lsu_vaddr_q[20:12];
-                  lsu_gpaddr[20:12] = lsu_vaddr_n[20:12];
-                  lsu_dtlb_ppn_o[20:12] = lsu_vaddr_n[20:12];
-                end
-              // Giga page
-              if (dtlb_is_1G_q) begin
-                  d_gpaddr[29:12] = lsu_vaddr_q[29:12];
-                  lsu_gpaddr[29:12] = lsu_vaddr_n[29:12];
-                  lsu_dtlb_ppn_o[PPNWMin:12] = lsu_vaddr_n[PPNWMin:12];
-                end
-          end
-
-          if(en_ld_st_g_translation_i) begin
-              // 4K page
-              lsu_paddr_o = {dtlb_gpte_q.ppn, d_gpaddr[11:0]};
-              lsu_dtlb_ppn_o = dtlb_g_content.ppn;
-              // Mega page
-              if (dtlb_is_g_2M_q) begin
-                    lsu_paddr_o[20:12]    = d_gpaddr[20:12];
-                    lsu_dtlb_ppn_o[20:12] =  lsu_gpaddr[20:12];
-                  end
-              // Giga page
-              if (dtlb_is_g_1G_q) begin
-                    lsu_paddr_o[PPNWMin:12]    = d_gpaddr[PPNWMin:12];
-                    lsu_dtlb_ppn_o[PPNWMin:12] =  lsu_gpaddr[PPNWMin:12];
-                  end
-            end else begin
-              lsu_paddr_o    = d_gpaddr[riscv::PLEN-1:0];
+            // 4K page
+            lsu_paddr_o = {(en_ld_st_g_translation_i) ? dtlb_gpte_q.ppn : dtlb_pte_q.ppn, lsu_vaddr_q[11:0]};
+            lsu_dtlb_ppn_o = (en_ld_st_g_translation_i) ? dtlb_g_content.ppn : dtlb_content.ppn;
+            // Mega page
+            if (dtlb_is_2M_q) begin
+                  lsu_paddr_o[20:12]    = lsu_vaddr_q[20:12];
+                  lsu_dtlb_ppn_o[20:12] =  lsu_vaddr_n[20:12];
+            end
+            // Giga page
+            if (dtlb_is_1G_q) begin
+                  lsu_paddr_o[PPNWMin:12]    = lsu_vaddr_q[PPNWMin:12];
+                  lsu_dtlb_ppn_o[PPNWMin:12] =  lsu_vaddr_n[PPNWMin:12];
             end
             // ---------
             // DTLB Hit
@@ -489,7 +440,7 @@ module mmu import ariane_pkg::*; #(
                     // check if the page is write-able and we are not violating privileges
                     // also check if the dirty flag is set
                     if(en_ld_st_g_translation_i && (!dtlb_gpte_q.w || d_g_st_access_err || !dtlb_gpte_q.d)) begin
-                        lsu_exception_o = {riscv::STORE_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {{riscv::XLEN-riscv::PLEN{1'b0}},lsu_gpaddr}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
+                        lsu_exception_o = {riscv::STORE_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {{riscv::XLEN-riscv::GPLEN{1'b0}},lsu_gpaddr_q}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
                     end else if (en_ld_st_translation_i && (!dtlb_pte_q.w || daccess_err || !dtlb_pte_q.d)) begin
                         lsu_exception_o = {riscv::STORE_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
                     // Check if any PMPs are violated
@@ -500,7 +451,7 @@ module mmu import ariane_pkg::*; #(
                 // this is a load
                 end else begin
                     if (d_g_st_access_err) begin
-                        lsu_exception_o = {riscv::LOAD_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {{riscv::XLEN-riscv::PLEN{1'b0}},lsu_gpaddr}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
+                        lsu_exception_o = {riscv::LOAD_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {{riscv::XLEN-riscv::GPLEN{1'b0}},lsu_gpaddr_q}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
                     // check for sufficient access privileges - throw a page fault if necessary
                     end else if (daccess_err) begin
                         lsu_exception_o = {riscv::LOAD_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
@@ -579,6 +530,7 @@ module mmu import ariane_pkg::*; #(
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (~rst_ni) begin
             lsu_vaddr_q      <= '0;
+            lsu_gpaddr_q     <= '0;
             lsu_tinst_q      <= '0;
             hs_ld_st_inst_q  <= '0;
             lsu_req_q        <= '0;
@@ -589,10 +541,10 @@ module mmu import ariane_pkg::*; #(
             lsu_is_store_q   <= '0;
             dtlb_is_2M_q     <= '0;
             dtlb_is_1G_q     <= '0;
-            dtlb_is_g_2M_q   <= '0;
-            dtlb_is_g_1G_q   <= '0;
         end else begin
             lsu_vaddr_q      <=  lsu_vaddr_n;
+            lsu_gpaddr_q     <=  lsu_gpaddr_n;
+            lsu_tinst_q      <=  lsu_tinst_n;
             hs_ld_st_inst_q  <= hs_ld_st_inst_n;
             lsu_req_q        <=  lsu_req_n;
             misaligned_ex_q  <=  misaligned_ex_n;
@@ -602,8 +554,6 @@ module mmu import ariane_pkg::*; #(
             lsu_is_store_q   <=  lsu_is_store_n;
             dtlb_is_2M_q     <=  dtlb_is_2M_n;
             dtlb_is_1G_q     <=  dtlb_is_1G_n;
-            dtlb_is_g_2M_q   <=  dtlb_is_g_2M_n;
-            dtlb_is_g_1G_q   <=  dtlb_is_g_1G_n;
         end
     end
 endmodule
