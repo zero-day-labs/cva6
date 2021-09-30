@@ -449,7 +449,6 @@ module ptw import ariane_pkg::*; #(
                             // pointer to next level of page table
                             if (ptw_lvl_q == LVL1) begin
                                 // we are in the second level now
-                                // TODO: check guest physical address bit 63:41 are all zeros;
                                 ptw_lvl_n = LVL2;
                                 case (ptw_stage_q)
                                     VS_STAGE: begin
