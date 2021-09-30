@@ -442,7 +442,7 @@ module mmu import ariane_pkg::*; #(
                     if(en_ld_st_g_translation_i && (!dtlb_gpte_q.w || d_g_st_access_err || !dtlb_gpte_q.d)) begin
                         lsu_exception_o = {riscv::STORE_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {{riscv::XLEN-riscv::GPLEN{1'b0}},lsu_gpaddr_q}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
                     end else if (en_ld_st_translation_i && (!dtlb_pte_q.w || daccess_err || !dtlb_pte_q.d)) begin
-                        lsu_exception_o = {riscv::STORE_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
+                        lsu_exception_o = {riscv::STORE_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},lsu_vaddr_q}, {riscv::XLEN{1'b0}}, lsu_tinst_q, ld_st_v_i, 1'b1};
                     // Check if any PMPs are violated
                     end else if (!pmp_data_allow) begin
                         lsu_exception_o = {riscv::ST_ACCESS_FAULT, {{riscv::XLEN-riscv::PLEN{1'b0}}, lsu_paddr_o}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
