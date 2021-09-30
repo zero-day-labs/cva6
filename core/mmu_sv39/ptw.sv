@@ -467,7 +467,7 @@ module ptw import ariane_pkg::*; #(
                                 ptw_lvl_n  = LVL3;
                                 unique case (ptw_stage_q)
                                     VS_STAGE: begin
-                                        if (enable_g_translation_i || (!is_instr_ptw_q && en_ld_st_g_translation_i)) begin
+                                        if ((is_instr_ptw_q && enable_g_translation_i) || (!is_instr_ptw_q && en_ld_st_g_translation_i)) begin
                                             ptw_stage_d = VS_INTERMED_STAGE;
                                             gpte_d = pte;
                                             gptw_lvl_n = LVL3;
