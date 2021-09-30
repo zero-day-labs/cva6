@@ -565,7 +565,7 @@ module cva6 import ariane_pkg::*; #(
   // ---------
   csr_regfile #(
     .AsidWidth              ( ASID_WIDTH                    ),
-    .VMID_WIDTH             ( VMID_WIDTH                    ),
+    .VmidWidth              ( VMID_WIDTH                    ),
     .DmBaseAddress          ( ArianeCfg.DmBaseAddress       ),
     .NrCommitPorts          ( NR_COMMIT_PORTS               ),
     .NrPMPEntries           ( ArianeCfg.NrPMPEntries        )
