@@ -147,10 +147,22 @@ module ptw import ariane_pkg::*; #(
     assign itlb_update_o.gppn = {{41-riscv::SVX{1'b0}}, gpaddr_q[riscv::SVX-1:12]};
     assign dtlb_update_o.gppn = {{41-riscv::SVX{1'b0}}, gpaddr_q[riscv::SVX-1:12]};
     // update the correct page table level
-    assign itlb_update_o.is_2M = (enable_translation_i && enable_g_translation_i) ? (gptw_lvl_q == LVL2) : (enable_translation_i) ? (ptw_lvl_q == LVL2) : '0;
-    assign itlb_update_o.is_1G = (enable_translation_i && enable_g_translation_i) ? (gptw_lvl_q == LVL1) : (enable_translation_i) ? (ptw_lvl_q == LVL1) : '0;
-    assign dtlb_update_o.is_2M = (en_ld_st_translation_i && en_ld_st_g_translation_i) ? (gptw_lvl_q == LVL2) : (en_ld_st_translation_i) ? (ptw_lvl_q == LVL2) : '0;
-    assign dtlb_update_o.is_1G = (en_ld_st_translation_i && en_ld_st_g_translation_i) ? (gptw_lvl_q == LVL1) : (en_ld_st_translation_i) ? (ptw_lvl_q == LVL1) : '0;
+    assign itlb_update_o.is_2M = (enable_translation_i && enable_g_translation_i) ?
+                                 ((gptw_lvl_q == LVL2 && ptw_lvl_q != LVL3) || (ptw_lvl_q == LVL2 && gptw_lvl_q != LVL3)) :
+                                 (ptw_lvl_q == LVL2);
+    assign itlb_update_o.is_1G = (enable_translation_i && enable_g_translation_i) ?
+                                 ((gptw_lvl_q == LVL1 && ptw_lvl_q == LVL1)) :
+                                 (ptw_lvl_q == LVL1);
+    assign dtlb_update_o.is_2M = (en_ld_st_translation_i && en_ld_st_g_translation_i) ?
+                                 ((gptw_lvl_q == LVL2 && ptw_lvl_q != LVL3) || (ptw_lvl_q == LVL2 && gptw_lvl_q != LVL3)) :
+                                 (ptw_lvl_q == LVL2);
+    assign dtlb_update_o.is_1G = (en_ld_st_translation_i && en_ld_st_g_translation_i) ?
+                                 ((gptw_lvl_q == LVL1 && ptw_lvl_q == LVL1)) :
+                                 (ptw_lvl_q == LVL1);
+    assign itlb_update_o.is_vs_2M  = (enable_g_translation_i && enable_translation_i) ? (gptw_lvl_q == LVL2) : enable_translation_i ? (ptw_lvl_q == LVL2) : 1'b0;
+    assign itlb_update_o.is_vs_1G  = (enable_g_translation_i && enable_translation_i) ? (gptw_lvl_q == LVL1) : enable_translation_i ? (ptw_lvl_q == LVL1) : 1'b0;
+    assign dtlb_update_o.is_vs_2M  = (en_ld_st_g_translation_i && en_ld_st_translation_i) ? (gptw_lvl_q == LVL2) : en_ld_st_translation_i ? (ptw_lvl_q == LVL2) : 1'b0;
+    assign dtlb_update_o.is_vs_1G  = (en_ld_st_g_translation_i && en_ld_st_translation_i) ? (gptw_lvl_q == LVL1) : en_ld_st_translation_i ? (ptw_lvl_q == LVL1) : 1'b0;
     // update G-Stage with the correct page table level when enabled
     assign itlb_update_o.is_g_2M = (enable_g_translation_i) ? (ptw_lvl_q == LVL2) : '0;
     assign itlb_update_o.is_g_1G = (enable_g_translation_i) ? (ptw_lvl_q == LVL1) : '0;

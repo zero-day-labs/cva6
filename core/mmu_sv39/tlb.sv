@@ -35,6 +35,7 @@ module tlb import ariane_pkg::*; #(
     input  logic [ASID_WIDTH-1:0]   lu_asid_i,
     input  logic [VMID_WIDTH-1:0]   lu_vmid_i,
     input  logic [riscv::VLEN-1:0]  lu_vaddr_i,
+    output logic [riscv::GPLEN-1:0] lu_gpaddr_o,
     output riscv::pte_t             lu_content_o,
     output riscv::pte_t             lu_g_content_o,
     input  logic [ASID_WIDTH-1:0]   asid_to_be_flushed_i,
@@ -43,8 +44,6 @@ module tlb import ariane_pkg::*; #(
     input  logic [riscv::GPLEN-1:0] gpaddr_to_be_flushed_i,
     output logic                    lu_is_2M_o,
     output logic                    lu_is_1G_o,
-    output logic                    lu_is_g_2M_o,
-    output logic                    lu_is_g_1G_o,
     output logic                    lu_hit_o
 );
 
@@ -55,11 +54,13 @@ module tlb import ariane_pkg::*; #(
       logic [riscv::VPN2:0]  vpn2;
       logic [8:0]            vpn1;
       logic [8:0]            vpn0;
-      logic [riscv::VPN2+2:0]gppn2;
+      logic [riscv::GPPN2:0] gppn2;
       logic [8:0]            gppn1;
       logic [8:0]            gppn0;
       logic                  is_2M;
       logic                  is_1G;
+      logic                  is_vs_2M;
+      logic                  is_vs_1G;
       logic                  is_g_2M;
       logic                  is_g_1G;
       logic                  vs_st_enbl;  // vs-stage translation
@@ -75,11 +76,14 @@ module tlb import ariane_pkg::*; #(
 
     logic [8:0] vpn0, vpn1;
     logic [riscv::VPN2:0] vpn2;
+    logic [riscv::GPPN2:0] gppn2;
     logic [TLB_ENTRIES-1:0] lu_hit;     // to replacement logic
     logic [TLB_ENTRIES-1:0] replace_en; // replace the following entry, set by replacement strategy
     logic [TLB_ENTRIES-1:0] match_vmid;
     logic [TLB_ENTRIES-1:0] match_asid;
     logic [TLB_ENTRIES-1:0] match_stage;
+    logic [TLB_ENTRIES-1:0] match_pn;
+    riscv::pte_t   g_content;
     //-------------
     // Translation
     //-------------
@@ -87,16 +91,20 @@ module tlb import ariane_pkg::*; #(
         vpn0 = lu_vaddr_i[20:12];
         vpn1 = lu_vaddr_i[29:21];
         vpn2 = lu_vaddr_i[30+riscv::VPN2:30];
+        gppn2 = lu_vaddr_i[30+riscv::GPPN2:30];
 
         // default assignment
         lu_hit       = '{default: 0};
         lu_hit_o     = 1'b0;
         lu_content_o = '{default: 0};
         lu_g_content_o = '{default: 0};
+        lu_gpaddr_o  = '{default: 0};
         lu_is_1G_o   = 1'b0;
         lu_is_2M_o   = 1'b0;
-        lu_is_g_1G_o = 1'b0;
-        lu_is_g_2M_o = 1'b0;
+        match_asid   = '{default: 0};
+        match_vmid   = '{default: 0};
+        match_stage  = '{default: 0};
+        match_pn     = '{default: 0};
 
         for (int unsigned i = 0; i < TLB_ENTRIES; i++) begin
             // first level match, this may be a giga page, check the ASID and VMID flags as well if needed
@@ -105,39 +113,39 @@ module tlb import ariane_pkg::*; #(
             match_vmid[i] = (lu_vmid_i == tags_q[i].vmid && g_st_enbl_i) || !g_st_enbl_i;
             // check if translation is a: VS-Stage and G-Stage, VS-Stage only or G-Stage only translation and virtualization mode is on/off
             match_stage[i] = tags_q[i].g_st_enbl == g_st_enbl_i && tags_q[i].vs_st_enbl == vs_st_enbl_i && tags_q[i].v == v_i;
-            if (tags_q[i].valid && match_asid[i] && vpn2 == tags_q[i].vpn2 && match_stage[i] && match_vmid[i]) begin
-                // second level
-                if ((tags_q[i].is_1G && vs_st_enbl_i) || (tags_q[i].is_g_1G && !vs_st_enbl_i)) begin
-                    if((tags_q[i].gppn1 == vpn1 && tags_q[i].gppn0 == vpn0 && g_st_enbl_i && vs_st_enbl_i) || !(g_st_enbl_i && vs_st_enbl_i)) begin
-                      lu_is_1G_o = tags_q[i].is_1G;
-                      lu_is_g_2M_o = tags_q[i].is_g_2M;
-                      lu_is_g_1G_o = tags_q[i].is_g_1G;
-                      lu_content_o = content_q[i].pte;
-                      lu_g_content_o = content_q[i].gpte;
-                      lu_hit_o   = 1'b1;
-                      lu_hit[i]  = 1'b1;
-                    end
+            match_pn[i] = (vpn2 == tags_q[i].vpn2 && vs_st_enbl_i) || (gppn2 == tags_q[i].gppn2 && !vs_st_enbl_i);
+            if (tags_q[i].valid && match_asid[i] && match_vmid[i] && match_stage[i] && match_pn[i]) begin
+                if (tags_q[i].is_1G) begin
+                      lu_is_1G_o      = tags_q[i].is_1G;
+                      lu_content_o    = content_q[i].pte;
+                      lu_g_content_o  = content_q[i].gpte;
+                      lu_gpaddr_o     = {tags_q[i].gppn2,lu_vaddr_i[29:0]};
+                      lu_hit_o        = 1'b1;
+                      lu_hit[i]       = 1'b1;
                 // not a giga page hit so check further
                 end else if (vpn1 == tags_q[i].vpn1) begin
                     // this could be a 2 mega page hit or a 4 kB hit
                     // output accordingly
-                    if((tags_q[i].gppn0 == vpn0 && g_st_enbl_i && vs_st_enbl_i) || !(g_st_enbl_i && vs_st_enbl_i)) begin
-                        if(tags_q[i].gppn0 == vpn0) begin
-                            lu_is_2M_o   = tags_q[i].is_2M;
-                            lu_is_g_2M_o = tags_q[i].is_g_2M;
-                            lu_is_g_1G_o = tags_q[i].is_g_1G;
-                            lu_content_o = content_q[i].pte;
-                            lu_g_content_o = content_q[i].gpte;
-                            lu_hit_o     = 1'b1;
-                            lu_hit[i]    = 1'b1;
-                        end
-                    end else if (vpn0 == tags_q[i].vpn0) begin
-                            lu_is_g_2M_o = tags_q[i].is_g_2M;
-                            lu_is_g_1G_o = tags_q[i].is_g_1G;
-                            lu_content_o = content_q[i].pte;
-                            lu_g_content_o = content_q[i].gpte;
-                            lu_hit_o   = 1'b1;
-                            lu_hit[i]  = 1'b1;
+                    if (tags_q[i].is_2M || vpn0 == tags_q[i].vpn0) begin
+                            lu_is_2M_o     = tags_q[i].is_2M;
+                            lu_gpaddr_o    = {content_q[i].pte.ppn, lu_vaddr_i[11:0]};
+                            // Mega page
+                            if (tags_q[i].is_vs_2M) begin
+                                lu_gpaddr_o[20:12] = lu_vaddr_i[20:12];
+                            end
+                            // Giga page
+                            if (tags_q[i].is_vs_1G) begin
+                                lu_gpaddr_o[29:12] = lu_vaddr_i[29:12];
+                            end
+                            g_content      = content_q[i].gpte;
+                            if(tags_q[i].is_g_2M)
+                              g_content.ppn[8:0] = lu_gpaddr_o[20:12];
+                            if(tags_q[i].is_g_1G)
+                              g_content.ppn[17:0] = lu_gpaddr_o[29:12];
+                            lu_content_o   = content_q[i].pte;
+                            lu_g_content_o = g_content;
+                            lu_hit_o       = 1'b1;
+                            lu_hit[i]      = 1'b1;
                     end
                 end
             end
@@ -177,7 +185,7 @@ module tlb import ariane_pkg::*; #(
 
             gpaddr_gppn0_match[i] = (gpaddr_to_be_flushed_i[20:12] == tags_q[i].gppn0);
             gpaddr_gppn1_match[i] = (gpaddr_to_be_flushed_i[29:21] == tags_q[i].gppn1);
-            gpaddr_gppn2_match[i] = (gpaddr_to_be_flushed_i[32+riscv::VPN2:30] == tags_q[i].gppn2);
+            gpaddr_gppn2_match[i] = (gpaddr_to_be_flushed_i[30+riscv::GPPN2:30] == tags_q[i].gppn2);
 
             if (flush_i) begin
                 if(!tags_q[i].v && tags_q[i].vs_st_enbl) begin
@@ -202,10 +210,10 @@ module tlb import ariane_pkg::*; #(
         				    if (asid_to_be_flushed_is0 && vaddr_to_be_flushed_is0 && ((tags_q[i].g_st_enbl && lu_vmid_i == tags_q[i].vmid) || !tags_q[i].g_st_enbl))
                         tags_n[i].valid = 1'b0;
                     // flush vaddr in all addressing space ("SFENCE.VMA vaddr x0" case), it should happen only for leaf pages
-                    else if (asid_to_be_flushed_is0 && ((vaddr_vpn0_match[i] && vaddr_vpn1_match[i] && vaddr_vpn2_match[i]) || (vaddr_vpn2_match[i] && tags_q[i].is_1G) || (vaddr_vpn1_match[i] && vaddr_vpn2_match[i] && tags_q[i].is_2M) ) && (~vaddr_to_be_flushed_is0) && ((tags_q[i].g_st_enbl && lu_vmid_i == tags_q[i].vmid) || !tags_q[i].g_st_enbl))
+                    else if (asid_to_be_flushed_is0 && ((vaddr_vpn0_match[i] && vaddr_vpn1_match[i] && vaddr_vpn2_match[i]) || (vaddr_vpn2_match[i] && tags_q[i].is_vs_1G) || (vaddr_vpn1_match[i] && vaddr_vpn2_match[i] && tags_q[i].is_vs_2M) ) && (~vaddr_to_be_flushed_is0) && ((tags_q[i].g_st_enbl && lu_vmid_i == tags_q[i].vmid) || !tags_q[i].g_st_enbl))
                         tags_n[i].valid = 1'b0;
                     // the entry is flushed if it's not global and asid and vaddr both matches with the entry to be flushed ("SFENCE.VMA vaddr asid" case)
-				            else if ((!content_q[i].pte.g) && ((vaddr_vpn0_match[i] && vaddr_vpn1_match[i] && vaddr_vpn2_match[i]) || (vaddr_vpn2_match[i] && tags_q[i].is_1G) || (vaddr_vpn1_match[i] && vaddr_vpn2_match[i] && tags_q[i].is_2M)) && (asid_to_be_flushed_i == tags_q[i].asid && ((tags_q[i].g_st_enbl && lu_vmid_i == tags_q[i].vmid) || !tags_q[i].g_st_enbl)) && (!vaddr_to_be_flushed_is0) && (!asid_to_be_flushed_is0))
+				            else if ((!content_q[i].pte.g) && ((vaddr_vpn0_match[i] && vaddr_vpn1_match[i] && vaddr_vpn2_match[i]) || (vaddr_vpn2_match[i] && tags_q[i].is_vs_1G) || (vaddr_vpn1_match[i] && vaddr_vpn2_match[i] && tags_q[i].is_vs_2M)) && (asid_to_be_flushed_i == tags_q[i].asid && ((tags_q[i].g_st_enbl && lu_vmid_i == tags_q[i].vmid) || !tags_q[i].g_st_enbl)) && (!vaddr_to_be_flushed_is0) && (!asid_to_be_flushed_is0))
 				              	tags_n[i].valid = 1'b0;
                     // the entry is flushed if it's not global, and the asid matches and vaddr is 0. ("SFENCE.VMA 0 asid" case)
 				            else if ((!content_q[i].pte.g) && (vaddr_to_be_flushed_is0) && (asid_to_be_flushed_i == tags_q[i].asid && ((tags_q[i].g_st_enbl && lu_vmid_i == tags_q[i].vmid) || !tags_q[i].g_st_enbl)) && (!asid_to_be_flushed_is0))
@@ -244,6 +252,8 @@ module tlb import ariane_pkg::*; #(
                     v:     v_i,
                     is_1G: update_i.is_1G,
                     is_2M: update_i.is_2M,
+                    is_vs_1G: update_i.is_vs_1G,
+                    is_vs_2M: update_i.is_vs_2M,
                     is_g_1G: update_i.is_g_1G,
                     is_g_2M: update_i.is_g_2M,
                     valid: 1'b1
