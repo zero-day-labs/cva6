@@ -527,7 +527,7 @@ module mmu import ariane_pkg::*; #(
                         end if (ptw_error_at_g_st) begin
                             lsu_exception_o = {riscv::STORE_GUEST_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr}, {riscv::XLEN{1'b0}}, ld_st_v_i, 1'b1};
                         end else begin
-                            lsu_exception_o = {riscv::STORE_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {riscv::XLEN{1'b0}}, {riscv::XLEN{1'b0}}, 1'b1};
+                            lsu_exception_o = {riscv::STORE_PAGE_FAULT, {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr}, {riscv::XLEN{1'b0}}, lsu_tinst_q, ld_st_v_i, 1'b1};
                         end
                     end else begin
                         if (ptw_err_at_vs_int_st) begin
