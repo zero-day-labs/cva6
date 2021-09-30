@@ -326,7 +326,7 @@ module ptw import ariane_pkg::*; #(
                 if (data_rvalid_q) begin
 
                     // check if the global mapping bit is set
-                    if (pte.g)
+                    if (pte.g && ptw_stage_q == VS_STAGE)
                         global_mapping_n = 1'b1;
 
                     // -------------
