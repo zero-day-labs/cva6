@@ -240,7 +240,7 @@ module decoder import ariane_pkg::*; (
                             if (v_i)
                                 virtual_illegal_instr = 1'b1;
                             // Hypervisor load/store instructions in U-mode when hstatus.HU=0 cause an illegal instruction trap.
-                            if(!hu_i && !v_i && priv_lvl_i == riscv::PRIV_LVL_U)
+                            else if(!hu_i && priv_lvl_i == riscv::PRIV_LVL_U)
                                 illegal_instr = 1'b1;
                             unique case (instr.rtype.funct7)
                             7'b011_0000: begin
