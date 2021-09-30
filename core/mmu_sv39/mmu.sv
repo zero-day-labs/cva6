@@ -579,7 +579,8 @@ module mmu import ariane_pkg::*; #(
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (~rst_ni) begin
             lsu_vaddr_q      <= '0;
-            hs_ld_st_inst_q  <= hs_ld_st_inst_n;
+            lsu_tinst_q      <= '0;
+            hs_ld_st_inst_q  <= '0;
             lsu_req_q        <= '0;
             misaligned_ex_q  <= '0;
             dtlb_pte_q       <= '0;
