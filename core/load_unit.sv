@@ -349,10 +349,10 @@ module load_unit import ariane_pkg::*; #(
 
 
     // prepare these signals for faster selection in the next cycle
-    assign signed_d  = load_data_d.operator  inside {ariane_pkg::LW,  ariane_pkg::LH,  ariane_pkg::LB, ariane_pkg::HLV_W, ariane_pkg::LB, HLV_H, ariane_pkg::LB, ariane_pkg::HLV_B};
+    assign signed_d  = load_data_d.operator  inside {ariane_pkg::LW,  ariane_pkg::LH,  ariane_pkg::LB, ariane_pkg::HLV_W, ariane_pkg::HLV_H, ariane_pkg::HLV_B};
     assign fp_sign_d = load_data_d.operator  inside {ariane_pkg::FLW, ariane_pkg::FLH, ariane_pkg::FLB};
-    assign idx_d     = (load_data_d.operator inside {ariane_pkg::LW,  ariane_pkg::FLW, ariane_pkg::LB, ariane_pkg::HLV_W}) ? load_data_d.address_offset + 3 :
-                       (load_data_d.operator inside {ariane_pkg::LH,  ariane_pkg::FLH, ariane_pkg::LB, ariane_pkg::HLV_H}) ? load_data_d.address_offset + 1 :
+    assign idx_d     = (load_data_d.operator inside {ariane_pkg::LW,  ariane_pkg::FLW, ariane_pkg::HLV_W}) ? load_data_d.address_offset + 3 :
+                       (load_data_d.operator inside {ariane_pkg::LH,  ariane_pkg::FLH, ariane_pkg::HLV_H}) ? load_data_d.address_offset + 1 :
                                                                                           load_data_d.address_offset;
 
 
