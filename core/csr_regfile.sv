@@ -791,6 +791,8 @@ module csr_regfile import ariane_pkg::*; #(
                         update_access_exception = 1'b1;
                     else begin
                         hgatp      = riscv::hgatp_t'(csr_wdata);
+                        //hardwire PPN[1:0] to zero
+                        hgatp[1:0] = 2'b0;
                         // only make VMID_LEN - 1 bit stick, that way software can figure out how many VMID bits are supported
                         hgatp.vmid = hgatp.vmid & {{(riscv::VMIDW-VmidWidth){1'b0}}, {VmidWidth{1'b1}}};
                         // only update if we actually support this mode
