@@ -25,7 +25,7 @@ module tlb import ariane_pkg::*; #(
     input  logic                    flush_i,  // Flush normal translations signal
     input  logic                    flush_vvma_i,  // Flush vs stage signal
     input  logic                    flush_gvma_i,  // Flush g stage signal
-    input  logic                    vs_st_enbl_i, // vs-stage or s-stage enabled
+    input  logic                    s_st_enbl_i,  // s-stage enabled
     input  logic                    g_st_enbl_i,  // g-stage enabled
     input  logic                    v_i,  // virtualization mode
     // Update TLB
@@ -59,11 +59,11 @@ module tlb import ariane_pkg::*; #(
       logic [8:0]            gppn0;
       logic                  is_2M;
       logic                  is_1G;
-      logic                  is_vs_2M;
-      logic                  is_vs_1G;
+      logic                  is_s_2M;
+      logic                  is_s_1G;
       logic                  is_g_2M;
       logic                  is_g_1G;
-      logic                  vs_st_enbl;  // vs-stage translation
+      logic                  s_st_enbl;   // s-stage translation
       logic                  g_st_enbl;   // g-stage translation
       logic                  v;           // virtualization mode
       logic                  valid;
@@ -109,11 +109,11 @@ module tlb import ariane_pkg::*; #(
         for (int unsigned i = 0; i < TLB_ENTRIES; i++) begin
             // first level match, this may be a giga page, check the ASID and VMID flags as well if needed
             // if the entry is associated to a global address, don't match the ASID (ASID is don't care)
-            match_asid[i] = (((lu_asid_i == tags_q[i].asid) || content_q[i].pte.g) && vs_st_enbl_i) || !vs_st_enbl_i;
+            match_asid[i] = (((lu_asid_i == tags_q[i].asid) || content_q[i].pte.g) && s_st_enbl_i) || !s_st_enbl_i;
             match_vmid[i] = (lu_vmid_i == tags_q[i].vmid && g_st_enbl_i) || !g_st_enbl_i;
-            // check if translation is a: VS-Stage and G-Stage, VS-Stage only or G-Stage only translation and virtualization mode is on/off
-            match_stage[i] = tags_q[i].g_st_enbl == g_st_enbl_i && tags_q[i].vs_st_enbl == vs_st_enbl_i && tags_q[i].v == v_i;
-            match_pn[i] = (vpn2 == tags_q[i].vpn2 && vs_st_enbl_i) || (gppn2 == tags_q[i].gppn2 && !vs_st_enbl_i);
+            // check if translation is a: S-Stage and G-Stage, S-Stage only or G-Stage only translation and virtualization mode is on/off
+            match_stage[i] = tags_q[i].g_st_enbl == g_st_enbl_i && tags_q[i].s_st_enbl == s_st_enbl_i && tags_q[i].v == v_i;
+            match_pn[i] = (vpn2 == tags_q[i].vpn2 && s_st_enbl_i) || (gppn2 == tags_q[i].gppn2 && !s_st_enbl_i);
             if (tags_q[i].valid && match_asid[i] && match_vmid[i] && match_stage[i] && match_pn[i]) begin
                 if (tags_q[i].is_1G) begin
                       lu_is_1G_o      = tags_q[i].is_1G;
@@ -130,11 +130,11 @@ module tlb import ariane_pkg::*; #(
                             lu_is_2M_o     = tags_q[i].is_2M;
                             lu_gpaddr_o    = {content_q[i].pte.ppn, lu_vaddr_i[11:0]};
                             // Mega page
-                            if (tags_q[i].is_vs_2M) begin
+                            if (tags_q[i].is_s_2M) begin
                                 lu_gpaddr_o[20:12] = lu_vaddr_i[20:12];
                             end
                             // Giga page
-                            if (tags_q[i].is_vs_1G) begin
+                            if (tags_q[i].is_s_1G) begin
                                 lu_gpaddr_o[29:12] = lu_vaddr_i[29:12];
                             end
                             g_content      = content_q[i].gpte;
@@ -188,7 +188,7 @@ module tlb import ariane_pkg::*; #(
             gpaddr_gppn2_match[i] = (gpaddr_to_be_flushed_i[30+riscv::GPPN2:30] == tags_q[i].gppn2);
 
             if (flush_i) begin
-                if(!tags_q[i].v && tags_q[i].vs_st_enbl) begin
+                if(!tags_q[i].v && tags_q[i].s_st_enbl) begin
                     // invalidate logic
                     // flush everything if ASID is 0 and vaddr is 0 ("SFENCE.VMA x0 x0" case)
         				    if (asid_to_be_flushed_is0 && vaddr_to_be_flushed_is0 )
@@ -204,16 +204,16 @@ module tlb import ariane_pkg::*; #(
 				            	  tags_n[i].valid = 1'b0;
                 end
             end else if (flush_vvma_i) begin
-                if(tags_q[i].v && tags_q[i].vs_st_enbl) begin
+                if(tags_q[i].v && tags_q[i].s_st_enbl) begin
                     // invalidate logic
                     // flush everything if ASID is 0 and vaddr is 0 ("SFENCE.VMA x0 x0" case)
         				    if (asid_to_be_flushed_is0 && vaddr_to_be_flushed_is0 && ((tags_q[i].g_st_enbl && lu_vmid_i == tags_q[i].vmid) || !tags_q[i].g_st_enbl))
                         tags_n[i].valid = 1'b0;
                     // flush vaddr in all addressing space ("SFENCE.VMA vaddr x0" case), it should happen only for leaf pages
-                    else if (asid_to_be_flushed_is0 && ((vaddr_vpn0_match[i] && vaddr_vpn1_match[i] && vaddr_vpn2_match[i]) || (vaddr_vpn2_match[i] && tags_q[i].is_vs_1G) || (vaddr_vpn1_match[i] && vaddr_vpn2_match[i] && tags_q[i].is_vs_2M) ) && (~vaddr_to_be_flushed_is0) && ((tags_q[i].g_st_enbl && lu_vmid_i == tags_q[i].vmid) || !tags_q[i].g_st_enbl))
+                    else if (asid_to_be_flushed_is0 && ((vaddr_vpn0_match[i] && vaddr_vpn1_match[i] && vaddr_vpn2_match[i]) || (vaddr_vpn2_match[i] && tags_q[i].is_s_1G) || (vaddr_vpn1_match[i] && vaddr_vpn2_match[i] && tags_q[i].is_s_2M) ) && (~vaddr_to_be_flushed_is0) && ((tags_q[i].g_st_enbl && lu_vmid_i == tags_q[i].vmid) || !tags_q[i].g_st_enbl))
                         tags_n[i].valid = 1'b0;
                     // the entry is flushed if it's not global and asid and vaddr both matches with the entry to be flushed ("SFENCE.VMA vaddr asid" case)
-				            else if ((!content_q[i].pte.g) && ((vaddr_vpn0_match[i] && vaddr_vpn1_match[i] && vaddr_vpn2_match[i]) || (vaddr_vpn2_match[i] && tags_q[i].is_vs_1G) || (vaddr_vpn1_match[i] && vaddr_vpn2_match[i] && tags_q[i].is_vs_2M)) && (asid_to_be_flushed_i == tags_q[i].asid && ((tags_q[i].g_st_enbl && lu_vmid_i == tags_q[i].vmid) || !tags_q[i].g_st_enbl)) && (!vaddr_to_be_flushed_is0) && (!asid_to_be_flushed_is0))
+				            else if ((!content_q[i].pte.g) && ((vaddr_vpn0_match[i] && vaddr_vpn1_match[i] && vaddr_vpn2_match[i]) || (vaddr_vpn2_match[i] && tags_q[i].is_s_1G) || (vaddr_vpn1_match[i] && vaddr_vpn2_match[i] && tags_q[i].is_s_2M)) && (asid_to_be_flushed_i == tags_q[i].asid && ((tags_q[i].g_st_enbl && lu_vmid_i == tags_q[i].vmid) || !tags_q[i].g_st_enbl)) && (!vaddr_to_be_flushed_is0) && (!asid_to_be_flushed_is0))
 				              	tags_n[i].valid = 1'b0;
                     // the entry is flushed if it's not global, and the asid matches and vaddr is 0. ("SFENCE.VMA 0 asid" case)
 				            else if ((!content_q[i].pte.g) && (vaddr_to_be_flushed_is0) && (asid_to_be_flushed_i == tags_q[i].asid && ((tags_q[i].g_st_enbl && lu_vmid_i == tags_q[i].vmid) || !tags_q[i].g_st_enbl)) && (!asid_to_be_flushed_is0))
@@ -239,7 +239,7 @@ module tlb import ariane_pkg::*; #(
             end else if (update_i.valid & replace_en[i]) begin
                 // update tag array
                 tags_n[i] = '{
-                    asid:  vs_st_enbl_i ? update_i.asid : 'b0,
+                    asid:  s_st_enbl_i ? update_i.asid : 'b0,
                     vmid:  g_st_enbl_i ? update_i.vmid : 'b0,
                     vpn2:  update_i.vpn [18+riscv::VPN2:18],
                     vpn1:  update_i.vpn [17:9],
@@ -247,13 +247,13 @@ module tlb import ariane_pkg::*; #(
                     gppn2:  update_i.gppn [20+riscv::VPN2:18],
                     gppn1:  update_i.gppn [17:9],
                     gppn0:  update_i.gppn [8:0],
-                    vs_st_enbl: vs_st_enbl_i,
+                    s_st_enbl:  s_st_enbl_i,
                     g_st_enbl:  g_st_enbl_i,
                     v:     v_i,
                     is_1G: update_i.is_1G,
                     is_2M: update_i.is_2M,
-                    is_vs_1G: update_i.is_vs_1G,
-                    is_vs_2M: update_i.is_vs_2M,
+                    is_s_1G: update_i.is_s_1G,
+                    is_s_2M: update_i.is_s_2M,
                     is_g_1G: update_i.is_g_1G,
                     is_g_2M: update_i.is_g_2M,
                     valid: 1'b1

@@ -92,7 +92,7 @@ module mmu import ariane_pkg::*; #(
     logic                   walking_instr; // PTW is walking because of an ITLB miss
     logic                   ptw_error;     // PTW threw an exception
     logic                   ptw_error_at_g_st;    // PTW threw an exception at the G-Stage
-    logic                   ptw_err_at_vs_int_st; // PTW threw an exception at the G-Stage during VS-Stage translation
+    logic                   ptw_err_at_g_int_st;  // PTW threw an exception at the G-Stage during S-Stage translation
     logic                   ptw_access_exception; // PTW threw an access exception (PMPs)
     logic [riscv::PLEN-1:0] ptw_bad_paddr; // PTW PMP exception bad physical addr
     logic [riscv::GPLEN-1:0] ptw_bad_gpaddr; // PTW guest page fault bad guest physical addr
@@ -138,7 +138,7 @@ module mmu import ariane_pkg::*; #(
         .flush_i          ( flush_tlb_i                ),
         .flush_vvma_i     ( flush_tlb_vvma_i           ),
         .flush_gvma_i     ( flush_tlb_gvma_i           ),
-        .vs_st_enbl_i     ( enable_translation_i       ),
+        .s_st_enbl_i      ( enable_translation_i       ),
         .g_st_enbl_i      ( enable_g_translation_i     ),
         .v_i              ( v_i                        ),
 
@@ -171,7 +171,7 @@ module mmu import ariane_pkg::*; #(
         .flush_i          ( flush_tlb_i                 ),
         .flush_vvma_i     ( flush_tlb_vvma_i            ),
         .flush_gvma_i     ( flush_tlb_gvma_i            ),
-        .vs_st_enbl_i     ( en_ld_st_translation_i      ),
+        .s_st_enbl_i      ( en_ld_st_translation_i      ),
         .g_st_enbl_i      ( en_ld_st_g_translation_i    ),
         .v_i              ( ld_st_v_i                   ),
 
@@ -206,7 +206,7 @@ module mmu import ariane_pkg::*; #(
         .walking_instr_o        ( walking_instr         ),
         .ptw_error_o            ( ptw_error             ),
         .ptw_error_at_g_st_o    ( ptw_error_at_g_st     ),
-        .ptw_err_at_vs_int_st_o ( ptw_err_at_vs_int_st  ),
+        .ptw_err_at_g_int_st_o  ( ptw_err_at_g_int_st   ),
         .ptw_access_exception_o ( ptw_access_exception  ),
         .enable_translation_i   ( enable_translation_i  ),
         .enable_g_translation_i ( enable_g_translation_i),
@@ -349,7 +349,7 @@ module mmu import ariane_pkg::*; #(
                             riscv::INSTR_GUEST_PAGE_FAULT,
                             {{riscv::XLEN-riscv::VLEN{1'b0}}, update_vaddr},
                             {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr},
-                            (ptw_err_at_vs_int_st ? (riscv::IS_XLEN64 ? riscv::READ_64_PSEUDOINSTRUCTION : riscv::READ_32_PSEUDOINSTRUCTION) : {riscv::XLEN{1'b0}}),
+                            (ptw_err_at_g_int_st ? (riscv::IS_XLEN64 ? riscv::READ_64_PSEUDOINSTRUCTION : riscv::READ_32_PSEUDOINSTRUCTION) : {riscv::XLEN{1'b0}}),
                             v_i,
                             1'b1
                         };
@@ -574,7 +574,7 @@ module mmu import ariane_pkg::*; #(
                                 riscv::STORE_GUEST_PAGE_FAULT,
                                 {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr},
                                 {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr},
-                                (ptw_err_at_vs_int_st ? (riscv::IS_XLEN64 ? riscv::READ_64_PSEUDOINSTRUCTION : riscv::READ_32_PSEUDOINSTRUCTION) : {riscv::XLEN{1'b0}}),
+                                (ptw_err_at_g_int_st ? (riscv::IS_XLEN64 ? riscv::READ_64_PSEUDOINSTRUCTION : riscv::READ_32_PSEUDOINSTRUCTION) : {riscv::XLEN{1'b0}}),
                                 ld_st_v_i,
                                 1'b1
                             };
@@ -594,7 +594,7 @@ module mmu import ariane_pkg::*; #(
                                 riscv::LOAD_GUEST_PAGE_FAULT,
                                 {{riscv::XLEN-riscv::VLEN{lsu_vaddr_q[riscv::VLEN-1]}},update_vaddr},
                                 {{riscv::XLEN-riscv::GPLEN{1'b0}},ptw_bad_gpaddr},
-                                (ptw_err_at_vs_int_st ? (riscv::IS_XLEN64 ? riscv::READ_64_PSEUDOINSTRUCTION : riscv::READ_32_PSEUDOINSTRUCTION) : {riscv::XLEN{1'b0}}),
+                                (ptw_err_at_g_int_st ? (riscv::IS_XLEN64 ? riscv::READ_64_PSEUDOINSTRUCTION : riscv::READ_32_PSEUDOINSTRUCTION) : {riscv::XLEN{1'b0}}),
                                 ld_st_v_i,
                                 1'b1
                             };
