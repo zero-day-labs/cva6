@@ -679,8 +679,8 @@ package ariane_pkg;
         logic                  valid;      // valid flag
         logic                  is_2M;      //
         logic                  is_1G;      //
-        logic                  is_vs_2M;
-        logic                  is_vs_1G;
+        logic                  is_s_2M;
+        logic                  is_s_1G;
         logic                  is_g_2M;
         logic                  is_g_1G;
         logic [26:0]           vpn;
