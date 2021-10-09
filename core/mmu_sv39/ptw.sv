@@ -397,7 +397,7 @@ module ptw import ariane_pkg::*; #(
                                 if (!pte.x || !pte.a) begin
                                   state_d = PROPAGATE_ERROR;
                                   ptw_stage_d = ptw_stage_q;
-                                end else if((enable_g_translation_i && ptw_stage_q == G_STAGE) || (!enable_g_translation_i && ptw_stage_q == VS_STAGE))
+                                end else if((ptw_stage_q == G_STAGE) || (!enable_g_translation_i && ptw_stage_q == VS_STAGE))
                                   itlb_update_o.valid = 1'b1;
 
                             end else begin
@@ -410,7 +410,7 @@ module ptw import ariane_pkg::*; #(
                                 // we can directly raise an error. This doesn't put a useless
                                 // entry into the TLB.
                                 if (pte.a && ((pte.r && !hlvx_inst_i) || (pte.x && (mxr_i || hlvx_inst_i || (ptw_stage_q == VS_STAGE && vmxr_i && ld_st_v_i))))) begin
-                                  if((en_ld_st_g_translation_i && ptw_stage_q == G_STAGE) || (!en_ld_st_g_translation_i && ptw_stage_q == VS_STAGE))
+                                  if((ptw_stage_q == G_STAGE) || (!en_ld_st_g_translation_i && ptw_stage_q == VS_STAGE))
                                       dtlb_update_o.valid = 1'b1;
                                 end else begin
                                   state_d   = PROPAGATE_ERROR;
