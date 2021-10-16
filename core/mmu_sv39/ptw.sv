@@ -53,7 +53,7 @@ module ptw import ariane_pkg::*; #(
 
     input  logic [ASID_WIDTH-1:0]   asid_i,
     input  logic [ASID_WIDTH-1:0]   vs_asid_i,
-    input  logic [ASID_WIDTH-1:0]   vmid_i,
+    input  logic [VMID_WIDTH-1:0]   vmid_i,
     // from TLBs
     // did we miss?
     input  logic                    itlb_access_i,
