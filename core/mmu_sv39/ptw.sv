@@ -281,8 +281,8 @@ module ptw import ariane_pkg::*; #(
                         ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], pptr[riscv::SVX-1:30], 3'b0};
                     end else if (!enable_translation_i && enable_g_translation_i) begin
                         ptw_stage_d = G_FINAL_STAGE;
-                        gpaddr_n = {{2{itlb_vaddr_i[riscv::SV-1]}}, itlb_vaddr_i};
-                        ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], {2{itlb_vaddr_i[riscv::SV-1]}}, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                        gpaddr_n = itlb_vaddr_i[riscv::SVX-1:0];
+                        ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], itlb_vaddr_i[riscv::SVX-1:30], 3'b0};
                     end else begin
                         ptw_stage_d = S_STAGE;
                         if(v_i)
@@ -305,8 +305,8 @@ module ptw import ariane_pkg::*; #(
                         ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], pptr[riscv::SVX-1:30], 3'b0};
                     end else if (!en_ld_st_translation_i && en_ld_st_g_translation_i) begin
                         ptw_stage_d = G_FINAL_STAGE;
-                        gpaddr_n = {{2{dtlb_vaddr_i[riscv::SV-1]}}, dtlb_vaddr_i};
-                        ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], {2{dtlb_vaddr_i[riscv::SV-1]}}, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
+                        gpaddr_n = dtlb_vaddr_i[riscv::SVX-1:0];
+                        ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], dtlb_vaddr_i[riscv::SVX-1:30], 3'b0};
                     end else begin
                         ptw_stage_d = S_STAGE;
                         if(ld_st_v_i)
