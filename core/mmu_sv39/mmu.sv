@@ -367,7 +367,7 @@ module mmu import ariane_pkg::*; #(
                 // TODO(moschn,zarubaf): What should the value of tval be in this case?
                 else  icache_areq_o.fetch_exception = {
                           riscv::INSTR_ACCESS_FAULT,
-                          {{riscv::XLEN-riscv::VLEN{1'b0}}, ptw_bad_paddr},
+                          {{riscv::XLEN-riscv::PLEN{1'b0}}, ptw_bad_paddr},
                           {riscv::XLEN{1'b0}},
                           {riscv::XLEN{1'b0}},
                           v_i,
