@@ -377,7 +377,7 @@ module mmu import ariane_pkg::*; #(
         end
         // if it didn't match any execute region throw an `Instruction Access Fault`
         // or: if we are not translating, check PMPs immediately on the paddr
-        if (!match_any_execute_region || (!(enable_translation_i || enable_g_translation_i) && !pmp_instr_allow)) begin
+        if ((!match_any_execute_region && !ptw_error) || (!(enable_translation_i || enable_g_translation_i) && !pmp_instr_allow)) begin
           icache_areq_o.fetch_exception = {
               riscv::INSTR_ACCESS_FAULT,
               {{riscv::XLEN-riscv::PLEN{1'b0}}, icache_areq_o.fetch_paddr},
