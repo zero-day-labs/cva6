@@ -250,7 +250,7 @@ module instr_queue (
         fetch_entry_o.instruction = instr_data_out[i].instr;
         fetch_entry_o.ex.valid = instr_data_out[i].ex != ariane_pkg::FE_NONE;
         fetch_entry_o.ex.tval  = {{64-riscv::VLEN{1'b0}}, instr_data_out[i].ex_vaddr};
-        fetch_entry_o.ex.tval2 = {{64-riscv::VLEN{1'b0}}, instr_data_out[i].ex_gpaddr};
+        fetch_entry_o.ex.tval2 = {{64-riscv::GPLEN{1'b0}}, instr_data_out[i].ex_gpaddr};
         fetch_entry_o.ex.tinst = {{64-riscv::XLEN{1'b0}}, instr_data_out[i].ex_tinst};
         fetch_entry_o.ex.gva   = instr_data_out[i].ex_gva;
         fetch_entry_o.branch_predict.cf = instr_data_out[i].cf;
