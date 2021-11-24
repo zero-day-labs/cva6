@@ -38,6 +38,7 @@ module mmu import ariane_pkg::*; #(
     input  exception_t                      misaligned_ex_i,
     input  logic                            lsu_req_i,        // request address translation
     input  logic [riscv::VLEN-1:0]          lsu_vaddr_i,      // virtual address in
+    input  riscv::xlen_t                    lsu_tinst_i,      // transformed instruction in
     input  logic                            lsu_is_store_i,   // the translation is requested by a store
     output logic                            csr_hs_ld_st_inst_o, // hyp load store instruction
     // if we need to walk the page table we can't grant in the same cycle
