@@ -24,12 +24,17 @@ module pmp #(
     // Configuration
     input logic [15:0][PMP_LEN-1:0] conf_addr_i,
     input riscv::pmpcfg_t [15:0] conf_i,
+    input riscv::mseccfg_t mconf_i,
     // Output
     output logic allow_o
 );
     // if there are no PMPs we can always grant the access.
     if (NR_ENTRIES > 0) begin : gen_pmp
         logic [NR_ENTRIES-1:0] match;
+        logic [NR_ENTRIES-1:0] m_mode_only;
+        logic [NR_ENTRIES-1:0] s_u_mode_only;
+        logic [NR_ENTRIES-1:0] shared_region;
+        riscv::pmpcfg_access_t [NR_ENTRIES-1:0] access_type;
 
         for (genvar i = 0; i < NR_ENTRIES; i++) begin
             logic [PMP_LEN-1:0] conf_addr_prev;
@@ -55,17 +60,25 @@ module pmp #(
             for (i = 0; i < NR_ENTRIES; i++) begin
                 // either we are in S or U mode or the config is locked in which
                 // case it also applies in M mode
-                if (priv_lvl_i != riscv::PRIV_LVL_M || conf_i[i].locked) begin
+                shared_region[i] = (conf_i[i].access_type.w && !conf_i[i].access_type.r) || ((conf_i[i].access_type == riscv::pmpcfg_access_t'('b111)) && conf_i[i].locked);
+                m_mode_only[i] = conf_i[i].locked && !shared_region[i];
+                s_u_mode_only[i] = !conf_i[i].locked && !shared_region[i];
+                access_type[i] = (shared_region[i] && mconf_i.mml) ?
+                                  ariane_pkg::shared_region_access_type(conf_i[i].locked, conf_i[i].access_type, priv_lvl_i) :
+                                  conf_i[i].access_type;
+                if ((!mconf_i.mml && (priv_lvl_i != riscv::PRIV_LVL_M || conf_i[i].locked)) || (mconf_i.mml && (m_mode_only[i] || s_u_mode_only[i] || shared_region[i]))) begin
                     if (match[i]) begin
-                        if ((access_type_i & conf_i[i].access_type) != access_type_i) allow_o = 1'b0;
+                        if ((access_type_i & access_type[i]) != access_type_i) allow_o = 1'b0;
                         else allow_o = 1'b1;
+                        if(mconf_i.mml && ((m_mode_only[i] && priv_lvl_i != riscv::PRIV_LVL_M) || s_u_mode_only[i] && priv_lvl_i == riscv::PRIV_LVL_M))
+                            allow_o = 1'b0;
                         break;
                     end
                 end
             end
             if (i == NR_ENTRIES) begin // no PMP entry matched the address
-                // allow all accesses from M-mode for no pmp match
-                if (priv_lvl_i == riscv::PRIV_LVL_M) allow_o = 1'b1;
+                // allow all accesses from M-mode for no pmp match, if mseccfg.MMWP is not set
+                if (priv_lvl_i == riscv::PRIV_LVL_M && !mconf_i.mmwp && ((mconf_i.mml && access_type_i != riscv::ACCESS_EXEC) || !mconf_i.mml)) allow_o = 1'b1;
                 // disallow accesses for all other modes
                 else allow_o = 1'b0;
             end

@@ -70,6 +70,7 @@ module load_store_unit import ariane_pkg::*; #(
     output amo_req_t                 amo_req_o,
     input  amo_resp_t                amo_resp_i,
     // PMP
+    input  riscv::mseccfg_t          mseccfg_i,
     input  riscv::pmpcfg_t [15:0]    pmpcfg_i,
     input  logic [15:0][riscv::PLEN-3:0] pmpaddr_i
 );
@@ -155,6 +156,7 @@ module load_store_unit import ariane_pkg::*; #(
             .asid_to_be_flushed_i,
             .vaddr_to_be_flushed_i,
             .icache_areq_o          ( icache_areq_o          ),
+            .mseccfg_i,
             .pmpcfg_i,
             .pmpaddr_i,
             .*
@@ -184,6 +186,7 @@ module load_store_unit import ariane_pkg::*; #(
             .asid_to_be_flushed_i,
             .vaddr_to_be_flushed_i,
             .icache_areq_o          ( icache_areq_o          ),
+            .mseccfg_i,
             .pmpcfg_i,
             .pmpaddr_i,
             .*

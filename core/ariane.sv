@@ -189,6 +189,7 @@ module ariane import ariane_pkg::*; #(
   logic                     icache_en_csr;
   logic                     debug_mode;
   logic                     single_step_csr_commit;
+  riscv::mseccfg_t          mseccfg;
   riscv::pmpcfg_t [15:0]    pmpcfg;
   logic [15:0][riscv::PLEN-3:0] pmpaddr;
   // ----------------------------
@@ -444,6 +445,7 @@ module ariane import ariane_pkg::*; #(
     .dcache_wbuffer_empty_i ( dcache_commit_wbuffer_empty ),
     .dcache_wbuffer_not_ni_i ( dcache_commit_wbuffer_not_ni ),
     // PMP
+    .mseccfg_i              ( mseccfg                     ),
     .pmpcfg_i               ( pmpcfg                      ),
     .pmpaddr_i              ( pmpaddr                     )
   );
@@ -544,6 +546,7 @@ module ariane import ariane_pkg::*; #(
     .perf_data_o            ( data_csr_perf                 ),
     .perf_data_i            ( data_perf_csr                 ),
     .perf_we_o              ( we_csr_perf                   ),
+    .mseccfg_o              ( mseccfg                       ),
     .pmpcfg_o               ( pmpcfg                        ),
     .pmpaddr_o              ( pmpaddr                       ),
     .debug_req_i,

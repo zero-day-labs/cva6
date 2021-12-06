@@ -72,6 +72,7 @@ module cva6_ptw_sv32 import ariane_pkg::*; #(
     output logic                    dtlb_miss_o,
     // PMP
 
+    input  riscv::mseccfg_t         mseccfg_i,
     input  riscv::pmpcfg_t [15:0]   pmpcfg_i,
     input  logic [15:0][riscv::PLEN-3:0] pmpaddr_i,
     output logic [riscv::PLEN-1:0]  bad_paddr_o
@@ -159,6 +160,7 @@ module cva6_ptw_sv32 import ariane_pkg::*; #(
         // Configuration
         .conf_addr_i   ( pmpaddr_i          ),
         .conf_i        ( pmpcfg_i           ),
+        .mconf_i       ( mseccfg_i          ),
         .allow_o       ( allow_access       )
     );
 

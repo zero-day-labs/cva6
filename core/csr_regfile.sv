@@ -84,6 +84,7 @@ module csr_regfile import ariane_pkg::*; #(
     input  logic[riscv::XLEN-1:0] perf_data_i,                // read data from performance counter module
     output logic                  perf_we_o,
     // PMPs
+    output riscv::mseccfg_t mseccfg_o,
     output riscv::pmpcfg_t [15:0] pmpcfg_o,   // PMP configuration containing pmpcfg for max 16 PMPs
     output logic [15:0][riscv::PLEN-3:0] pmpaddr_o            // PMP addresses
 );
@@ -139,10 +140,12 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::xlen_t cycle_q,     cycle_d;
     riscv::xlen_t instret_q,   instret_d;
 
+    riscv::mseccfg_t  mseccfg_q, mseccfg_d;
     riscv::pmpcfg_t [15:0]    pmpcfg_q,  pmpcfg_d;
     logic [15:0][riscv::PLEN-3:0]        pmpaddr_q,  pmpaddr_d;
 
 
+    assign mseccfg_o = mseccfg_q;
     assign pmpcfg_o = pmpcfg_q[15:0];
     assign pmpaddr_o = pmpaddr_q;
 
@@ -280,6 +283,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_DCACHE:           csr_rdata = dcache_q;
                 riscv::CSR_ICACHE:           csr_rdata = icache_q;
                 // PMPs
+                riscv::CSR_MSECCFG:          csr_rdata = mseccfg_q;
                 riscv::CSR_PMPCFG0:          csr_rdata = pmpcfg_q[riscv::XLEN/8-1:0];
                 riscv::CSR_PMPCFG1:          if (riscv::XLEN == 32) csr_rdata = pmpcfg_q[7:4]; else read_access_exception = 1'b1;
                 riscv::CSR_PMPCFG2:          csr_rdata = pmpcfg_q[8 +: riscv::XLEN/8];
@@ -316,10 +320,17 @@ module csr_regfile import ariane_pkg::*; #(
     always_comb begin : csr_update
         automatic riscv::satp_t satp;
         automatic riscv::xlen_t instret;
+        automatic riscv::mseccfg_t mseccfg;
+        automatic logic pmps_locked;
+        automatic logic [NrPMPEntries:0] m_mode_only_x_rule;
+        automatic logic [NrPMPEntries:0] shared_region_x_rule;
 
 
         satp = satp_q;
         instret = instret_q;
+        pmps_locked = 1'b0;
+        m_mode_only_x_rule = '0;
+        shared_region_x_rule = '0;
 
         // --------------------
         // Counters
@@ -391,6 +402,7 @@ module csr_regfile import ariane_pkg::*; #(
         en_ld_st_translation_d  = en_ld_st_translation_q;
         dirty_fp_state_csr      = 1'b0;
 
+        mseccfg_d               = mseccfg_q;
         pmpcfg_d                = pmpcfg_q;
         pmpaddr_d               = pmpaddr_q;
 
@@ -598,34 +610,73 @@ module csr_regfile import ariane_pkg::*; #(
                 // 1. refuse to update any locked entry
                 // 2. also refuse to update the entry below a locked TOR entry
                 // Note that writes to pmpcfg below a locked TOR entry are valid
-                riscv::CSR_PMPCFG0:    for (int i = 0; i < (riscv::XLEN/8); i++) if (!pmpcfg_q[i].locked) pmpcfg_d[i]  = csr_wdata[i*8+:8];
+                riscv::CSR_MSECCFG: begin
+                    mseccfg = csr_wdata;
+                    for (int i = 0; i < NrPMPEntries; i++) pmps_locked |= pmpcfg_q[i].locked;
+                    // Modifications to the RLB bit are ignored when RLB=0 and pmpcfg.L=1 in any rule
+                    if(!(!mseccfg_q.rlb && pmps_locked))
+                        mseccfg_d.rlb = mseccfg.rlb;
+                    // MMWP is at sticky bit (once set cannot be unset until a PMP reset)
+                    mseccfg_d.mmwp = mseccfg.mmwp | mseccfg_q.mmwp;
+                    // MML is at sticky bit (once set cannot be unset until a PMP reset)
+                    mseccfg_d.mml = mseccfg.mml | mseccfg_q.mml;
+                end
+                riscv::CSR_PMPCFG0: begin
+                    for (int i = 0; i < (riscv::XLEN/8); i++) begin
+                        m_mode_only_x_rule[i] = mseccfg_q.mml && csr_wdata[i*8 + 7] && csr_wdata[i*8 + 2] && !csr_wdata[i*8 + 1];
+                        shared_region_x_rule[i] = mseccfg_q.mml && csr_wdata[i*8 + 7] && csr_wdata[i*8 + 1] && !csr_wdata[i*8];
+                        if ((!pmpcfg_q[i].locked && !m_mode_only_x_rule && !shared_region_x_rule) || mseccfg_q.rlb) begin
+                            pmpcfg_d[i]  = csr_wdata[i*8+:8];
+                        end
+                    end
+                end
                 riscv::CSR_PMPCFG1: begin
                     if (riscv::XLEN == 32) begin
-                        for (int i = 0; i < 4; i++) if (!pmpcfg_q[i+4].locked) pmpcfg_d[i+4]  = csr_wdata[i*8+:8];
+                        for (int i = 0; i < 4; i++) begin
+                            m_mode_only_x_rule[i+4] = mseccfg_q.mml && csr_wdata[i*8 + 7] && csr_wdata[i*8 + 2] && !csr_wdata[i*8 + 1];
+                            shared_region_x_rule[i+4] = mseccfg_q.mml && csr_wdata[i*8 + 7] && csr_wdata[i*8 + 1] && !csr_wdata[i*8];
+                            if ((!pmpcfg_q[i+4].locked && !m_mode_only_x_rule[i+4] && !shared_region_x_rule[i+4]) || mseccfg_q.rlb) begin
+                                pmpcfg_d[i+4]  = csr_wdata[i*8+:8];
+                            end
+                        end
                     end
                 end
-                riscv::CSR_PMPCFG2:    for (int i = 0; i < (riscv::XLEN/8); i++) if (!pmpcfg_q[i+8].locked) pmpcfg_d[i+8]  = csr_wdata[i*8+:8];
+                riscv::CSR_PMPCFG2: begin
+                    for (int i = 0; i < (riscv::XLEN/8); i++) begin
+                        m_mode_only_x_rule[i+8] = mseccfg_q.mml && csr_wdata[i*8 + 7] && csr_wdata[i*8 + 2] && !csr_wdata[i*8 + 1];
+                        shared_region_x_rule[i+8] = mseccfg_q.mml && csr_wdata[i*8 + 7] && csr_wdata[i*8 + 1] && !csr_wdata[i*8];
+                        if ((!pmpcfg_q[i+8].locked && !m_mode_only_x_rule[i+8] && !shared_region_x_rule[i+8]) || mseccfg_q.rlb) begin
+                            pmpcfg_d[i+8]  = csr_wdata[i*8+:8];
+                        end
+                     end
+                 end
                 riscv::CSR_PMPCFG3: begin
                     if (riscv::XLEN == 32) begin
-                        for (int i = 0; i < 4; i++) if (!pmpcfg_q[i+12].locked) pmpcfg_d[i+12]  = csr_wdata[i*8+:8];
+                        for (int i = 0; i < 4; i++) begin
+                            m_mode_only_x_rule[i+12] = mseccfg_q.mml && csr_wdata[i*8 + 7] && csr_wdata[i*8 + 2] && !csr_wdata[i*8 + 1];
+                            shared_region_x_rule[i+12] = mseccfg_q.mml && csr_wdata[i*8 + 7] && csr_wdata[i*8 + 1] && !csr_wdata[i*8];
+                            if ((!pmpcfg_q[i+12].locked && !m_mode_only_x_rule[i+12] && !shared_region_x_rule[i+12]) || mseccfg_q.rlb) begin
+                                pmpcfg_d[i+12]  = csr_wdata[i*8+:8];
+                            end
+                        end
                     end
                 end
-                riscv::CSR_PMPADDR0:   if (!pmpcfg_q[ 0].locked && !(pmpcfg_q[ 1].locked && pmpcfg_q[ 1].addr_mode == riscv::TOR))  pmpaddr_d[0]   = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR1:   if (!pmpcfg_q[ 1].locked && !(pmpcfg_q[ 2].locked && pmpcfg_q[ 2].addr_mode == riscv::TOR))  pmpaddr_d[1]   = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR2:   if (!pmpcfg_q[ 2].locked && !(pmpcfg_q[ 3].locked && pmpcfg_q[ 3].addr_mode == riscv::TOR))  pmpaddr_d[2]   = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR3:   if (!pmpcfg_q[ 3].locked && !(pmpcfg_q[ 4].locked && pmpcfg_q[ 4].addr_mode == riscv::TOR))  pmpaddr_d[3]   = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR4:   if (!pmpcfg_q[ 4].locked && !(pmpcfg_q[ 5].locked && pmpcfg_q[ 5].addr_mode == riscv::TOR))  pmpaddr_d[4]   = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR5:   if (!pmpcfg_q[ 5].locked && !(pmpcfg_q[ 6].locked && pmpcfg_q[ 6].addr_mode == riscv::TOR))  pmpaddr_d[5]   = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR6:   if (!pmpcfg_q[ 6].locked && !(pmpcfg_q[ 7].locked && pmpcfg_q[ 7].addr_mode == riscv::TOR))  pmpaddr_d[6]   = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR7:   if (!pmpcfg_q[ 7].locked && !(pmpcfg_q[ 8].locked && pmpcfg_q[ 8].addr_mode == riscv::TOR))  pmpaddr_d[7]   = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR8:   if (!pmpcfg_q[ 8].locked && !(pmpcfg_q[ 9].locked && pmpcfg_q[ 9].addr_mode == riscv::TOR))  pmpaddr_d[8]   = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR9:   if (!pmpcfg_q[ 9].locked && !(pmpcfg_q[10].locked && pmpcfg_q[10].addr_mode == riscv::TOR))  pmpaddr_d[9]   = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR10:  if (!pmpcfg_q[10].locked && !(pmpcfg_q[11].locked && pmpcfg_q[11].addr_mode == riscv::TOR))  pmpaddr_d[10]  = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR11:  if (!pmpcfg_q[11].locked && !(pmpcfg_q[12].locked && pmpcfg_q[12].addr_mode == riscv::TOR))  pmpaddr_d[11]  = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR12:  if (!pmpcfg_q[12].locked && !(pmpcfg_q[13].locked && pmpcfg_q[13].addr_mode == riscv::TOR))  pmpaddr_d[12]  = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR13:  if (!pmpcfg_q[13].locked && !(pmpcfg_q[14].locked && pmpcfg_q[14].addr_mode == riscv::TOR))  pmpaddr_d[13]  = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR14:  if (!pmpcfg_q[14].locked && !(pmpcfg_q[15].locked && pmpcfg_q[15].addr_mode == riscv::TOR))  pmpaddr_d[14]  = csr_wdata[riscv::PLEN-3:0];
-                riscv::CSR_PMPADDR15:  if (!pmpcfg_q[15].locked)  pmpaddr_d[15]  = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR0:   if ((!pmpcfg_q[ 0].locked && !(pmpcfg_q[ 1].locked && pmpcfg_q[ 1].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[0]   = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR1:   if ((!pmpcfg_q[ 1].locked && !(pmpcfg_q[ 2].locked && pmpcfg_q[ 2].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[1]   = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR2:   if ((!pmpcfg_q[ 2].locked && !(pmpcfg_q[ 3].locked && pmpcfg_q[ 3].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[2]   = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR3:   if ((!pmpcfg_q[ 3].locked && !(pmpcfg_q[ 4].locked && pmpcfg_q[ 4].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[3]   = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR4:   if ((!pmpcfg_q[ 4].locked && !(pmpcfg_q[ 5].locked && pmpcfg_q[ 5].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[4]   = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR5:   if ((!pmpcfg_q[ 5].locked && !(pmpcfg_q[ 6].locked && pmpcfg_q[ 6].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[5]   = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR6:   if ((!pmpcfg_q[ 6].locked && !(pmpcfg_q[ 7].locked && pmpcfg_q[ 7].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[6]   = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR7:   if ((!pmpcfg_q[ 7].locked && !(pmpcfg_q[ 8].locked && pmpcfg_q[ 8].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[7]   = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR8:   if ((!pmpcfg_q[ 8].locked && !(pmpcfg_q[ 9].locked && pmpcfg_q[ 9].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[8]   = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR9:   if ((!pmpcfg_q[ 9].locked && !(pmpcfg_q[10].locked && pmpcfg_q[10].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[9]   = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR10:  if ((!pmpcfg_q[10].locked && !(pmpcfg_q[11].locked && pmpcfg_q[11].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[10]  = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR11:  if ((!pmpcfg_q[11].locked && !(pmpcfg_q[12].locked && pmpcfg_q[12].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[11]  = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR12:  if ((!pmpcfg_q[12].locked && !(pmpcfg_q[13].locked && pmpcfg_q[13].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[12]  = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR13:  if ((!pmpcfg_q[13].locked && !(pmpcfg_q[14].locked && pmpcfg_q[14].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[13]  = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR14:  if ((!pmpcfg_q[14].locked && !(pmpcfg_q[15].locked && pmpcfg_q[15].addr_mode == riscv::TOR)) || mseccfg_q.rlb)  pmpaddr_d[14]  = csr_wdata[riscv::PLEN-3:0];
+                riscv::CSR_PMPADDR15:  if (!pmpcfg_q[15].locked || mseccfg_q.rlb)  pmpaddr_d[15]  = csr_wdata[riscv::PLEN-3:0];
                 default: update_access_exception = 1'b1;
             endcase
         end
@@ -1110,6 +1161,7 @@ module csr_regfile import ariane_pkg::*; #(
             // wait for interrupt
             wfi_q                  <= 1'b0;
             // pmp
+            mseccfg_q              <= '0;
             pmpcfg_q               <= '0;
             pmpaddr_q              <= '0;
         end else begin
@@ -1153,10 +1205,11 @@ module csr_regfile import ariane_pkg::*; #(
             // wait for interrupt
             wfi_q                  <= wfi_d;
             // pmp
+            mseccfg_q              <= mseccfg_d;
             for(int i = 0; i < 16; i++) begin
                 if(i < NrPMPEntries) begin
                     // We only support >=8-byte granularity, NA4 is disabled
-                    if(pmpcfg_d[i].addr_mode != riscv::NA4) 
+                    if(pmpcfg_d[i].addr_mode != riscv::NA4)
                         pmpcfg_q[i] <= pmpcfg_d[i];
                     else
                         pmpcfg_q[i] <= pmpcfg_q[i];

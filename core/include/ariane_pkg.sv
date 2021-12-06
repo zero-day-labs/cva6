@@ -162,7 +162,7 @@ package ariane_pkg;
     localparam bit RVD = riscv::IS_XLEN64; // Is D extension enabled
 `else
     // Floating-point extensions configuration
-    localparam bit RVF = (riscv::IS_XLEN64 | riscv::IS_XLEN32) & riscv::FPU_EN; // Is F extension enabled for both 32 Bit and 64 bit CPU  
+    localparam bit RVF = (riscv::IS_XLEN64 | riscv::IS_XLEN32) & riscv::FPU_EN; // Is F extension enabled for both 32 Bit and 64 bit CPU
     localparam bit RVD = (riscv::IS_XLEN64 ? 1:0) & riscv::FPU_EN;              // Is D extension enabled for only 64 bit CPU
 `endif
     localparam bit RVA = 1'b1; // Is A extension enabled
@@ -844,5 +844,39 @@ package ariane_pkg;
             LB, LBU, SB, FLB, FSB: return 2'b00;
             default:     return 2'b11;
         endcase
+    endfunction
+
+    // ----------------------
+    // PMP decode access permissions for shared regions when mseccfg.mml bit is set
+    // ----------------------
+    function automatic riscv::pmpcfg_access_t shared_region_access_type(logic lock, riscv::pmpcfg_access_t access_type, riscv::priv_lvl_t mode);
+        riscv::pmpcfg_access_t access;
+        logic [3:0] cond;
+
+        access = '0;
+        cond = {lock, access_type.x, access_type.w, access_type.r};
+
+        case (cond)
+            4'b0010: begin
+                access.r = 1'b1;
+                access.w = (mode == riscv::PRIV_LVL_M) ? 1'b1 : 1'b0;
+            end
+            4'b0110: begin
+                access.r = 1'b1;
+                access.w = 1'b1;
+            end
+            4'b1010: begin
+                access.x = 1'b1;
+            end
+            4'b1110: begin
+                access.x = 1'b1;
+                access.r = (mode == riscv::PRIV_LVL_M) ? 1'b1 : 1'b0;
+            end
+            4'b1111: begin
+                access.r = 1'b1;
+            end
+            default:;
+        endcase
+        return access;
     endfunction
 endpackage

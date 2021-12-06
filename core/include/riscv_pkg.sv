@@ -274,7 +274,7 @@ package riscv;
     // memory management, pte for sv39
     typedef struct packed {
         logic [9:0]  reserved;
-        logic [44-1:0] ppn; // PPN length for 
+        logic [44-1:0] ppn; // PPN length for
         logic [1:0]  rsw;
         logic d;
         logic a;
@@ -288,7 +288,7 @@ package riscv;
 
     // memory management, pte for sv32
     typedef struct packed {
-        logic [22-1:0] ppn; // PPN length for 
+        logic [22-1:0] ppn; // PPN length for
         logic [1:0]  rsw;
         logic d;
         logic a;
@@ -393,6 +393,7 @@ package riscv;
         CSR_PMPADDR13      = 12'h3BD,
         CSR_PMPADDR14      = 12'h3BE,
         CSR_PMPADDR15      = 12'h3BF,
+        CSR_MSECCFG        = 12'h747,
         CSR_MVENDORID      = 12'hF11,
         CSR_MARCHID        = 12'hF12,
         CSR_MIMPID         = 12'hF13,
@@ -572,6 +573,13 @@ package riscv;
         pmp_addr_mode_t addr_mode;  // Off, TOR, NA4, NAPOT
         pmpcfg_access_t access_type;
     } pmpcfg_t;
+
+    typedef struct packed {
+        logic [XLEN-1:3] rev;  // Reserved [64:3]
+        logic            rlb;  // Ruling Locking Bypass
+        logic            mmwp; // Machine Mode Whitelist Policy
+        logic            mml;  // Machine Mode Lockdown
+    } mseccfg_t;
 
     // -----
     // Debug

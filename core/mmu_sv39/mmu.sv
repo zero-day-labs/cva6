@@ -62,6 +62,7 @@ module mmu import ariane_pkg::*; #(
     input  dcache_req_o_t                   req_port_i,
     output dcache_req_i_t                   req_port_o,
     // PMP
+    input  riscv::mseccfg_t                 mseccfg_i,
     input  riscv::pmpcfg_t [15:0]           pmpcfg_i,
     input  logic [15:0][riscv::PLEN-3:0]    pmpaddr_i
 );
@@ -166,6 +167,7 @@ module mmu import ariane_pkg::*; #(
 
         .req_port_i             ( req_port_i            ),
         .req_port_o             ( req_port_o            ),
+        .mseccfg_i,
         .pmpcfg_i,
         .pmpaddr_i,
         .bad_paddr_o            ( ptw_bad_paddr         ),
@@ -281,6 +283,7 @@ module mmu import ariane_pkg::*; #(
         // Configuration
         .conf_addr_i   ( pmpaddr_i                 ),
         .conf_i        ( pmpcfg_i                  ),
+        .mconf_i       ( mseccfg_i                 ),
         .allow_o       ( pmp_instr_allow           )
     );
 
@@ -424,6 +427,7 @@ module mmu import ariane_pkg::*; #(
         // Configuration
         .conf_addr_i   ( pmpaddr_i           ),
         .conf_i        ( pmpcfg_i            ),
+        .mconf_i       ( mseccfg_i           ),
         .allow_o       ( pmp_data_allow      )
     );
 

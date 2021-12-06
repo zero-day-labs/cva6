@@ -104,6 +104,7 @@ module ex_stage import ariane_pkg::*; #(
     output logic                                   itlb_miss_o,
     output logic                                   dtlb_miss_o,
     // PMPs
+    input  riscv::mseccfg_t                        mseccfg_i,
     input  riscv::pmpcfg_t [15:0]                  pmpcfg_i,
     input  logic[15:0][riscv::PLEN-3:0]            pmpaddr_i
 );
@@ -315,6 +316,7 @@ module ex_stage import ariane_pkg::*; #(
         .amo_valid_commit_i,
         .amo_req_o,
         .amo_resp_i,
+        .mseccfg_i,
         .pmpcfg_i,
         .pmpaddr_i
     );
