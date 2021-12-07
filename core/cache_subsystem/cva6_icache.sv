@@ -412,10 +412,16 @@ end else begin : gen_piton_offset
 
   for (genvar i = 0; i < ICACHE_SET_ASSOC; i++) begin : gen_sram
     // Tag RAM
-    sram #(
+    `ifdef TARGET_ASIC
+    tc_sram_gf22 #(
+      .MemType   ( "CACHE_TAG"                      ),
+    `else
+    tc_sram #(
+    `endif
       // tag + valid bit
-      .DATA_WIDTH ( ICACHE_TAG_WIDTH+1 ),
-      .NUM_WORDS  ( ICACHE_NUM_WORDS   )
+      .DataWidth ( ICACHE_TAG_WIDTH+1 ),
+      .NumWords  ( ICACHE_NUM_WORDS   ),
+      .NumPorts  ( 1                  )
     ) tag_sram (
       .clk_i     ( clk_i                    ),
       .rst_ni    ( rst_ni                   ),
@@ -433,9 +439,15 @@ end else begin : gen_piton_offset
     assign vld_rdata[i]    = cl_tag_valid_rdata[i][ICACHE_TAG_WIDTH];
 
     // Data RAM
-    sram #(
-      .DATA_WIDTH ( ICACHE_LINE_WIDTH ),
-      .NUM_WORDS  ( ICACHE_NUM_WORDS  )
+    `ifdef TARGET_ASIC
+    tc_sram_gf22 #(
+      .MemType   ( "CACHE_DATA"                      ),
+    `else
+    tc_sram #(
+    `endif
+      .DataWidth ( ICACHE_LINE_WIDTH ),
+      .NumWords  ( ICACHE_NUM_WORDS  ),
+      .NumPorts  ( 1                 )
     ) data_sram (
       .clk_i     ( clk_i               ),
       .rst_ni    ( rst_ni              ),

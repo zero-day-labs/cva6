@@ -252,9 +252,15 @@ module wt_dcache_mem import ariane_pkg::*; import wt_cache_pkg::*; #(
 
   for (genvar k = 0; k < DCACHE_NUM_BANKS; k++) begin : gen_data_banks
     // Data RAM
-    sram #(
-      .DATA_WIDTH ( ariane_pkg::DCACHE_SET_ASSOC * 64 ),
-      .NUM_WORDS  ( wt_cache_pkg::DCACHE_NUM_WORDS    )
+    `ifdef TARGET_ASIC
+    tc_sram_gf22 #(
+      .MemType   ( "CACHE_DDATA"                      ),
+    `else
+    tc_sram #(
+    `endif
+      .DataWidth ( ariane_pkg::DCACHE_SET_ASSOC * 64 ),
+      .NumWords  ( wt_cache_pkg::DCACHE_NUM_WORDS    ),
+      .NumPorts  ( 1                                 )
     ) i_data_sram (
       .clk_i      ( clk_i               ),
       .rst_ni     ( rst_ni              ),
@@ -273,10 +279,16 @@ module wt_dcache_mem import ariane_pkg::*; import wt_cache_pkg::*; #(
     assign rd_vld_bits_o[i] = vld_tag_rdata[i][DCACHE_TAG_WIDTH];
 
     // Tag RAM
-    sram #(
+    `ifdef TARGET_ASIC
+    tc_sram_gf22 #(
+      .MemType   ( "CACHE_TAG"                      ),
+    `else
+    tc_sram #(
+    `endif
       // tag + valid bit
-      .DATA_WIDTH ( ariane_pkg::DCACHE_TAG_WIDTH + 1 ),
-      .NUM_WORDS  ( wt_cache_pkg::DCACHE_NUM_WORDS   )
+      .DataWidth ( ariane_pkg::DCACHE_TAG_WIDTH + 1 ),
+      .NumWords  ( wt_cache_pkg::DCACHE_NUM_WORDS   ),
+      .NumPorts  ( 1                                )
     ) i_tag_sram (
       .clk_i     ( clk_i               ),
       .rst_ni    ( rst_ni              ),
