@@ -11,15 +11,20 @@ dependencies:
   common_cells: { git: "https://github.com/pulp-platform/common_cells.git", version: 1.21.0 }
   axi: { git: "https://github.com/pulp-platform/axi.git", version: 0.29.1 } 
   tech_cells_generic: { git: "https://github.com/pulp-platform/tech_cells_generic.git", version: 0.2.7 }
-  riscv-dbg: { git: "git@github.com:pulp-platform/riscv-dbg.git", rev: "6d768ac6371356b6e382c01ae7d860dd3e45248b" }
+  riscv-dbg: { git: "git@github.com:Alsaqr-platform/riscv-dbg.git", rev: "4d8ead780a6b9877873930bcc3c8ed4806d2c8a3" }
 
 
 sources:
   - defines:
-      WT_DCACHE: 1
+      WT_DCACHE: ~
     files:
     # Packages
-# AlSaqr: packages are included in hardware/Bender.yml
+    - target: not(cv32a6)
+      files:
+      - core/include/cv64a6_imacfd_sv39_config_pkg.sv
+    - target: cv32a6
+      files:
+      - core/include/cv32a6_imac_sv0_config_pkg.sv
     - core/include/riscv_pkg.sv
     - core/include/ariane_pkg.sv
     - core/include/std_cache_pkg.sv
@@ -58,8 +63,8 @@ sources:
     - core/mmu_sv39/mmu.sv
     - core/mmu_sv39/ptw.sv
     - core/mult.sv
-    - core/mmu_sv32/cva6_mmu_sv32.sv
-    - core/mmu_sv32/cva6_ptw_sv32.sv
+#    - core/mmu_sv32/cva6_mmu_sv32.sv
+#    - core/mmu_sv32/cva6_ptw_sv32.sv
     - core/load_unit.sv
     - core/issue_read_operands.sv
     - core/pmp/src/pmp_entry.sv
@@ -84,9 +89,3 @@ sources:
     - core/cache_subsystem/cva6_icache_axi_wrapper.sv
     - core/cache_subsystem/std_cache_subsystem.sv
     - core/cache_subsystem/wt_dcache.sv
-    - target: not(cv32a6)
-      files:
-      - core/include/cv64a6_imacfd_sv39_config_pkg.sv
-    - target: cv32a6
-      files:
-      - core/include/cv32a6_imac_sv0_config_pkg.sv
