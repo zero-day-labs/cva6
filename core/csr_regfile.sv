@@ -614,11 +614,11 @@ module csr_regfile import ariane_pkg::*; #(
                         vsstatus_d.fs = riscv::Off;
                     end
                 end
-                riscv::CSR_VSIE:                mie_d       = (mie_q & ~hideleg_q) | (csr_wdata & hideleg_q);
+                riscv::CSR_VSIE:                mie_d       = (mie_q & ~hideleg_q) | ((csr_wdata << 1) & hideleg_q);
                 riscv::CSR_VSIP:begin
                     // only the virtual supervisor software interrupt is write-able, iff delegated
                     mask = riscv::MIP_VSSIP & hideleg_q;
-                    mip_d = (mip_q & ~mask) | (csr_wdata & mask);
+                    mip_d = (mip_q & ~mask) | ((csr_wdata << 1) & mask);
                 end
                 riscv::CSR_VSTVEC:begin
                     vstvec_d    = {csr_wdata[riscv::XLEN-1:2], 1'b0, csr_wdata[0]};
