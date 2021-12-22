@@ -1288,7 +1288,7 @@ module decoder import ariane_pkg::*; (
                     end else if (v_i && ~irq_ctrl_i.hideleg[interrupt_cause[$clog2(riscv::XLEN)-1:0]]) begin
                             instruction_o.ex.valid = 1'b1;
                             instruction_o.ex.cause = interrupt_cause;
-                    end else if (!v_i && ((irq_ctrl_i.sie && priv_lvl_i == riscv::PRIV_LVL_S) || priv_lvl_i == riscv::PRIV_LVL_U)) begin
+                    end else if (!v_i && ((irq_ctrl_i.sie && priv_lvl_i == riscv::PRIV_LVL_S) || priv_lvl_i == riscv::PRIV_LVL_U) && ~irq_ctrl_i.hideleg[interrupt_cause[$clog2(riscv::XLEN)-1:0]]) begin
                         instruction_o.ex.valid = 1'b1;
                         instruction_o.ex.cause = interrupt_cause;
                     end
