@@ -258,7 +258,6 @@ module cva6 import ariane_pkg::*; #(
   logic                     dcache_flush_ack_cache_ctrl;
   logic                     set_debug_pc;
   logic                     flush_commit;
-  logic                     rst_uarch_controller_n;
   logic [riscv::VLEN-1:0]   rst_addr_ctrl_if;
   logic                     busy_cache_ctrl;
   logic                     stall_ctrl_cache;
@@ -280,8 +279,6 @@ module cva6 import ariane_pkg::*; #(
   dcache_req_o_t [2:0]      dcache_req_ports_cache_ex;
   logic                     dcache_commit_wbuffer_empty;
   logic                     dcache_commit_wbuffer_not_ni;
-
-  assign rst_uarch_n = rst_ni & rst_uarch_controller_n;
 
   // --------------
   // Frontend
@@ -696,7 +693,7 @@ module cva6 import ariane_pkg::*; #(
     .flush_tlb_gvma_o       ( flush_tlb_gvma_ctrl_ex        ),
     .flush_dcache_o         ( dcache_flush_ctrl_cache       ),
     .flush_dcache_ack_i     ( dcache_flush_ack_cache_ctrl   ),
-    .rst_uarch_no           ( rst_uarch_controller_n        ),
+    .rst_uarch_no           ( rst_uarch_n                   ),
     .rst_addr_o             ( rst_addr_ctrl_if              ),
     .cache_busy_i           ( busy_cache_ctrl               ),
     .stall_cache_o          ( stall_ctrl_cache              ),
