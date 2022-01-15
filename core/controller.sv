@@ -82,6 +82,9 @@ module controller import ariane_pkg::*; (
     fence_t_state_e fence_t_state_d, fence_t_state_q;
     logic [3:0]     rst_uarch_cnt_d, rst_uarch_cnt_q;
 
+    // Microreset
+    logic rst_uarch_n;
+
     // ------------
     // Flush CTRL
     // ------------
@@ -254,7 +257,7 @@ module controller import ariane_pkg::*; (
         // Default assignments
         fence_t_state_d = fence_t_state_q;
         rst_uarch_cnt_d = rst_uarch_cnt_q;
-        rst_uarch_no    = 1'b1;
+        rst_uarch_n     = 1'b1;
         fence_t_ceil_o  = '0;
         cache_init_d[0] = 1'b0;
 
@@ -287,7 +290,7 @@ module controller import ariane_pkg::*; (
 
             // Reset microarchitecture
             RST_UARCH: begin
-                rst_uarch_no    = 1'b0;
+                rst_uarch_n     = 1'b0;
                 cache_init_d[0] = 1'b1;
 
                 // Return to IDLE after 16 cycles
@@ -342,6 +345,14 @@ module controller import ariane_pkg::*; (
         .d_i        ( fence_t_pad_i ),  // Start counting from FENCE_T_CSR value
         .q_o        ( pad_cnt       ),
         .overflow_o (               )
+    );
+
+    rstgen i_urstgen (
+        .clk_i       ( clk_i                ),
+        .rst_ni      ( rst_ni & rst_uarch_n ),
+        .test_mode_i ( '0                   ),
+        .rst_no      ( rst_uarch_no         ),
+        .init_no     (                      )
     );
 
     // ----------------------
