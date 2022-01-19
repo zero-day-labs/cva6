@@ -130,7 +130,7 @@ module ariane_tb;
 
             void'(read_elf(binary));
             // wait with preloading, otherwise randomization will overwrite the existing value
-            wait(rst_ni);
+            // wait(rst_ni);
 
             // while there are more sections to process
             while (get_section(address, len)) begin

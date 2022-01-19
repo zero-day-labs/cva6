@@ -63,7 +63,7 @@ module rvfi_tracer #(
       end else if (rvfi_i[i].trap)
         $fwrite(f, "exception : 0x%h\n", pc64);
     end
-    if (cycles > SIM_FINISH) $finish(1);
+//    if (cycles > SIM_FINISH) $finish(1);
   end
 
   always_ff @(posedge clk_i or negedge rst_ni)

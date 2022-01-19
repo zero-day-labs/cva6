@@ -159,7 +159,7 @@ module ariane_testharness #(
 
   if (InclSimDTM) begin
     SimDTM i_SimDTM (
-      .clk                  ( clk_i                 ),
+      .clk                  ( 1'b0                  ),
       .reset                ( ~rst_ni               ),
       .debug_req_valid      ( dmi_req_valid         ),
       .debug_req_ready      ( debug_req_ready       ),
@@ -538,7 +538,7 @@ module ariane_testharness #(
     .NUM_WORDS  ( NUM_WORDS      )
   ) i_sram (
     .clk_i      ( clk_i                                                                       ),
-    .rst_ni     ( rst_ni                                                                      ),
+    .rst_ni     ( 1'b1                                                                        ),
     .req_i      ( req                                                                         ),
     .we_i       ( we                                                                          ),
     .addr_i     ( addr[$clog2(NUM_WORDS)-1+$clog2(AXI_DATA_WIDTH/8):$clog2(AXI_DATA_WIDTH/8)] ),
