@@ -261,7 +261,7 @@ assign rst = ddr_sync_reset;
 // AXI Xbar
 // ---------------
 
-axi_pkg::xbar_rule_64_t [ariane_soc::NB_PERIPHERALS-1:0] addr_map;
+axi_pkg::xbar_rule_64_t [ariane_soc::NB_PERIPHERALS:0] addr_map;
 
 assign addr_map = '{
   '{ idx: ariane_soc::Debug,    start_addr: ariane_soc::DebugBase,    end_addr: ariane_soc::DebugBase + ariane_soc::DebugLength       },
@@ -273,6 +273,8 @@ assign addr_map = '{
   '{ idx: ariane_soc::SPI,      start_addr: ariane_soc::SPIBase,      end_addr: ariane_soc::SPIBase + ariane_soc::SPILength           },
   '{ idx: ariane_soc::Ethernet, start_addr: ariane_soc::EthernetBase, end_addr: ariane_soc::EthernetBase + ariane_soc::EthernetLength },
   '{ idx: ariane_soc::GPIO,     start_addr: ariane_soc::GPIOBase,     end_addr: ariane_soc::GPIOBase + ariane_soc::GPIOLength         },
+  '{ idx: ariane_soc::LlcCfg,   start_addr: ariane_soc::LlcCfgBase,   end_addr: ariane_soc::LlcCfgBase + ariane_soc::LlcCfgLength     },
+  '{ idx: ariane_soc::DRAM,     start_addr: ariane_soc::LlcSpmBase,   end_addr: ariane_soc::LlcSpmBase + ariane_soc::LlcSpmLength     },
   '{ idx: ariane_soc::DRAM,     start_addr: ariane_soc::DRAMBase,     end_addr: ariane_soc::DRAMBase + ariane_soc::DRAMLength         }
 };
 
@@ -285,7 +287,7 @@ localparam axi_pkg::xbar_cfg_t AXI_XBAR_CFG = '{
   LatencyMode:        axi_pkg::CUT_ALL_PORTS,
   AxiIdWidthSlvPorts: AxiIdWidthMaster,
   AxiIdUsedSlvPorts:  AxiIdWidthMaster,
-  UniqueIds:          1'b0,
+  // UniqueIds:          1'b0,
   AxiAddrWidth:       AxiAddrWidth,
   AxiDataWidth:       AxiDataWidth,
   NoAddrRules:        ariane_soc::NB_PERIPHERALS
@@ -848,6 +850,99 @@ ariane_peripherals #(
 );
 
 
+// ----------
+// LLC
+// ----------
+// LLC adds 1 bit to AXI ID
+localparam AxiIdWidthDRAM = AxiIdWidthSlaves + 1;
+
+`AXI_TYPEDEF_ALL(axi_dram,
+                 logic [    AxiAddrWidth-1:0],
+                 logic [  AxiIdWidthDRAM-1:0],
+                 logic [    AxiDataWidth-1:0],
+                 logic [(AxiDataWidth/8)-1:0],
+                 logic [    AxiUserWidth-1:0])
+
+`AXI_LITE_TYPEDEF_ALL(axi_lite,
+                      logic [    AxiAddrWidth-1:0],
+                      logic [    AxiDataWidth-1:0],
+                      logic [(AxiDataWidth/8)-1:0])
+
+axi_slave_req_t  axi_llc_req;
+axi_slave_resp_t axi_llc_resp;
+
+`AXI_ASSIGN_TO_REQ(axi_llc_req, master[ariane_soc::DRAM])
+`AXI_ASSIGN_FROM_RESP(master[ariane_soc::DRAM], axi_llc_resp)
+
+axi_slave_req_t   axi_llc_conf_req;
+axi_slave_resp_t  axi_llc_conf_resp;
+
+`AXI_ASSIGN_TO_REQ(axi_llc_conf_req, master[ariane_soc::LlcCfg])
+`AXI_ASSIGN_FROM_RESP(master[ariane_soc::LlcCfg], axi_llc_conf_resp)
+
+axi_lite_req_t   axi_lite_llc_conf_req;
+axi_lite_resp_t  axi_lite_llc_conf_resp;
+
+axi_to_axi_lite #(
+  .AxiAddrWidth    ( AxiAddrWidth     ),
+  .AxiDataWidth    ( AxiDataWidth     ),
+  .AxiIdWidth      ( AxiIdWidthSlaves ),
+  .AxiUserWidth    ( AxiUserWidth     ),
+  .AxiMaxWriteTxns ( 32'd1            ),
+  .AxiMaxReadTxns  ( 32'd1            ),
+  .FallThrough     ( 1'b1             ),
+  .full_req_t      ( axi_slave_req_t  ),
+  .full_resp_t     ( axi_slave_resp_t ),
+  .lite_req_t      ( axi_lite_req_t   ),
+  .lite_resp_t     ( axi_lite_resp_t  )
+) i_axi_to_axi_lite_llc_conf (
+  .clk_i      ( clk                    ),
+  .rst_ni     ( ndmreset_n             ),
+  .test_i     ( '0                     ),
+  .slv_req_i  ( axi_llc_conf_req       ),
+  .slv_resp_o ( axi_llc_conf_resp      ),
+  .mst_req_o  ( axi_lite_llc_conf_req  ),
+  .mst_resp_i ( axi_lite_llc_conf_resp )
+);
+
+axi_dram_req_t   axi_dram_req;
+axi_dram_resp_t  axi_dram_resp;
+
+axi_llc_top #(
+  .SetAssociativity ( 32'd8                   ),
+  .NumLines         ( 32'd1024                ),
+  .NumBlocks        ( 32'd8                   ),
+  .AxiIdWidth       ( AxiIdWidthSlaves        ),
+  .AxiAddrWidth     ( AxiAddrWidth            ),
+  .AxiDataWidth     ( AxiDataWidth            ),
+  .AxiUserWidth     ( AxiUserWidth            ),
+  .AxiLiteAddrWidth ( AxiAddrWidth            ),
+  .AxiLiteDataWidth ( AxiDataWidth            ),
+  .slv_req_t        ( axi_slave_req_t         ),
+  .slv_resp_t       ( axi_slave_resp_t        ),
+  .mst_req_t        ( axi_dram_req_t          ),
+  .mst_resp_t       ( axi_dram_resp_t         ),
+  .lite_req_t       ( axi_lite_req_t          ),
+  .lite_resp_t      ( axi_lite_resp_t         ),
+  .rule_full_t      ( axi_pkg::xbar_rule_64_t ),
+  .axi_addr_t       ( logic[AxiAddrWidth-1:0] )
+) i_llc (
+  .clk_i               ( clk                                           ),
+  .rst_ni              ( ndmreset_n                                    ),
+  .test_i              ( '0                                            ),
+  .slv_req_i           ( axi_llc_req                                   ),
+  .slv_resp_o          ( axi_llc_resp                                  ),
+  .mst_req_o           ( axi_dram_req                                  ),
+  .mst_resp_i          ( axi_dram_resp                                 ),
+  .conf_req_i          ( axi_llc_conf_req                              ),
+  .conf_resp_o         ( axi_llc_conf_resp                             ),
+  .cached_start_addr_i ( ariane_soc::DRAMBase                          ),
+  .cached_end_addr_i   ( ariane_soc::DRAMBase + ariane_soc::DRAMLength ),
+  .spm_start_addr_i    ( ariane_soc::LlcSpmBase                        ),
+  .axi_llc_events_o    (                                               )
+);
+
+
 // ---------------------
 // Board peripherals
 // ---------------------
@@ -899,6 +994,16 @@ AXI_BUS #(
     .AXI_DATA_WIDTH ( AxiDataWidth     ),
     .AXI_ID_WIDTH   ( AxiIdWidthSlaves ),
     .AXI_USER_WIDTH ( AxiUserWidth     )
+) llc_dram();
+
+`AXI_ASSIGN_FROM_REQ(llc_dram, axi_dram_req)
+`AXI_ASSIGN_TO_RESP(axi_dram_resp, llc_dram)
+
+AXI_BUS #(
+    .AXI_ADDR_WIDTH ( AxiAddrWidth     ),
+    .AXI_DATA_WIDTH ( AxiDataWidth     ),
+    .AXI_ID_WIDTH   ( AxiIdWidthSlaves ),
+    .AXI_USER_WIDTH ( AxiUserWidth     )
 ) dram();
 
 axi_riscv_atomics_wrap #(
@@ -909,10 +1014,10 @@ axi_riscv_atomics_wrap #(
     .AXI_MAX_WRITE_TXNS ( 1  ),
     .RISCV_WORD_WIDTH   ( 64 )
 ) i_axi_riscv_atomics (
-    .clk_i  ( clk                      ),
-    .rst_ni ( ndmreset_n               ),
-    .slv    ( master[ariane_soc::DRAM] ),
-    .mst    ( dram                     )
+    .clk_i  ( clk        ),
+    .rst_ni ( ndmreset_n ),
+    .slv    ( llc_dram   ),
+    .mst    ( dram       )
 );
 
 `ifdef PROTOCOL_CHECKER

@@ -101,6 +101,9 @@ ariane_pkg += core/include/riscv_pkg.sv                              \
               corev_apu/tb/ariane_soc_pkg.sv                         \
               corev_apu/tb/ariane_axi_soc_pkg.sv                     \
               core/include/ariane_axi_pkg.sv                         \
+              common/submodules/common_cells/src/cf_math_pkg.sv      \
+              common/submodules/common_cells/src/cb_filter_pkg.sv    \
+              corev_apu/axi/src/axi_llc/axi_llc_pkg.sv               \
               core/fpu/src/fpnew_pkg.sv                              \
               core/fpu/src/fpu_div_sqrt_mvp/hdl/defs_div_sqrt_mvp.sv
 ariane_pkg := $(addprefix $(root-dir), $(ariane_pkg))
@@ -196,9 +199,13 @@ src :=  $(filter-out core/ariane_regfile.sv, $(wildcard core/*.sv))             
         common/submodules/common_cells/src/exp_backoff.sv                            \
         common/submodules/common_cells/src/addr_decode.sv                            \
         common/submodules/common_cells/src/stream_register.sv                        \
+        common/submodules/common_cells/src/onehot_to_bin.sv                          \
+        common/submodules/common_cells/src/id_queue.sv                               \
         corev_apu/axi/src/axi_cut.sv                                                 \
         corev_apu/axi/src/axi_join.sv                                                \
         corev_apu/axi/src/axi_delayer.sv                                             \
+        corev_apu/axi/src/axi_lite_regs.sv                                           \
+        corev_apu/axi/src/axi_burst_splitter.sv                                      \
         corev_apu/axi/src/axi_to_axi_lite.sv                                         \
         corev_apu/axi/src/axi_id_prepend.sv                                          \
         corev_apu/axi/src/axi_atop_filter.sv                                         \
@@ -206,6 +213,7 @@ src :=  $(filter-out core/ariane_regfile.sv, $(wildcard core/*.sv))             
         corev_apu/axi/src/axi_mux.sv                                                 \
         corev_apu/axi/src/axi_demux.sv                                               \
         corev_apu/axi/src/axi_xbar.sv                                                \
+        corev_apu/axi/src/axi_isolate.sv                                             \
         corev_apu/fpga-support/rtl/SyncSpRamBeNx64.sv                                \
         common/submodules/common_cells/src/unread.sv                                 \
         common/submodules/common_cells/src/sync.sv                                   \
@@ -230,6 +238,30 @@ src :=  $(filter-out core/ariane_regfile.sv, $(wildcard core/*.sv))             
         common/submodules/common_cells/src/delta_counter.sv                          \
         common/submodules/common_cells/src/counter.sv                                \
         common/submodules/common_cells/src/shift_reg.sv                              \
+        common/submodules/common_cells/src/sub_per_hash.sv                           \
+        common/submodules/common_cells/src/cb_filter.sv                              \
+        common/submodules/common_cells/src/stream_fifo.sv                            \
+        common/submodules/common_cells/src/stream_xbar.sv                            \
+        corev_apu/axi/src/axi_llc/eviction_refill/axi_llc_ax_master.sv               \
+        corev_apu/axi/src/axi_llc/eviction_refill/axi_llc_r_master.sv                \
+        corev_apu/axi/src/axi_llc/eviction_refill/axi_llc_w_master.sv                \
+        corev_apu/axi/src/axi_llc/hit_miss_detect/axi_llc_evict_box.sv               \
+        corev_apu/axi/src/axi_llc/hit_miss_detect/axi_llc_lock_box_bloom.sv          \
+        corev_apu/axi/src/axi_llc/hit_miss_detect/axi_llc_miss_counters.sv           \
+        corev_apu/axi/src/axi_llc/hit_miss_detect/axi_llc_tag_pattern_gen.sv         \
+        corev_apu/axi/src/axi_llc/hit_miss_detect/axi_llc_tag_store.sv               \
+        corev_apu/axi/src/axi_llc/axi_llc_burst_cutter.sv                            \
+        corev_apu/axi/src/axi_llc/axi_llc_chan_splitter.sv                           \
+        corev_apu/axi/src/axi_llc/axi_llc_data_way.sv                                \
+        corev_apu/axi/src/axi_llc/axi_llc_ways.sv                                    \
+        corev_apu/axi/src/axi_llc/axi_llc_merge_unit.sv                              \
+        corev_apu/axi/src/axi_llc/axi_llc_read_unit.sv                               \
+        corev_apu/axi/src/axi_llc/axi_llc_config.sv                                  \
+        corev_apu/axi/src/axi_llc/axi_llc_evict_unit.sv                              \
+        corev_apu/axi/src/axi_llc/axi_llc_write_unit.sv                              \
+        corev_apu/axi/src/axi_llc/axi_llc_refill_unit.sv                             \
+        corev_apu/axi/src/axi_llc/axi_llc_hit_miss.sv                                \
+        corev_apu/axi/src/axi_llc/axi_llc_top.sv                                     \
         corev_apu/src/tech_cells_generic/src/pulp_clock_gating.sv                    \
         corev_apu/src/tech_cells_generic/src/cluster_clock_inverter.sv               \
         corev_apu/src/tech_cells_generic/src/pulp_clock_mux2.sv                      \
