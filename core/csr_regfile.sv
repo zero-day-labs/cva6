@@ -172,6 +172,11 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::xlen_t vscause_q,   vscause_d;
     riscv::xlen_t vstval_q,    vstval_d;
 
+    // Environment Configuration Registers
+    riscv::envcfg_rv_t menvcfg_q, menvcfg_d;
+    riscv::envcfg_rv_t senvcfg_q, senvcfg_d;
+    riscv::envcfg_rv_t henvcfg_q, henvcfg_d;
+
     riscv::xlen_t dcache_q,    dcache_d;
     riscv::xlen_t icache_q,    icache_d;
 
@@ -325,6 +330,7 @@ module csr_regfile import ariane_pkg::*; #(
                         csr_rdata = v_q ? vsatp_q : satp_q;
                     end
                 end
+                riscv::CSR_SENVCFG:            csr_rdata = senvcfg_q;
                 // hypervisor mode registers
                 riscv::CSR_HSTATUS:            csr_rdata = hstatus_extended;
                 riscv::CSR_HEDELEG:            csr_rdata = hedeleg_q;
@@ -345,6 +351,7 @@ module csr_regfile import ariane_pkg::*; #(
                         csr_rdata = hgatp_q;
                     end
                 end
+                riscv::CSR_HENVCFG:            csr_rdata = henvcfg_q;
 
                 // machine mode registers
                 riscv::CSR_MSTATUS:            csr_rdata = mstatus_extended;
@@ -363,10 +370,12 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MARCHID:            csr_rdata = ARIANE_MARCHID;
                 riscv::CSR_MIMPID:             csr_rdata = '0; // not implemented
                 riscv::CSR_MHARTID:            csr_rdata = hart_id_i;
+                riscv::CSR_MCONFIGPTR:         csr_rdata = '0; // no configuration data structure
                 riscv::CSR_MCYCLE:             csr_rdata = cycle_q;
                 riscv::CSR_MINSTRET:           csr_rdata = instret_q;
                 riscv::CSR_MTINST:             csr_rdata = mtinst_q;
                 riscv::CSR_MTVAL2:             csr_rdata = mtval2_q;
+                riscv::CSR_MENVCFG:            csr_rdata = menvcfg_q;
                 // Counters and Timers
                 riscv::CSR_CYCLE:              csr_rdata = cycle_q;
                 riscv::CSR_INSTRET:            csr_rdata = instret_q;
@@ -534,6 +543,10 @@ module csr_regfile import ariane_pkg::*; #(
         hcounteren_d            = hcounteren_q;
         htval_d                 = htval_q;
         htinst_d                = htinst_q;
+
+        menvcfg_d               = menvcfg_q;
+        senvcfg_d               = senvcfg_q;
+        henvcfg_d               = henvcfg_q;
 
         en_ld_st_translation_d  = en_ld_st_translation_q;
         en_ld_st_g_translation_d= en_ld_st_g_translation_q;
@@ -743,6 +756,12 @@ module csr_regfile import ariane_pkg::*; #(
                     // the next instruction by executing a flush
                     flush_o = 1'b1;
                 end
+                riscv::CSR_SENVCFG: begin
+                    mask = ariane_pkg::ENVCFG_WRITE_MASK[riscv::XLEN-1:0];
+                    senvcfg_d = (senvcfg_q & ~mask) | (csr_wdata & mask);
+                    // this instruction has side-effects
+                    flush_o = 1'b1;
+                end
                 //hypervisor mode registers
                 riscv::CSR_HSTATUS: begin
                     mask = ariane_pkg::HSTATUS_WRITE_MASK[riscv::XLEN-1:0];
@@ -801,6 +820,13 @@ module csr_regfile import ariane_pkg::*; #(
                     end
                     // changing the mode can have side-effects on address translation (e.g.: other instructions), re-fetch
                     // the next instruction by executing a flush
+                    flush_o = 1'b1;
+                end
+                riscv::CSR_HENVCFG: begin
+                    mask = ariane_pkg::ENVCFG_WRITE_MASK[riscv::XLEN-1:0];
+                    henvcfg_d = (henvcfg_q & ~mask) | (csr_wdata & mask);
+                    henvcfg_d.pbmte = menvcfg_q.pbmte ? henvcfg_d.pbmte : 1'b0;
+                    // this instruction has side-effects
                     flush_o = 1'b1;
                 end
 
@@ -865,6 +891,12 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MTVAL:              mtval_d     = csr_wdata;
                 riscv::CSR_MTINST:             mtinst_d    = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
                 riscv::CSR_MTVAL2:             mtval2_d    = csr_wdata;
+                riscv::CSR_MENVCFG: begin
+                    mask = ariane_pkg::ENVCFG_WRITE_MASK[riscv::XLEN-1:0];
+                    menvcfg_d = (menvcfg_q & ~mask) | (csr_wdata & mask);
+                    // this instruction has side-effects
+                    flush_o = 1'b1;
+                end
                 riscv::CSR_MIP: begin
                     mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | riscv::MIP_VSSIP;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
@@ -1573,6 +1605,9 @@ module csr_regfile import ariane_pkg::*; #(
             mtval_q                <= {riscv::XLEN{1'b0}};
             mtval2_q               <= {riscv::XLEN{1'b0}};
             mtinst_q               <= {riscv::XLEN{1'b0}};
+            menvcfg_q              <= {riscv::XLEN{1'b0}};
+            senvcfg_q              <= {riscv::XLEN{1'b0}};
+            henvcfg_q              <= {riscv::XLEN{1'b0}};
             dcache_q               <= {{riscv::XLEN-1{1'b0}}, 1'b1};
             icache_q               <= {{riscv::XLEN-1{1'b0}}, 1'b1};
             // supervisor mode registers
@@ -1636,6 +1671,9 @@ module csr_regfile import ariane_pkg::*; #(
             mtval_q                <= mtval_d;
             mtval2_q               <= mtval2_d;
             mtinst_q               <= mtinst_d;
+            menvcfg_q              <= menvcfg_d;
+            senvcfg_q              <= senvcfg_d;
+            henvcfg_q              <= henvcfg_d;
             dcache_q               <= dcache_d;
             icache_q               <= icache_d;
             // supervisor mode registers
