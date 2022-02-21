@@ -365,7 +365,7 @@ module decoder import ariane_pkg::*; (
                     // --------------------------------------------
                     if (instr.rvftype.funct2 == 2'b10) begin // Prefix 10 for all Xfvec ops
                         // only generate decoder if FP extensions are enabled (static)
-                        if (FP_PRESENT && XFVEC && fs_i != riscv::Off && (!v_i || vfs_i != riscv::OFF)) begin
+                        if (FP_PRESENT && XFVEC && fs_i != riscv::Off && (!v_i || vfs_i != riscv::Off)) begin
                             automatic logic allow_replication; // control honoring of replication flag
 
                             instruction_o.fu       = FPU_VEC; // Same unit, but sets 'vectorial' signal
@@ -762,7 +762,7 @@ module decoder import ariane_pkg::*; (
                 // Floating-Point Load/store
                 // --------------------------------
                 riscv::OpcodeStoreFp: begin
-                    if (FP_PRESENT && fs_i != riscv::Off && (!v_i || vfs_i != riscv::OFF)) begin // only generate decoder if FP extensions are enabled (static)
+                    if (FP_PRESENT && fs_i != riscv::Off && (!v_i || vfs_i != riscv::Off)) begin // only generate decoder if FP extensions are enabled (static)
                         instruction_o.fu  = STORE;
                         imm_select = SIMM;
                         instruction_o.rs1        = instr.stype.rs1;
@@ -787,7 +787,7 @@ module decoder import ariane_pkg::*; (
                 end
 
                 riscv::OpcodeLoadFp: begin
-                    if (FP_PRESENT && fs_i != riscv::Off && (!v_i || vfs_i != riscv::OFF)) begin // only generate decoder if FP extensions are enabled (static)
+                    if (FP_PRESENT && fs_i != riscv::Off && (!v_i || vfs_i != riscv::Off)) begin // only generate decoder if FP extensions are enabled (static)
                         instruction_o.fu  = LOAD;
                         imm_select = IIMM;
                         instruction_o.rs1       = instr.itype.rs1;
@@ -818,7 +818,7 @@ module decoder import ariane_pkg::*; (
                 riscv::OpcodeMsub,
                 riscv::OpcodeNmsub,
                 riscv::OpcodeNmadd: begin
-                    if (FP_PRESENT && fs_i != riscv::Off && (!v_i || vfs_i != riscv::OFF)) begin // only generate decoder if FP extensions are enabled (static)
+                    if (FP_PRESENT && fs_i != riscv::Off && (!v_i || vfs_i != riscv::Off)) begin // only generate decoder if FP extensions are enabled (static)
                         instruction_o.fu  = FPU;
                         instruction_o.rs1 = instr.r4type.rs1;
                         instruction_o.rs2 = instr.r4type.rs2;
@@ -871,7 +871,7 @@ module decoder import ariane_pkg::*; (
                 end
 
                 riscv::OpcodeOpFp: begin
-                    if (FP_PRESENT && fs_i != riscv::Off && (!v_i || vfs_i != riscv::OFF)) begin // only generate decoder if FP extensions are enabled (static)
+                    if (FP_PRESENT && fs_i != riscv::Off && (!v_i || vfs_i != riscv::Off)) begin // only generate decoder if FP extensions are enabled (static)
                         instruction_o.fu  = FPU;
                         instruction_o.rs1 = instr.rftype.rs1;
                         instruction_o.rs2 = instr.rftype.rs2;
