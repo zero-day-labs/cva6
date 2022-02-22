@@ -685,6 +685,14 @@ package ariane_pkg;
         riscv::pte_t           g_content;
     } tlb_update_t;
 
+    typedef struct packed {
+        logic                  valid;      // valid flag
+        logic                  is_2M;      //
+        logic                  is_1G;      //
+        logic [28:0]           gppn;
+        logic [VMID_WIDTH-1:0] vmid;
+        riscv::pte_t           content;
+    } gtlb_update_t;
     // Bits required for representation of physical address space as 4K pages
     // (e.g. 27*4K == 39bit address space).
     localparam PPN4K_WIDTH = 38;

@@ -18,6 +18,7 @@
 module mmu import ariane_pkg::*; #(
     parameter int unsigned INSTR_TLB_ENTRIES     = 4,
     parameter int unsigned DATA_TLB_ENTRIES      = 4,
+    parameter int unsigned GTLB_TLB_ENTRIES      = 4,
     parameter int unsigned ASID_WIDTH            = 1,
     parameter int unsigned VMID_WIDTH            = 1,
     parameter ariane_pkg::ariane_cfg_t ArianeCfg = ariane_pkg::ArianeDefaultConfig
@@ -199,6 +200,7 @@ module mmu import ariane_pkg::*; #(
     ptw  #(
         .ASID_WIDTH             ( ASID_WIDTH            ),
         .VMID_WIDTH             ( VMID_WIDTH            ),
+        .GTLB_TLB_ENTRIES       ( GTLB_TLB_ENTRIES      ),
         .ArianeCfg              ( ArianeCfg             )
     ) i_ptw (
         .clk_i                  ( clk_i                 ),
@@ -231,6 +233,11 @@ module mmu import ariane_pkg::*; #(
         .pmpaddr_i,
         .bad_paddr_o            ( ptw_bad_paddr         ),
         .bad_gpaddr_o           ( ptw_bad_gpaddr        ),
+
+        .flush_gtlb_i           ( flush_tlb_gvma_i      ),
+        .flush_vvma_gtlb_i      ( flush_tlb_vvma_i      ),
+        .vmid_to_be_flushed_i   ( vmid_to_be_flushed_i  ),
+        .gpaddr_to_be_flushed_i ( gpaddr_to_be_flushed_i),
         .*
     );
 
