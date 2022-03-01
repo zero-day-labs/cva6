@@ -93,7 +93,6 @@ module csr_regfile import ariane_pkg::*; #(
     // Caches
     output logic                  icache_en_o,                // L1 ICache Enable
     output logic                  dcache_en_o,                // L1 DCache Enable
-    input  logic                  wt_dcache_i,                // 0: WB DCache 1: WT DCache
     // fence.t
     output logic [31:0]           fence_t_pad_o,              // Padding time of fence.t relative to time interrupt
     output logic                  fence_t_src_sel_o,          // Pad relative to selected source
