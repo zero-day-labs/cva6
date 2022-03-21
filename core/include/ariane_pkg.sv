@@ -675,18 +675,18 @@ package ariane_pkg;
 
     typedef struct packed {
         logic                  valid;      // valid flag
-        logic                  is_2M;      //
-        logic                  is_1G;      //
         logic                  is_s_2M;
         logic                  is_s_1G;
         logic                  is_g_2M;
         logic                  is_g_1G;
-        logic [26:0]           vpn;
-        logic [28:0]           gppn;
+        logic [28:0]           vpn;
         logic [ASID_WIDTH-1:0] asid;
         logic [VMID_WIDTH-1:0] vmid;
         riscv::pte_t           content;
         riscv::pte_t           g_content;
+        logic                  s_st_enbl_i;  // s-stage enabled
+        logic                  g_st_enbl_i;  // g-stage enabled
+        logic                  v_i;          // virtualization mode
     } tlb_update_t;
 
     typedef struct packed {
