@@ -649,6 +649,10 @@ package ariane_pkg;
     // ---------------
      localparam bit MMU_PRESENT = 1'b1;  // MMU is present
 
+    // ---------------
+    // GTLB instanciation
+    // ---------------
+    localparam bit  GTLB_PRESENT = 1'b1; // GTLB is present
     // --------------------
     // Atomics
     // --------------------

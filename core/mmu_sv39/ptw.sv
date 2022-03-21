@@ -226,34 +226,42 @@ module ptw import ariane_pkg::*; #(
         .conf_i        ( pmpcfg_i           ),
         .allow_o       ( allow_access       )
     );
-
-    // -----------
-    // G-stage TLB
-    // Description: Holds intermediate nested translations GPA -> HPA
+     
+    if (GTLB_PRESENT && (riscv::XLEN == 64)) begin : gen_gtlb
+        // -----------
+        // G-stage TLB
+        // Description: Holds intermediate nested translations GPA -> HPA
+        // ,thus accelerates VS-Stage translation. 
     // ,thus accelerates VS-Stage translation. 
-    // -----------
-    gtlb #(
-        .TLB_ENTRIES            ( GTLB_TLB_ENTRIES            ),
-        .VMID_WIDTH             ( VMID_WIDTH                  )
-    ) i_gtlb (
-        .clk_i                  ( clk_i                       ),
-        .rst_ni                 ( rst_ni                      ),
-        .flush_i                ( flush_gtlb_i                ),
-        .flush_vvma_i           ( flush_vvma_gtlb_i           ),
-        .update_i               ( gtlb_update                 ),
+        // ,thus accelerates VS-Stage translation. 
+        // -----------
+        gtlb #(
+            .TLB_ENTRIES            ( GTLB_TLB_ENTRIES            ),
+            .VMID_WIDTH             ( VMID_WIDTH                  )
+        ) i_gtlb (
+            .clk_i                  ( clk_i                       ),
+            .rst_ni                 ( rst_ni                      ),
+            .flush_i                ( flush_gtlb_i                ),
+            .flush_vvma_i           ( flush_vvma_gtlb_i           ),
+            .update_i               ( gtlb_update                 ),
 
-        .lu_access_i            ( gtlb_access_q               ),
-        .lu_vmid_i              ( tlb_update_vmid_q           ),
-        .lu_gpaddr_i            ( gptw_pptr_q                 ),
-        .vmid_to_be_flushed_i   ( vmid_to_be_flushed_i        ),
-        .gpaddr_to_be_flushed_i ( gpaddr_to_be_flushed_i      ),
-        .lu_content_o           ( gtlb_content                ),
+            .lu_access_i            ( gtlb_access_q               ),
+            .lu_vmid_i              ( tlb_update_vmid_q           ),
+            .lu_gpaddr_i            ( gptw_pptr_q                 ),
+            .vmid_to_be_flushed_i   ( vmid_to_be_flushed_i        ),
+            .gpaddr_to_be_flushed_i ( gpaddr_to_be_flushed_i      ),
+            .lu_content_o           ( gtlb_content                ),
 
-        .lu_is_2M_o             ( gtlb_is_2M                  ),
-        .lu_is_1G_o             ( gtlb_is_1G                  ),
-        .lu_hit_o               ( gtlb_ptw_hit                )
-    );
-
+            .lu_is_2M_o             ( gtlb_is_2M                  ),
+            .lu_is_1G_o             ( gtlb_is_1G                  ),
+            .lu_hit_o               ( gtlb_ptw_hit                )
+        );
+    end else begin
+        assign gtlb_content = '0;  
+        assign gtlb_is_2M   = 1'b0;
+        assign gtlb_is_1G   = 1'b0;
+        assign gtlb_ptw_hit = 1'b0;
+    end
     //-------------------
     // Page table walker
     //-------------------
@@ -331,7 +339,7 @@ module ptw import ariane_pkg::*; #(
                 if ((enable_translation_i | enable_g_translation_i) & itlb_access_i & ~itlb_hit_i & ~dtlb_access_i) begin
                     if (enable_translation_i && enable_g_translation_i) begin
                         ptw_stage_d = G_INTERMED_STAGE;
-                        gtlb_access_n = 1'b1;
+                        gtlb_access_n = GTLB_PRESENT;
                         pptr = {vsatp_ppn_i, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
                         gptw_pptr_n = pptr;
                         ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], pptr[riscv::SVX-1:30], 3'b0};
@@ -350,13 +358,13 @@ module ptw import ariane_pkg::*; #(
                     tlb_update_asid_n   = v_i ? vs_asid_i : asid_i;
                     tlb_update_vmid_n   = vmid_i;
                     vaddr_n             = itlb_vaddr_i;
-                    state_d             = (enable_translation_i && enable_g_translation_i) ? WAIT_GTLB_HIT : WAIT_GRANT;
+                    state_d             = (enable_translation_i && enable_g_translation_i && GTLB_PRESENT) ? WAIT_GTLB_HIT : WAIT_GRANT;
                     itlb_miss_o         = 1'b1;
                 // we got an DTLB miss
                 end else if ((en_ld_st_translation_i || en_ld_st_g_translation_i) & dtlb_access_i & ~dtlb_hit_i) begin
                     if (en_ld_st_translation_i && en_ld_st_g_translation_i) begin
                         ptw_stage_d = G_INTERMED_STAGE;
-                        gtlb_access_n = 1'b1;
+                        gtlb_access_n = GTLB_PRESENT;
                         pptr = {vsatp_ppn_i, dtlb_vaddr_i[riscv::SV-1:30], 3'b0};
                         gptw_pptr_n = pptr;
                         ptw_pptr_n = {hgatp_ppn_i[riscv::PPNW-1:2], pptr[riscv::SVX-1:30], 3'b0};
