@@ -382,7 +382,7 @@ module ptw import ariane_pkg::*; #(
                     tlb_update_asid_n   = ld_st_v_i ? vs_asid_i : asid_i;
                     tlb_update_vmid_n   = vmid_i;
                     vaddr_n             = dtlb_vaddr_i;
-                    state_d             = WAIT_GRANT;
+                    state_d             = (en_ld_st_translation_i && en_ld_st_g_translation_i && GTLB_PRESENT) ? WAIT_GTLB_HIT : WAIT_GRANT;
                     dtlb_miss_o         = 1'b1;
                 end
             end
