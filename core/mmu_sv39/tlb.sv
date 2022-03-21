@@ -23,11 +23,11 @@ module tlb import ariane_pkg::*; #(
     input  logic                    clk_i,    // Clock
     input  logic                    rst_ni,   // Asynchronous reset active low
     input  logic                    flush_i,  // Flush normal translations signal
-    input  logic                    flush_vvma_i,  // Flush vs stage signal
-    input  logic                    flush_gvma_i,  // Flush g stage signal
+    input  logic                    flush_vvma_i, // Flush vs stage signal
+    input  logic                    flush_gvma_i, // Flush g stage signal
     input  logic                    s_st_enbl_i,  // s-stage enabled
     input  logic                    g_st_enbl_i,  // g-stage enabled
-    input  logic                    v_i,  // virtualization mode
+    input  logic                    v_i,          // virtualization mode
     // Update TLB
     input  tlb_update_t             update_i,
     // Lookup signals
@@ -154,10 +154,10 @@ module tlb import ariane_pkg::*; #(
 
 
 
-    logic asid_to_be_flushed_is0;  // indicates that the ASID provided by SFENCE.VMA (rs2)is 0, active high
+    logic asid_to_be_flushed_is0;  // indicates that the ASID provided by SFENCE.VMA/HFENCE.VVMA (rs2)is 0, active high
     logic vmid_to_be_flushed_is0;  // indicates that the VMID provided by HFENCE.GVMA (rs2)is 0, active high
-    logic vaddr_to_be_flushed_is0;  // indicates that the VADDR provided by SFENCE.VMA (rs1)is 0, active high
-    logic gpaddr_to_be_flushed_is0;  // indicates that the VADDR provided by SFENCE.VMA (rs1)is 0, active high
+    logic vaddr_to_be_flushed_is0;  // indicates that the VADDR provided by SFENCE.VMA/HFENCE.VVMA (rs1)is 0, active high
+    logic gpaddr_to_be_flushed_is0;  // indicates that the VADDR provided by SFENCE.VMA/HFENCE.VVMA (rs1)is 0, active high
     logic  [TLB_ENTRIES-1:0] vaddr_vpn0_match;
     logic  [TLB_ENTRIES-1:0] vaddr_vpn1_match;
     logic  [TLB_ENTRIES-1:0] vaddr_vpn2_match;
@@ -165,9 +165,9 @@ module tlb import ariane_pkg::*; #(
     logic  [TLB_ENTRIES-1:0] gpaddr_gppn1_match;
     logic  [TLB_ENTRIES-1:0] gpaddr_gppn2_match;
 
-    assign asid_to_be_flushed_is0 =  ~(|asid_to_be_flushed_i);
-    assign vmid_to_be_flushed_is0 =  ~(|vmid_to_be_flushed_i);
-    assign vaddr_to_be_flushed_is0 = ~(|vaddr_to_be_flushed_i);
+    assign asid_to_be_flushed_is0   = ~(|asid_to_be_flushed_i);
+    assign vmid_to_be_flushed_is0   = ~(|vmid_to_be_flushed_i);
+    assign vaddr_to_be_flushed_is0  = ~(|vaddr_to_be_flushed_i);
     assign gpaddr_to_be_flushed_is0 = ~(|gpaddr_to_be_flushed_i);
 
 	  // ------------------
