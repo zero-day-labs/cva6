@@ -18,7 +18,7 @@ module gtlb import ariane_pkg::*; #(
     input  logic                    lu_access_i,
     input  logic [VMID_WIDTH-1:0]   lu_vmid_i,
     input  logic [riscv::GPLEN-1:0] lu_gpaddr_i,
-    input  logic [VMID_WIDTH-1:0]   vmid_to_be_flushed_i,«
+    input  logic [VMID_WIDTH-1:0]   vmid_to_be_flushed_i,
     input  logic [riscv::GPLEN-1:0] gpaddr_to_be_flushed_i, 
     output riscv::pte_t             lu_content_o,
     output logic                    lu_is_2M_o,
