@@ -18,7 +18,7 @@
 module mmu import ariane_pkg::*; #(
     parameter int unsigned INSTR_TLB_ENTRIES     = 4,
     parameter int unsigned DATA_TLB_ENTRIES      = 4,
-    parameter int unsigned GTLB_TLB_ENTRIES      = 4,
+    parameter int unsigned G_TLB_ENTRIES         = 4,
     parameter int unsigned ASID_WIDTH            = 1,
     parameter int unsigned VMID_WIDTH            = 1,
     parameter ariane_pkg::ariane_cfg_t ArianeCfg = ariane_pkg::ArianeDefaultConfig
@@ -200,7 +200,7 @@ module mmu import ariane_pkg::*; #(
     ptw  #(
         .ASID_WIDTH             ( ASID_WIDTH            ),
         .VMID_WIDTH             ( VMID_WIDTH            ),
-        .GTLB_TLB_ENTRIES       ( GTLB_TLB_ENTRIES      ),
+        .G_TLB_ENTRIES          ( G_TLB_ENTRIES         ),
         .ArianeCfg              ( ArianeCfg             )
     ) i_ptw (
         .clk_i                  ( clk_i                 ),
