@@ -652,7 +652,8 @@ package ariane_pkg;
     // ---------------
     // GTLB instanciation
     // ---------------
-    localparam bit  GTLB_PRESENT = 1'b1; // GTLB is present
+    localparam bit           GTLB_PRESENT = 1'b1; // GTLB is present
+    localparam int unsigned  GTLB_ENTRIES = 8;    // Set number of gtlb entries
     // --------------------
     // Atomics
     // --------------------

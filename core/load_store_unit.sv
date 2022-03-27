@@ -163,7 +163,7 @@ module load_store_unit import ariane_pkg::*; #(
         mmu #(
             .INSTR_TLB_ENTRIES      ( 16                     ),
             .DATA_TLB_ENTRIES       ( 16                     ),
-            .G_TLB_ENTRIES          ( 16                     ),
+            .G_TLB_ENTRIES          ( GTLB_ENTRIES           ),
             .ASID_WIDTH             ( ASID_WIDTH             ),
             .VMID_WIDTH             ( VMID_WIDTH             ),
             .ArianeCfg              ( ArianeCfg              )
