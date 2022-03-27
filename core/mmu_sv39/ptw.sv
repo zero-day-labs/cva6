@@ -18,7 +18,7 @@
 module ptw import ariane_pkg::*; #(
         parameter int ASID_WIDTH = 1,
         parameter int VMID_WIDTH = 1,
-        parameter int GTLB_TLB_ENTRIES = 4,
+        parameter int G_TLB_ENTRIES = 4,
         parameter ariane_pkg::ariane_cfg_t ArianeCfg = ariane_pkg::ArianeDefaultConfig
 ) (
     input  logic                    clk_i,                  // Clock
@@ -236,7 +236,7 @@ module ptw import ariane_pkg::*; #(
         // ,thus accelerates VS-Stage translation. 
         // -----------
         gtlb #(
-            .TLB_ENTRIES            ( GTLB_TLB_ENTRIES            ),
+            .TLB_ENTRIES            ( G_TLB_ENTRIES               ),
             .VMID_WIDTH             ( VMID_WIDTH                  )
         ) i_gtlb (
             .clk_i                  ( clk_i                       ),
