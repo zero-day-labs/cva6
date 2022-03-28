@@ -122,6 +122,16 @@ module mmu import ariane_pkg::*; #(
     logic        dtlb_lu_hit;
     logic [riscv::GPLEN-1:0] dtlb_gpaddr;
 
+    // L2 TLB interface
+    // To PTW
+    logic           l2_tlb_lu_access; // L2 TLB access control signal
+    logic           l2_tlb_hit;       // L2 TLB hits translation
+    logic           l2_tlb_flushing;  // L2 TLB is flushing
+    l2_tlb_resp_t   l2_tlb_resp;      // L2 TLB response to PTW request
+    // From PTW
+    l2_tlb_req_t    l2_tlb_req;       // PTW request to L2 TLB request
+    tlb_update_t    l2_tlb_update;    // PTW update L2 TLB
+
 
     // Assignments
     assign itlb_lu_access = icache_areq_i.fetch_req;
@@ -196,6 +206,29 @@ module mmu import ariane_pkg::*; #(
         .lu_hit_o         ( dtlb_lu_hit                 )
     );
 
+    l2_tlb #(
+        .TLB_ENTRIES_4K        ( L2_TLB_4K_ENTRIES            ),
+        .TLB_WAYS_4k           ( L2_TLB_4K_ASSOC              ),
+        .TLB_ENTRIES_2M        ( L2_TLB_2M_ENTRIES            ),
+        .TLB_WAYS_2M           ( L2_TLB_2M_ASSOC              ),
+        .ASID_WIDTH            ( ASID_WIDTH                   ),
+        .VMID_WIDTH            ( VMID_WIDTH                   )
+    ) l2_tlb_m (
+        .clk_i                 ( clk_i                       ),
+        .rst_ni                ( rst_ni                      ),
+        .flush_i               ( flush_tlb_i                 ),
+        .flush_vvma_i          ( flush_tlb_vvma_i            ),
+        .flush_gvma_i          ( flush_tlb_gvma_i            ),
+
+        .l2_tlb_update_i       ( l2_tlb_update               ),
+        .l2_tlb_req_i          ( l2_tlb_req                  ),
+        .l2_tlb_resp_o         ( l2_tlb_resp                 ),
+
+        .l2_tlb_access_i       ( l2_tlb_lu_access            ),
+        .l2_tlb_hit_o          ( l2_tlb_hit                  ),
+        .l2_tlb_flushing_o     ( l2_tlb_flushing             )
+    );
+
 
     ptw  #(
         .ASID_WIDTH             ( ASID_WIDTH            ),
@@ -218,6 +251,10 @@ module mmu import ariane_pkg::*; #(
         .itlb_update_o          ( update_ptw_itlb       ),
         .dtlb_update_o          ( update_ptw_dtlb       ),
 
+        .l2_tlb_update_o        ( l2_tlb_update         ),
+        .l2_tlb_access_o        ( l2_tlb_lu_access      ),
+        .l2_tlb_req_o           ( l2_tlb_req            ),
+
         .itlb_access_i          ( itlb_lu_access        ),
         .itlb_hit_i             ( itlb_lu_hit           ),
         .itlb_vaddr_i           ( icache_areq_i.fetch_vaddr ),
@@ -225,6 +262,11 @@ module mmu import ariane_pkg::*; #(
         .dtlb_access_i          ( dtlb_lu_access        ),
         .dtlb_hit_i             ( dtlb_lu_hit           ),
         .dtlb_vaddr_i           ( lsu_vaddr_i           ),
+
+        .l2_tlb_hit_i           ( l2_tlb_hit            ),
+        .l2_tlb_flushing_i      ( l2_tlb_flushing       ),
+        .l2_tlb_resp_i          ( l2_tlb_resp           ),
+
         .hlvx_inst_i            ( hlvx_inst_i           ),
 
         .req_port_i             ( req_port_i            ),
