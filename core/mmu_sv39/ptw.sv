@@ -49,6 +49,8 @@ module ptw import ariane_pkg::*; #(
     // to TLBs, update logic
     output tlb_update_t             itlb_update_o,
     output tlb_update_t             dtlb_update_o,
+    output tlb_update_t             l2_tlb_update_o,
+    output logic                    l2_tlb_access_o, // start L2 lookup
 
     output logic [riscv::VLEN-1:0]  update_vaddr_o,
 
@@ -64,6 +66,11 @@ module ptw import ariane_pkg::*; #(
     input  logic                    dtlb_access_i,
     input  logic                    dtlb_hit_i,
     input  logic [riscv::VLEN-1:0]  dtlb_vaddr_i,
+
+    input  logic                    l2_tlb_hit_i,
+    input  logic                    l2_tlb_flushing_i,
+    output l2_tlb_req_t             l2_tlb_req_o,
+    input  l2_tlb_resp_t            l2_tlb_resp_i,
     // from CSR file
     input  logic [riscv::PPNW-1:0]  satp_ppn_i, // ppn from satp
     input  logic [riscv::PPNW-1:0]  vsatp_ppn_i, // ppn from satp
@@ -143,6 +150,13 @@ module ptw import ariane_pkg::*; #(
     // latched gtlb access signal
     logic gtlb_access_n, gtlb_access_q;
 
+    // L2 TLB Interface
+    logic l2_tlb_lu_hit;
+    // latched l2 tlb access signal
+    logic l2_tlb_access_n, l2_tlb_access_q;
+    logic l2_tlb_valid_n, l2_tlb_valid_q;
+    logic l2_tlb_flushing_n, l2_tlb_flushing_q;
+
     // Assignments
     assign update_vaddr_o  = vaddr_q;
 
@@ -158,43 +172,140 @@ module ptw import ariane_pkg::*; #(
     // -----------
     // TLB Update
     // -----------
-    assign itlb_update_o.vpn = {{39-riscv::SV{1'b0}}, vaddr_q[riscv::SV-1:12]};
-    assign dtlb_update_o.vpn = {{39-riscv::SV{1'b0}}, vaddr_q[riscv::SV-1:12]};
-    assign itlb_update_o.gppn = {{41-riscv::SVX{1'b0}}, gpaddr_q[riscv::SVX-1:12]};
-    assign dtlb_update_o.gppn = {{41-riscv::SVX{1'b0}}, gpaddr_q[riscv::SVX-1:12]};
-    // update the correct page table level
-    assign itlb_update_o.is_2M = (enable_translation_i && enable_g_translation_i) ?
-                                 ((gptw_lvl_q == LVL2 && ptw_lvl_q != LVL3) || (ptw_lvl_q == LVL2 && gptw_lvl_q != LVL3)) :
-                                 (ptw_lvl_q == LVL2);
-    assign itlb_update_o.is_1G = (enable_translation_i && enable_g_translation_i) ?
-                                 ((gptw_lvl_q == LVL1 && ptw_lvl_q == LVL1)) :
-                                 (ptw_lvl_q == LVL1);
-    assign dtlb_update_o.is_2M = (en_ld_st_translation_i && en_ld_st_g_translation_i) ?
-                                 ((gptw_lvl_q == LVL2 && ptw_lvl_q != LVL3) || (ptw_lvl_q == LVL2 && gptw_lvl_q != LVL3)) :
-                                 (ptw_lvl_q == LVL2);
-    assign dtlb_update_o.is_1G = (en_ld_st_translation_i && en_ld_st_g_translation_i) ?
-                                 ((gptw_lvl_q == LVL1 && ptw_lvl_q == LVL1)) :
-                                 (ptw_lvl_q == LVL1);
-    assign itlb_update_o.is_s_2M  = (enable_g_translation_i && enable_translation_i) ? (gptw_lvl_q == LVL2) : enable_translation_i ? (ptw_lvl_q == LVL2) : 1'b0;
-    assign itlb_update_o.is_s_1G  = (enable_g_translation_i && enable_translation_i) ? (gptw_lvl_q == LVL1) : enable_translation_i ? (ptw_lvl_q == LVL1) : 1'b0;
-    assign dtlb_update_o.is_s_2M  = (en_ld_st_g_translation_i && en_ld_st_translation_i) ? (gptw_lvl_q == LVL2) : en_ld_st_translation_i ? (ptw_lvl_q == LVL2) : 1'b0;
-    assign dtlb_update_o.is_s_1G  = (en_ld_st_g_translation_i && en_ld_st_translation_i) ? (gptw_lvl_q == LVL1) : en_ld_st_translation_i ? (ptw_lvl_q == LVL1) : 1'b0;
-    // update G-Stage with the correct page table level when enabled
-    assign itlb_update_o.is_g_2M = (enable_g_translation_i) ? (ptw_lvl_q == LVL2) : '0;
-    assign itlb_update_o.is_g_1G = (enable_g_translation_i) ? (ptw_lvl_q == LVL1) : '0;
-    assign dtlb_update_o.is_g_2M = (en_ld_st_g_translation_i) ? (ptw_lvl_q == LVL2) : '0;
-    assign dtlb_update_o.is_g_1G = (en_ld_st_g_translation_i) ? (ptw_lvl_q == LVL1) : '0;
-    // output the correct ASID
-    assign itlb_update_o.asid = tlb_update_asid_q;
-    assign dtlb_update_o.asid = tlb_update_asid_q;
-    // output the correct VMID
-    assign itlb_update_o.vmid = tlb_update_vmid_q;
-    assign dtlb_update_o.vmid = tlb_update_vmid_q;
-    // set the global mapping bit
-    assign itlb_update_o.content = (enable_g_translation_i) ? gpte_q | (global_mapping_q << 5) : pte | (global_mapping_q << 5);
-    assign dtlb_update_o.content = (en_ld_st_g_translation_i) ? gpte_q | (global_mapping_q << 5) : pte | (global_mapping_q << 5);
-    assign itlb_update_o.g_content = (enable_g_translation_i) ? pte : '0;
-    assign dtlb_update_o.g_content = (en_ld_st_g_translation_i) ? pte : '0;
+    always_comb begin : tlb_update
+        
+        // Update L2 TLB
+        l2_tlb_update_o.vpn = {{41-riscv::SVX{1'b0}}, vaddr_q[riscv::SVX-1:12]};
+        l2_tlb_update_o.asid = tlb_update_asid_q;
+        l2_tlb_update_o.vmid = tlb_update_vmid_q;
+
+        if((is_instr_ptw_q && enable_g_translation_i && enable_translation_i) || (!is_instr_ptw_q && en_ld_st_g_translation_i && en_ld_st_translation_i)) begin
+            l2_tlb_update_o.is_s_2M = (gptw_lvl_q == LVL2);
+            l2_tlb_update_o.is_s_1G = (gptw_lvl_q == LVL1);
+            l2_tlb_update_o.is_g_2M = (ptw_lvl_q == LVL2);
+            l2_tlb_update_o.is_g_1G = (ptw_lvl_q == LVL1);
+        end else if((is_instr_ptw_q && enable_translation_i) || (!is_instr_ptw_q && en_ld_st_translation_i)) begin
+            l2_tlb_update_o.is_s_2M = (ptw_lvl_q == LVL2);
+            l2_tlb_update_o.is_s_1G = (ptw_lvl_q == LVL1);
+            l2_tlb_update_o.is_g_2M = 1'b0;
+            l2_tlb_update_o.is_g_1G = 1'b0;
+        end else begin
+            l2_tlb_update_o.is_s_2M = 1'b0;
+            l2_tlb_update_o.is_s_1G = 1'b0;
+            l2_tlb_update_o.is_g_2M = (ptw_lvl_q == LVL2);
+            l2_tlb_update_o.is_g_1G = (ptw_lvl_q == LVL1);
+        end
+        if ((is_instr_ptw_q && enable_g_translation_i) || (!is_instr_ptw_q && en_ld_st_g_translation_i)) begin
+            l2_tlb_update_o.content = gpte_q | (global_mapping_q << 5);
+            l2_tlb_update_o.g_content = pte;
+        end else begin
+            l2_tlb_update_o.content = pte | (global_mapping_q << 5);
+            l2_tlb_update_o.g_content = '0;
+        end
+
+        l2_tlb_update_o.s_st_enbl_i  = is_instr_ptw_q ? enable_translation_i : en_ld_st_translation_i;
+        l2_tlb_update_o.g_st_enbl_i  = is_instr_ptw_q ? enable_g_translation_i : en_ld_st_g_translation_i;
+        l2_tlb_update_o.v_i          = is_instr_ptw_q ? v_i : ld_st_v_i; 
+
+        // Update ITLB and DTLB
+        if(l2_tlb_lu_hit) begin
+
+            itlb_update_o.asid      = l2_tlb_resp_i.asid;
+            itlb_update_o.vmid      = l2_tlb_resp_i.vmid;
+            itlb_update_o.vpn       = l2_tlb_resp_i.vpn;
+            itlb_update_o.is_s_1G   = l2_tlb_resp_i.is_s_1G;
+            itlb_update_o.is_s_2M   = l2_tlb_resp_i.is_s_2M;
+            itlb_update_o.is_g_1G   = l2_tlb_resp_i.is_g_1G;
+            itlb_update_o.is_g_2M   = l2_tlb_resp_i.is_g_2M;
+            itlb_update_o.content   = l2_tlb_resp_i.content;
+            itlb_update_o.g_content = l2_tlb_resp_i.g_content;
+
+            dtlb_update_o.asid      = l2_tlb_resp_i.asid;
+            dtlb_update_o.vmid      = l2_tlb_resp_i.vmid;
+            dtlb_update_o.vpn       = l2_tlb_resp_i.vpn;
+            dtlb_update_o.is_s_1G   = l2_tlb_resp_i.is_s_1G;
+            dtlb_update_o.is_s_2M   = l2_tlb_resp_i.is_s_2M;
+            dtlb_update_o.is_g_1G   = l2_tlb_resp_i.is_g_1G;
+            dtlb_update_o.is_g_2M   = l2_tlb_resp_i.is_g_2M;
+            dtlb_update_o.content   = l2_tlb_resp_i.content;
+            dtlb_update_o.g_content = l2_tlb_resp_i.g_content;
+
+        end else begin
+            itlb_update_o.vpn = {{41-riscv::SVX{1'b0}}, vaddr_q[riscv::SVX-1:12]};
+            dtlb_update_o.vpn = {{41-riscv::SVX{1'b0}}, vaddr_q[riscv::SVX-1:12]};
+            // update the correct page table level
+            if(enable_g_translation_i && enable_translation_i) begin
+                itlb_update_o.is_s_2M = (gptw_lvl_q == LVL2);
+                itlb_update_o.is_s_1G = (gptw_lvl_q == LVL1);
+                itlb_update_o.is_g_2M = (ptw_lvl_q == LVL2);
+                itlb_update_o.is_g_1G = (ptw_lvl_q == LVL1);
+            end else if(enable_translation_i) begin
+                itlb_update_o.is_s_2M = (ptw_lvl_q == LVL2);
+                itlb_update_o.is_s_1G = (ptw_lvl_q == LVL1);
+                itlb_update_o.is_g_2M = 1'b0;
+                itlb_update_o.is_g_1G = 1'b0;
+            end else begin
+                itlb_update_o.is_s_2M = 1'b0;
+                itlb_update_o.is_s_1G = 1'b0;
+                itlb_update_o.is_g_2M = (ptw_lvl_q == LVL2);
+                itlb_update_o.is_g_1G = (ptw_lvl_q == LVL1);
+            end
+
+            if(en_ld_st_g_translation_i && en_ld_st_translation_i) begin
+                dtlb_update_o.is_s_2M = (gptw_lvl_q == LVL2);
+                dtlb_update_o.is_s_1G = (gptw_lvl_q == LVL1);
+                dtlb_update_o.is_g_2M = (ptw_lvl_q == LVL2);
+                dtlb_update_o.is_g_1G = (ptw_lvl_q == LVL1);
+            end else if(en_ld_st_translation_i) begin
+                dtlb_update_o.is_s_2M = (ptw_lvl_q == LVL2);
+                dtlb_update_o.is_s_1G = (ptw_lvl_q == LVL1);
+                dtlb_update_o.is_g_2M = 1'b0;
+                dtlb_update_o.is_g_1G = 1'b0;
+            end else begin
+                dtlb_update_o.is_s_2M = 1'b0;
+                dtlb_update_o.is_s_1G = 1'b0;
+                dtlb_update_o.is_g_2M = (ptw_lvl_q == LVL2);
+                dtlb_update_o.is_g_1G = (ptw_lvl_q == LVL1);
+            end
+            // output the correct ASID
+            itlb_update_o.asid = tlb_update_asid_q;
+            dtlb_update_o.asid = tlb_update_asid_q;
+            // output the correct VMID
+            itlb_update_o.vmid = tlb_update_vmid_q;
+            dtlb_update_o.vmid = tlb_update_vmid_q;
+            // set the global mapping bit
+            if(enable_g_translation_i) begin
+                itlb_update_o.content = gpte_q | (global_mapping_q << 5);
+                itlb_update_o.g_content = pte;
+            end else begin
+                itlb_update_o.content = pte | (global_mapping_q << 5);
+                itlb_update_o.g_content = '0;
+            end
+            if(en_ld_st_g_translation_i) begin
+                dtlb_update_o.content = gpte_q | (global_mapping_q << 5);
+                dtlb_update_o.g_content = pte;
+            end else begin
+                dtlb_update_o.content = pte | (global_mapping_q << 5);
+                dtlb_update_o.g_content = '0;
+            end
+        end
+    end
+
+    assign l2_tlb_lu_hit    = l2_tlb_hit_i & l2_tlb_access_q;
+    assign l2_tlb_access_o  = l2_tlb_access_q;
+
+    // ---------------
+    // L2 TLB request
+    // ---------------
+    assign l2_tlb_req_o.vaddr        = vaddr_q;
+    assign l2_tlb_req_o.asid         = tlb_update_asid_q;
+    assign l2_tlb_req_o.vmid         = tlb_update_vmid_q;
+    assign l2_tlb_req_o.s_st_enbl_i  = is_instr_ptw_q ? enable_translation_i : en_ld_st_translation_i;
+    assign l2_tlb_req_o.g_st_enbl_i  = is_instr_ptw_q ? enable_g_translation_i : en_ld_st_g_translation_i;
+    assign l2_tlb_req_o.v_i          = is_instr_ptw_q ? v_i : ld_st_v_i;
+    assign l2_tlb_req_o.valid        = l2_tlb_valid_q;
+    assign l2_tlb_flushing_n         = l2_tlb_valid_q ? l2_tlb_flushing_i :
+                                                        l2_tlb_flushing_q;
 
     // -----------
     // GTLB Update
@@ -231,8 +342,6 @@ module ptw import ariane_pkg::*; #(
         // -----------
         // G-stage TLB
         // Description: Holds intermediate nested translations GPA -> HPA
-        // ,thus accelerates VS-Stage translation. 
-    // ,thus accelerates VS-Stage translation. 
         // ,thus accelerates VS-Stage translation. 
         // -----------
         gtlb #(
@@ -301,6 +410,7 @@ module ptw import ariane_pkg::*; #(
         ptw_access_exception_o = 1'b0;
         itlb_update_o.valid    = 1'b0;
         dtlb_update_o.valid    = 1'b0;
+        l2_tlb_update_o.valid  = 1'b0;
         is_instr_ptw_n         = is_instr_ptw_q;
         ptw_lvl_n              = ptw_lvl_q;
         gptw_lvl_n             = gptw_lvl_q;
@@ -311,6 +421,8 @@ module ptw import ariane_pkg::*; #(
         gpte_d                 = gpte_q;
         global_mapping_n       = global_mapping_q;
         gtlb_access_n          = gtlb_access_q;
+        l2_tlb_access_n        = l2_tlb_access_q;
+        l2_tlb_valid_n         = 1'b0;
         // input registers
         tlb_update_asid_n     = tlb_update_asid_q;
         tlb_update_vmid_n     = tlb_update_vmid_q;
@@ -335,6 +447,8 @@ module ptw import ariane_pkg::*; #(
                 gpaddr_n         = '0;
                 gpte_d           = '0;
                 gtlb_access_n    = 1'b0;
+                l2_tlb_access_n  = 1'b0;
+                l2_tlb_valid_n   = 1'b0;
                 // if we got an ITLB miss
                 if ((enable_translation_i | enable_g_translation_i) & itlb_access_i & ~itlb_hit_i & ~dtlb_access_i) begin
                     if (enable_translation_i && enable_g_translation_i) begin
@@ -355,6 +469,8 @@ module ptw import ariane_pkg::*; #(
                             ptw_pptr_n  = {satp_ppn_i, itlb_vaddr_i[riscv::SV-1:30], 3'b0};
                     end
                     is_instr_ptw_n      = 1'b1;
+                    l2_tlb_access_n     = 1'b1;
+                    l2_tlb_valid_n      = 1'b1;
                     tlb_update_asid_n   = v_i ? vs_asid_i : asid_i;
                     tlb_update_vmid_n   = vmid_i;
                     vaddr_n             = itlb_vaddr_i;
@@ -383,6 +499,8 @@ module ptw import ariane_pkg::*; #(
                     tlb_update_vmid_n   = vmid_i;
                     vaddr_n             = dtlb_vaddr_i;
                     state_d             = (en_ld_st_translation_i && en_ld_st_g_translation_i && GTLB_PRESENT) ? WAIT_GTLB_HIT : WAIT_GRANT;
+                    l2_tlb_access_n     = 1'b1;
+                    l2_tlb_valid_n      = 1'b1;
                     dtlb_miss_o         = 1'b1;
                 end
             end
@@ -478,8 +596,14 @@ module ptw import ariane_pkg::*; #(
                                 if (!pte.x || !pte.a) begin
                                   state_d = PROPAGATE_ERROR;
                                   ptw_stage_d = ptw_stage_q;
-                                end else if((ptw_stage_q == G_FINAL_STAGE) || !enable_g_translation_i)
+                                end else if((ptw_stage_q == G_FINAL_STAGE) || !enable_g_translation_i) begin
                                   itlb_update_o.valid = 1'b1;
+                                  if((ptw_lvl_q == LVL1 && gptw_lvl_q == LVL1) || l2_tlb_flushing_q)
+                                    l2_tlb_update_o.valid = 1'b0;
+                                  else 
+                                    l2_tlb_update_o.valid = 1'b1;
+                                  l2_tlb_access_n = 1'b0;
+                                end
 
                             end else begin
                                 // ------------
@@ -491,8 +615,14 @@ module ptw import ariane_pkg::*; #(
                                 // we can directly raise an error. This doesn't put a useless
                                 // entry into the TLB.
                                 if (pte.a && ((pte.r && !hlvx_inst_i) || (pte.x && (mxr_i || hlvx_inst_i || (ptw_stage_q == S_STAGE && vmxr_i && ld_st_v_i))))) begin
-                                  if((ptw_stage_q == G_FINAL_STAGE) || !en_ld_st_g_translation_i)
+                                  if((ptw_stage_q == G_FINAL_STAGE) || !en_ld_st_g_translation_i) begin
                                       dtlb_update_o.valid = 1'b1;
+                                      if((ptw_lvl_q == LVL1 && gptw_lvl_q == LVL1) || l2_tlb_flushing_q)
+                                        l2_tlb_update_o.valid = 1'b0;
+                                      else 
+                                        l2_tlb_update_o.valid = 1'b1;
+                                      l2_tlb_access_n = 1'b0;
+                                  end
                                 end else begin
                                   state_d   = PROPAGATE_ERROR;
                                   ptw_stage_d = ptw_stage_q;
@@ -502,6 +632,8 @@ module ptw import ariane_pkg::*; #(
                                 // the same applies if the dirty flag is not set
                                 if (lsu_is_store_i && (!pte.w || !pte.d)) begin
                                     dtlb_update_o.valid = 1'b0;
+                                    l2_tlb_update_o.valid = 1'b0;
+                                    l2_tlb_access_n = 1'b0;
                                     state_d   = PROPAGATE_ERROR;
                                     ptw_stage_d = ptw_stage_q;
                                 end
@@ -514,11 +646,15 @@ module ptw import ariane_pkg::*; #(
                                 ptw_stage_d         = ptw_stage_q;
                                 dtlb_update_o.valid = 1'b0;
                                 itlb_update_o.valid = 1'b0;
+                                l2_tlb_update_o.valid = 1'b0;
+                                l2_tlb_access_n = 1'b0;
                             end else if (ptw_lvl_q == LVL2 && pte.ppn[8:0] != '0) begin
                                 state_d             = PROPAGATE_ERROR;
                                 ptw_stage_d         = ptw_stage_q;
                                 dtlb_update_o.valid = 1'b0;
                                 itlb_update_o.valid = 1'b0;
+                                l2_tlb_update_o.valid = 1'b0;
+                                l2_tlb_access_n = 1'b0;
                             end
                             // check if 63:41 are all zeros
                             if (((v_i && is_instr_ptw_q) || (ld_st_v_i && !is_instr_ptw_q)) && ptw_stage_q == S_STAGE && !((|pte.ppn[riscv::PPNW-1:riscv::GPPNW]) == 1'b0)) begin
@@ -603,6 +739,8 @@ module ptw import ariane_pkg::*; #(
                     if (!allow_access) begin
                         itlb_update_o.valid = 1'b0;
                         dtlb_update_o.valid = 1'b0;
+                        l2_tlb_update_o.valid = 1'b0;
+                        l2_tlb_access_n = 1'b0;
                         // we have to return the failed address in bad_addr
                         ptw_pptr_n = ptw_pptr_q;
                         ptw_stage_d = ptw_stage_q;
@@ -624,6 +762,7 @@ module ptw import ariane_pkg::*; #(
             end
             // wait for the rvalid before going back to IDLE
             WAIT_RVALID: begin
+                l2_tlb_update_o.valid = 1'b0;
                 if (data_rvalid_q)
                     state_d = IDLE;
             end
@@ -641,6 +780,18 @@ module ptw import ariane_pkg::*; #(
             // 1. in the PTE Lookup check whether we still need to wait for an rvalid
             // 2. waiting for a grant, if so: wait for it
             // if not, go back to idle
+            l2_tlb_update_o.valid = 1'b0;
+            if ((state_q == PTE_LOOKUP && !data_rvalid_q) || ((state_q == WAIT_GRANT) && req_port_i.data_gnt))
+                state_d = WAIT_RVALID;
+            else
+                state_d = IDLE;
+        end else if(l2_tlb_lu_hit && state_q != WAIT_RVALID) begin
+            l2_tlb_update_o.valid = 1'b0;
+            l2_tlb_access_n = 1'b0;
+            if(is_instr_ptw_q)
+                    itlb_update_o.valid = 1'b1;
+            else
+                    dtlb_update_o.valid = 1'b1;
             if ((state_q == PTE_LOOKUP && !data_rvalid_q) || ((state_q == WAIT_GRANT) && req_port_i.data_gnt))
                 state_d = WAIT_RVALID;
             else
@@ -668,6 +819,9 @@ module ptw import ariane_pkg::*; #(
             gpte_q             <= '0;
             data_rvalid_q      <= 1'b0;
             gtlb_access_q      <= 1'b0;
+            l2_tlb_access_q    <= 1'b0;
+            l2_tlb_valid_q     <= 1'b0;
+            l2_tlb_flushing_q  <= 1'b0;
         end else begin
             state_q            <= state_d;
             ptw_stage_q        <= ptw_stage_d;
@@ -686,6 +840,9 @@ module ptw import ariane_pkg::*; #(
             gpte_q             <= gpte_d;
             data_rvalid_q      <= req_port_i.data_rvalid;
             gtlb_access_q      <= gtlb_access_n;
+            l2_tlb_access_q    <= l2_tlb_access_n;
+            l2_tlb_valid_q     <= l2_tlb_valid_n;
+            l2_tlb_flushing_q  <= l2_tlb_flushing_n;
         end
     end
 

@@ -654,6 +654,17 @@ package ariane_pkg;
     // ---------------
     localparam bit           GTLB_PRESENT = 1'b1; // GTLB is present
     localparam int unsigned  GTLB_ENTRIES = 8;    // Set number of gtlb entries
+
+    // ---------------
+    // L2 TLB instanciation
+    // ---------------
+    localparam bit L2_TLB_4K_PRESENT           = 1'b1;  // L2 TLB supports 4k page size
+    localparam int unsigned  L2_TLB_4K_ENTRIES = 128;   // Set number of 4k entries
+    localparam int unsigned  L2_TLB_4K_ASSOC   = 4;     // Set number of 4k associativity
+    localparam bit L2_TLB_2M_PRESENT           = 1'b1;  // L2 TLB supports 2m page size
+    localparam int unsigned  L2_TLB_2M_ENTRIES = 32;    // Set number of 2m entries
+    localparam int unsigned  L2_TLB_2M_ASSOC   = 4;     // Set number of 2m associativity
+
     // --------------------
     // Atomics
     // --------------------
@@ -689,6 +700,29 @@ package ariane_pkg;
         logic                  g_st_enbl_i;  // g-stage enabled
         logic                  v_i;          // virtualization mode
     } tlb_update_t;
+
+    typedef struct packed {
+        logic                  valid;      // valid flag
+        logic                  is_s_2M;
+        logic                  is_s_1G;
+        logic                  is_g_2M;
+        logic                  is_g_1G;
+        logic [28:0]           vpn;
+        logic [ASID_WIDTH-1:0] asid;
+        logic [VMID_WIDTH-1:0] vmid;
+        riscv::pte_t           content;
+        riscv::pte_t           g_content;
+    } l2_tlb_resp_t;
+
+    typedef struct packed {
+        logic                   valid;        // valid flag
+        logic [riscv::VLEN-1:0] vaddr;
+        logic [ASID_WIDTH-1:0]  asid;
+        logic [VMID_WIDTH-1:0]  vmid;
+        logic                   s_st_enbl_i;  // s-stage enabled
+        logic                   g_st_enbl_i;  // g-stage enabled
+        logic                   v_i;          // virtualization mode
+    } l2_tlb_req_t;
 
     typedef struct packed {
         logic                  valid;      // valid flag
