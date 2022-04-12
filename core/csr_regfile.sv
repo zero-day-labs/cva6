@@ -1545,7 +1545,7 @@ module csr_regfile import ariane_pkg::*; #(
             riscv::PRIV_LVL_S: begin
                 if(trap_to_v) begin
                     if (vstvec_q[0] && ex_i.cause[riscv::XLEN-1]) begin
-                        trap_vector_base_o[7:2] = ex_i.cause[5:0];
+                        trap_vector_base_o[7:2] = {ex_i.cause[riscv::XLEN-1:2],2'b01};
                     end
                 end else begin
                     if (stvec_q[0] && ex_i.cause[riscv::XLEN-1]) begin
