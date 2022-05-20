@@ -132,6 +132,7 @@ package ariane_pkg;
     localparam TRANS_ID_BITS = $clog2(NR_SB_ENTRIES); // depending on the number of scoreboard entries we need that many bits
                                                       // to uniquely identify the entry in the scoreboard
     localparam ASID_WIDTH    = (riscv::XLEN == 64) ? 16 : 1;
+    localparam VMID_WIDTH    = (riscv::XLEN == 64) ? 14 : 1;
     localparam BITS_SATURATION_COUNTER = 2;
     localparam NR_COMMIT_PORTS = 2;
 
@@ -162,7 +163,7 @@ package ariane_pkg;
     localparam bit RVD = riscv::IS_XLEN64; // Is D extension enabled
 `else
     // Floating-point extensions configuration
-    localparam bit RVF = (riscv::IS_XLEN64 | riscv::IS_XLEN32) & riscv::FPU_EN; // Is F extension enabled for both 32 Bit and 64 bit CPU  
+    localparam bit RVF = (riscv::IS_XLEN64 | riscv::IS_XLEN32) & riscv::FPU_EN; // Is F extension enabled for both 32 Bit and 64 bit CPU
     localparam bit RVD = (riscv::IS_XLEN64 ? 1:0) & riscv::FPU_EN;              // Is D extension enabled for only 64 bit CPU
 `endif
     localparam bit RVA = 1'b1; // Is A extension enabled
@@ -309,7 +310,9 @@ package ariane_pkg;
          riscv::xlen_t       cause; // cause of exception
          riscv::xlen_t       tval;  // additional information of causing exception (e.g.: instruction causing it),
                              // address of LD/ST fault
+         riscv::xlen_t       tval2; // additional information when the causing exception in a guest exception
          riscv::xlen_t       tinst;  // transformed instruction information
+         logic        gva;          // signals when a guest virtual address is written to tval
          logic        valid;
     } exception_t;
 
@@ -590,7 +593,11 @@ package ariane_pkg;
     typedef struct packed {
         logic                     valid;
         logic [riscv::VLEN-1:0]   vaddr;
+        logic [riscv::XLEN-1:0]   tinst;
+        logic                     hs_ld_st_inst;
+        logic                     hlvx_inst;
         logic                     overflow;
+        logic                     g_overflow;
         logic [63:0]              data;
         logic [7:0]               be;
         fu_t                      fu;
@@ -669,6 +676,19 @@ package ariane_pkg;
         riscv::pte_t           content;
     } tlb_update_t;
 
+    typedef struct packed {
+        logic                  valid;      // valid flag
+        logic                  is_s_2M;
+        logic                  is_s_1G;
+        logic                  is_g_2M;
+        logic                  is_g_1G;
+        logic [28:0]           vpn;
+        logic [ASID_WIDTH-1:0] asid;
+        logic [VMID_WIDTH-1:0] vmid;
+        riscv::pte_t           content;
+        riscv::pte_t           g_content;
+    } tlb_update_sv39x4_t;
+
     // Bits required for representation of physical address space as 4K pages
     // (e.g. 27*4K == 39bit address space).
     localparam PPN4K_WIDTH = 38;
@@ -684,7 +704,8 @@ package ariane_pkg;
     typedef enum logic [1:0] {
       FE_NONE,
       FE_INSTR_ACCESS_FAULT,
-      FE_INSTR_PAGE_FAULT
+      FE_INSTR_PAGE_FAULT,
+      FE_INSTR_GUEST_PAGE_FAULT
     } frontend_exception_t;
 
     // ----------------------
@@ -846,7 +867,7 @@ package ariane_pkg;
     // ----------------------
     function automatic logic [1:0] extract_transfer_size(fu_op op);
         case (op)
-            LD, SD, FLD, FSD,
+            LD, HLV_D, SD, HSV_D, FLD, FSD,
             AMO_LRD,   AMO_SCD,
             AMO_SWAPD, AMO_ADDD,
             AMO_ANDD,  AMO_ORD,
@@ -855,7 +876,8 @@ package ariane_pkg;
             AMO_MINDU: begin
                 return 2'b11;
             end
-            LW, LWU, SW, FLW, FSW,
+            LW, LWU, HLV_W, HLV_WU, HLVX_WU,
+            SW, HSV_W, FLW, FSW,
             AMO_LRW,   AMO_SCW,
             AMO_SWAPW, AMO_ADDW,
             AMO_ANDW,  AMO_ORW,
@@ -864,9 +886,8 @@ package ariane_pkg;
             AMO_MINWU: begin
                 return 2'b10;
             end
-            LH, LHU, SH, FLH, FSH: return 2'b01;
-            LB, LBU, SB, FLB, FSB: return 2'b00;
-            default:     return 2'b11;
+            LH, LHU, HLV_H, HLV_HU, HLVX_HU, SH, HSV_H, FLH, FSH: return 2'b01;
+            LB, LBU, HLV_B, HLV_BU, SB, HSV_B, FLB, FSB: return 2'b00;
         endcase
     endfunction
 endpackage

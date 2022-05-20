@@ -44,6 +44,7 @@ sources:
     - core/csr_buffer.sv
     - core/mmu_sv32/cva6_tlb_sv32.sv
     - core/mmu_sv39/tlb.sv
+    - core/mmu_sv39x4/cva6_tlb_sv39x4.sv
     - core/decoder.sv
     - core/scoreboard.sv
     - core/perf_counters.sv
@@ -60,6 +61,8 @@ sources:
     - core/ex_stage.sv
     - core/mmu_sv39/mmu.sv
     - core/mmu_sv39/ptw.sv
+    - core/mmu_sv39x4/cva6_mmu_sv39x4.sv
+    - core/mmu_sv39x4/cva6_ptw_sv39x4.sv
     - core/mult.sv
     - core/mmu_sv32/cva6_mmu_sv32.sv
     - core/mmu_sv32/cva6_ptw_sv32.sv

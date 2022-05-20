@@ -44,6 +44,7 @@ module issue_read_operands import ariane_pkg::*; #(
     output logic [riscv::VLEN-1:0]                 rs2_forwarding_o,  // unregistered version of fu_data_o.operandb
     output logic [riscv::VLEN-1:0]                 pc_o,
     output logic                                   is_compressed_instr_o,
+    output riscv::xlen_t                           tinst_o,          // Transformed instruction
     // ALU 1
     input  logic                                   flu_ready_i,      // Fixed latency unit ready to accept a new request
     output logic                                   alu_valid_o,      // Output is valid
@@ -93,6 +94,7 @@ module issue_read_operands import ariane_pkg::*; #(
     logic [TRANS_ID_BITS-1:0] trans_id_n, trans_id_q;
     fu_op operator_n, operator_q; // operation to perform
     fu_t  fu_n,       fu_q; // functional unit to use
+    riscv::xlen_t tinst_n, tinst_q; // transformed instruction
 
     // forwarding signals
     logic forward_rs1, forward_rs2, forward_rs3;
@@ -120,6 +122,7 @@ module issue_read_operands import ariane_pkg::*; #(
     assign fpu_valid_o         = fpu_valid_q;
     assign fpu_fmt_o           = fpu_fmt_q;
     assign fpu_rm_o            = fpu_rm_q;
+    assign tinst_o             = tinst_q;
     // ---------------
     // Issue Stage
     // ---------------
@@ -166,7 +169,7 @@ module issue_read_operands import ariane_pkg::*; #(
             // check if the clobbering instruction is not a CSR instruction, CSR instructions can only
             // be fetched through the register file since they can't be forwarded
             // if the operand is available, forward it. CSRs don't write to/from FPR
-            if (rs1_valid_i && (is_rs1_fpr(issue_instr_i.op) ? 1'b1 : ((rd_clobber_gpr_i[issue_instr_i.rs1] != CSR) || (issue_instr_i.op == SFENCE_VMA)))) begin
+            if (rs1_valid_i && (is_rs1_fpr(issue_instr_i.op) ? 1'b1 : ((rd_clobber_gpr_i[issue_instr_i.rs1] != CSR) || (issue_instr_i.op == SFENCE_VMA || issue_instr_i.op == HFENCE_VVMA || issue_instr_i.op == HFENCE_GVMA)))) begin
                 forward_rs1 = 1'b1;
             end else begin // the operand is not available -> stall
                 stall = 1'b1;
@@ -176,7 +179,7 @@ module issue_read_operands import ariane_pkg::*; #(
         if (is_rs2_fpr(issue_instr_i.op) ? rd_clobber_fpr_i[issue_instr_i.rs2] != NONE
                                          : rd_clobber_gpr_i[issue_instr_i.rs2] != NONE) begin
             // if the operand is available, forward it. CSRs don't write to/from FPR
-            if (rs2_valid_i && (is_rs2_fpr(issue_instr_i.op) ? 1'b1 : ( (rd_clobber_gpr_i[issue_instr_i.rs2] != CSR) || (issue_instr_i.op == SFENCE_VMA))))  begin
+            if (rs2_valid_i && (is_rs2_fpr(issue_instr_i.op) ? 1'b1 : ( (rd_clobber_gpr_i[issue_instr_i.rs2] != CSR) || (issue_instr_i.op == SFENCE_VMA || issue_instr_i.op == HFENCE_VVMA || issue_instr_i.op == HFENCE_GVMA))))  begin
                 forward_rs2 = 1'b1;
             end else begin // the operand is not available -> stall
                 stall = 1'b1;
@@ -204,6 +207,7 @@ module issue_read_operands import ariane_pkg::*; #(
         trans_id_n = issue_instr_i.trans_id;
         fu_n       = issue_instr_i.fu;
         operator_n = issue_instr_i.op;
+        tinst_n    = issue_instr_i.ex.tinst;
         // or should we forward
         if (forward_rs1) begin
             operand_a_n  = rs1_i;
@@ -425,6 +429,7 @@ module issue_read_operands import ariane_pkg::*; #(
             fu_q                  <= NONE;
             operator_q            <= ADD;
             trans_id_q            <= '0;
+            tinst_q               <= '0;
             pc_o                  <= '0;
             is_compressed_instr_o <= 1'b0;
             branch_predict_o      <= {cf_t'(0), {riscv::VLEN{1'b0}}};
@@ -435,6 +440,7 @@ module issue_read_operands import ariane_pkg::*; #(
             fu_q                  <= fu_n;
             operator_q            <= operator_n;
             trans_id_q            <= trans_id_n;
+            tinst_q               <= tinst_n;
             pc_o                  <= issue_instr_i.pc;
             is_compressed_instr_o <= issue_instr_i.is_compressed;
             branch_predict_o      <= issue_instr_i.bp;
