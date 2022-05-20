@@ -201,7 +201,8 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
 ifeq ($(findstring 32, $(target)),32)
     src += $(wildcard core/mmu_sv32/*.sv)
 else
-    src += $(wildcard core/mmu_sv39/*.sv)
+	src += $(wildcard core/mmu_sv39/*.sv)
+	src += $(wildcard core/mmu_sv39x4/*.sv)
 endif
 
 src := $(addprefix $(root-dir), $(src))

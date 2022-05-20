@@ -36,6 +36,7 @@ module issue_stage import ariane_pkg::*; #(
     output fu_data_t                                 fu_data_o,
     output logic [riscv::VLEN-1:0]                   pc_o,
     output logic                                     is_compressed_instr_o,
+    output riscv::xlen_t                             tinst_o,
     input  logic                                     flu_ready_i,
     output logic                                     alu_valid_o,
     // ex just resolved our predicted branch, we are ready to accept new requests
@@ -207,6 +208,7 @@ module issue_stage import ariane_pkg::*; #(
         .mult_valid_o        ( mult_valid_o                    ),
         .rs1_forwarding_o    ( rs1_forwarding_xlen             ),
         .rs2_forwarding_o    ( rs2_forwarding_xlen             ),
+        .tinst_o             ( tinst_o                         ),
         .*
     );
 
