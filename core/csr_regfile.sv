@@ -59,6 +59,7 @@ module csr_regfile import ariane_pkg::*; #(
     output logic [6:0]            fprec_o,                    // Floating-Point Precision Control
     // Decoder
     output irq_ctrl_t             irq_ctrl_o,                 // interrupt management to id stage
+    output logic                  vs_timer_irq_o,             // vs timer interrupt line
     // MMU
     output logic                  en_translation_o,           // enable VA translation
     output logic                  en_g_translation_o,         // enable G-Stage translation
@@ -80,6 +81,7 @@ module csr_regfile import ariane_pkg::*; #(
     // external interrupts
     input  logic [1:0]            irq_i,                      // external interrupt in
     input  logic                  ipi_i,                      // inter processor interrupt -> connected to machine mode sw
+    input  logic [63:0]           timer_i,                    // timer counter from CLINT
     input  logic                  debug_req_i,                // debug request in
     output logic                  set_debug_pc_o,
     // Virtualization Support
@@ -155,6 +157,7 @@ module csr_regfile import ariane_pkg::*; #(
 
     riscv::xlen_t stvec_q,     stvec_d;
     riscv::xlen_t scounteren_q,scounteren_d;
+    riscv::xlen_t stimecmp_q,  stimecmp_d;
     riscv::xlen_t sscratch_q,  sscratch_d;
     riscv::xlen_t sepc_q,      sepc_d;
     riscv::xlen_t scause_q,    scause_d;
@@ -165,12 +168,14 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::xlen_t hgeie_q,     hgeie_d;
     riscv::xlen_t htval_q,     htval_d;
     riscv::xlen_t htinst_q,    htinst_d;
+    riscv::xlen_t htimedelta_q, htimedelta_d;
 
     riscv::xlen_t vstvec_q,    vstvec_d;
     riscv::xlen_t vsscratch_q, vsscratch_d;
     riscv::xlen_t vsepc_q,     vsepc_d;
     riscv::xlen_t vscause_q,   vscause_d;
     riscv::xlen_t vstval_q,    vstval_d;
+    riscv::xlen_t vstimecmp_q, vstimecmp_d;
 
     // Environment Configuration Registers
     riscv::envcfg_rv_t menvcfg_q, menvcfg_d;
@@ -207,6 +212,9 @@ module csr_regfile import ariane_pkg::*; #(
     assign hstatus_extended  = hstatus_q[riscv::XLEN-1:0];
     assign vsstatus_extended = riscv::IS_XLEN64 ? vsstatus_q[riscv::XLEN-1:0] :
                               {vsstatus_q.sd, vsstatus_q.wpri3[7:0], vsstatus_q[22:0]};
+    assign vs_timer_irq_o    = (menvcfg_q.stce && henvcfg_q.stce) ? 
+                                    (timer_i >= $unsigned(($unsigned(vstimecmp_q) + $unsigned(htimedelta_q)))) :
+                                    1'b0;
 
     always_comb begin : csr_read_process
         // a read access exception can only occur if we attempt to read a CSR which does not exist
@@ -265,6 +273,13 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_VSCAUSE:             csr_rdata = vscause_q;
                 riscv::CSR_VSTVAL:              csr_rdata = vstval_q;
                 riscv::CSR_VSATP:               csr_rdata = vsatp_q;
+                riscv::CSR_VSTIMECMP:begin
+                    // intercept vstimecmp writes when MENVCFG.SCTE == 0 or MCOUNTEREN.TM == 0
+                    if(priv_lvl_o == riscv::PRIV_LVL_S && (!menvcfg_q.stce || !mcounteren_q[1]))
+                        read_access_exception = 1'b1;
+                    else
+                        csr_rdata = vstimecmp_q;
+                end
                 // supervisor registers
                 riscv::CSR_SSTATUS: begin
                     csr_rdata = v_q ? vsstatus_extended : mstatus_extended & ariane_pkg::SMODE_STATUS_READ_MASK[riscv::XLEN-1:0];
@@ -330,6 +345,20 @@ module csr_regfile import ariane_pkg::*; #(
                         csr_rdata = v_q ? vsatp_q : satp_q;
                     end
                 end
+                riscv::CSR_STIMECMP: begin
+                    // intercept stimecmp/vstimecmp reads when MENVCFG.SCTE == 0 or MCOUNTEREN.TM == 0
+                    if(priv_lvl_o == riscv::PRIV_LVL_S && (!menvcfg_q.stce || !mcounteren_q[1]))
+                        read_access_exception = 1'b1;
+                    else if(v_q) begin
+                        // intercept vstimecmp reads when HENVCFG.SCTE == 0 or HCOUNTEREN.TM == 0
+                        if(priv_lvl_o == riscv::PRIV_LVL_S && ((menvcfg_q.stce && !henvcfg_q.stce) || (mcounteren_q[1] && !hcounteren_q[1])))
+                            virtual_read_access_exception = 1'b1;
+                        else 
+                            csr_rdata = vstimecmp_q;
+                    end else begin
+                        csr_rdata = stimecmp_q;
+                    end
+                end
                 riscv::CSR_SENVCFG:            csr_rdata = senvcfg_q;
                 // hypervisor mode registers
                 riscv::CSR_HSTATUS:            csr_rdata = hstatus_extended;
@@ -341,6 +370,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_HCOUNTEREN:         csr_rdata = hcounteren_q;
                 riscv::CSR_HTVAL:              csr_rdata = htval_q;
                 riscv::CSR_HTINST:             csr_rdata = htinst_q;
+                riscv::CSR_HTIMEDELTA:         csr_rdata = htimedelta_q;
                 riscv::CSR_HGEIE:              csr_rdata = '0;
                 riscv::CSR_HGEIP:              csr_rdata = '0;
                 riscv::CSR_HGATP: begin
@@ -378,6 +408,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MENVCFG:            csr_rdata = menvcfg_q;
                 // Counters and Timers
                 riscv::CSR_CYCLE:              csr_rdata = cycle_q;
+                riscv::CSR_TIME:               csr_rdata = timer_i;
                 riscv::CSR_INSTRET:            csr_rdata = instret_q;
                 riscv::CSR_ML1_ICACHE_MISS,
                 riscv::CSR_ML1_DCACHE_MISS,
@@ -528,6 +559,7 @@ module csr_regfile import ariane_pkg::*; #(
         vscause_d               = vscause_q;
         vstval_d                = vstval_q;
         vsatp_d                 = vsatp_q;
+        vstimecmp_d             = vstimecmp_q;
 
         sepc_d                  = sepc_q;
         scause_d                = scause_q;
@@ -536,6 +568,7 @@ module csr_regfile import ariane_pkg::*; #(
         sscratch_d              = sscratch_q;
         stval_d                 = stval_q;
         satp_d                  = satp_q;
+        stimecmp_d              = stimecmp_q;
         hedeleg_d               = hedeleg_q;
         hideleg_d               = hideleg_q;
         hgeie_d                 = hgeie_q;
@@ -543,6 +576,7 @@ module csr_regfile import ariane_pkg::*; #(
         hcounteren_d            = hcounteren_q;
         htval_d                 = htval_q;
         htinst_d                = htinst_q;
+        htimedelta_d            = htimedelta_q;
 
         menvcfg_d               = menvcfg_q;
         senvcfg_d               = senvcfg_q;
@@ -652,6 +686,13 @@ module csr_regfile import ariane_pkg::*; #(
                         // this instruction has side-effects
                         flush_o = 1'b1;
                 end
+                riscv::CSR_VSTIMECMP: begin
+                    // intercept vstimecmp writes when MENVCFG.SCTE == 0 or MCOUNTEREN.TM == 0
+                    if(priv_lvl_o == riscv::PRIV_LVL_S && (!menvcfg_q.stce || !mcounteren_q[1]))
+                        update_access_exception = 1'b1;
+                    else
+                        vstimecmp_d = csr_wdata;
+                end
                 // sstatus is a subset of mstatus - mask it accordingly
                 riscv::CSR_SSTATUS: begin
                     mask = ariane_pkg::SMODE_STATUS_WRITE_MASK[riscv::XLEN-1:0];
@@ -756,6 +797,20 @@ module csr_regfile import ariane_pkg::*; #(
                     // the next instruction by executing a flush
                     flush_o = 1'b1;
                 end
+                riscv::CSR_STIMECMP: begin
+                    // intercept stimecmp/vstimecmp writes when MENVCFG.SCTE == 0 or MCOUNTEREN.TM == 0
+                    if(priv_lvl_o == riscv::PRIV_LVL_S && (!menvcfg_q.stce || !mcounteren_q[1]))
+                        update_access_exception = 1'b1;
+                    else if(v_q) begin
+                        // intercept stimecmp writes when HENVCFG.SCTE == 0 or HCOUNTEREN.TM == 0
+                        if(priv_lvl_o == riscv::PRIV_LVL_S && ((menvcfg_q.stce && !henvcfg_q.stce) || (mcounteren_q[1] && !hcounteren_q[1])))
+                            virtual_update_access_exception = 1'b1;
+                        else 
+                            vstimecmp_d = csr_wdata;
+                    end else begin
+                        stimecmp_d = csr_wdata;
+                    end
+                end
                 riscv::CSR_SENVCFG: begin
                     mask = ariane_pkg::ENVCFG_WRITE_MASK[riscv::XLEN-1:0];
                     senvcfg_d = (senvcfg_q & ~mask) | (csr_wdata & mask);
@@ -803,6 +858,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_HCOUNTEREN:         hcounteren_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
                 riscv::CSR_HTVAL:              htval_d = csr_wdata;
                 riscv::CSR_HTINST:             htinst_d = {{riscv::XLEN-32{1'b0}}, csr_wdata[31:0]};
+                riscv::CSR_HTIMEDELTA:         htimedelta_d = csr_wdata;
                 riscv::CSR_HGEIE:; //TODO Hyp: implement hgeie write
                 riscv::CSR_HGATP: begin
                     // intercept HGATP writes if in HS-Mode and TVM is enabled
@@ -898,7 +954,7 @@ module csr_regfile import ariane_pkg::*; #(
                     flush_o = 1'b1;
                 end
                 riscv::CSR_MIP: begin
-                    mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | riscv::MIP_VSSIP;
+                    mask = riscv::MIP_SSIP | (menvcfg_q.stce ? '0 : riscv::MIP_STIP) | riscv::MIP_SEIP | riscv::MIP_VSSIP;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                 end
                 // performance counters
@@ -1004,6 +1060,10 @@ module csr_regfile import ariane_pkg::*; #(
         mip_d[riscv::IRQ_M_SOFT] = ipi_i;
         // Timer interrupt pending, coming from platform timer
         mip_d[riscv::IRQ_M_TIMER] = time_irq_i;
+        // Supervisor timer interrupt
+        if(menvcfg_q.stce) begin
+            mip_d[riscv::IRQ_S_TIMER] = (timer_i >= stimecmp_q);
+        end
 
         // -----------------------
         // Manage Exception Stack
@@ -1451,7 +1511,7 @@ module csr_regfile import ariane_pkg::*; #(
         wfi_d = wfi_q;
         // if there is any interrupt pending un-stall the core
         // also un-stall if we want to enter debug mode
-        if (|mip_q || debug_req_i || irq_i[1]) begin
+        if (|mip_q || debug_req_i || irq_i[1] || vs_timer_irq_o) begin
             wfi_d = 1'b0;
         // or alternatively if there is no exception pending and we are not in debug mode wait here
         // for the interrupt
@@ -1516,11 +1576,19 @@ module csr_regfile import ariane_pkg::*; #(
         csr_rdata_o = csr_rdata;
 
         unique case (csr_addr.address)
-            riscv::CSR_MIP: csr_rdata_o = csr_rdata | (irq_i[1] << riscv::IRQ_S_EXT);
+            riscv::CSR_MIP: csr_rdata_o = csr_rdata | (irq_i[1] << riscv::IRQ_S_EXT) | (vs_timer_irq_o << riscv::IRQ_VS_TIMER);
             // in supervisor mode we also need to check whether we delegated this bit
             riscv::CSR_SIP: begin
-                csr_rdata_o = csr_rdata
-                            | ((irq_i[1] & mideleg_q[riscv::IRQ_S_EXT]) << riscv::IRQ_S_EXT);
+                csr_rdata_o = (v_q) ? csr_rdata | ((vs_timer_irq_o & VS_DELEG_INTERRUPTS[riscv::IRQ_VS_TIMER] & 
+                                                   hideleg_q[riscv::IRQ_VS_TIMER]) << riscv::IRQ_S_TIMER) : 
+                                      csr_rdata | ((irq_i[1] & mideleg_q[riscv::IRQ_S_EXT]) << riscv::IRQ_S_EXT);
+            end
+            riscv::CSR_VSIP: begin
+                csr_rdata_o = csr_rdata | ((vs_timer_irq_o & VS_DELEG_INTERRUPTS[riscv::IRQ_VS_TIMER] & 
+                                                   hideleg_q[riscv::IRQ_VS_TIMER]) << riscv::IRQ_S_TIMER);
+            end
+            riscv::CSR_HIP: begin
+                csr_rdata_o = csr_rdata | ((vs_timer_irq_o & HS_DELEG_INTERRUPTS[riscv::IRQ_VS_TIMER]) << riscv::IRQ_VS_TIMER);
             end
             default:;
         endcase
@@ -1618,6 +1686,7 @@ module csr_regfile import ariane_pkg::*; #(
             sscratch_q             <= {riscv::XLEN{1'b0}};
             stval_q                <= {riscv::XLEN{1'b0}};
             satp_q                 <= {riscv::XLEN{1'b0}};
+            stimecmp_q             <= {riscv::XLEN{1'b0}};        
             hstatus_q              <= {riscv::XLEN{1'b0}};
             hedeleg_q              <= {riscv::XLEN{1'b0}};
             hideleg_q              <= {riscv::XLEN{1'b0}};
@@ -1626,6 +1695,7 @@ module csr_regfile import ariane_pkg::*; #(
             hcounteren_q           <= {riscv::XLEN{1'b0}};
             htval_q                <= {riscv::XLEN{1'b0}};
             htinst_q               <= {riscv::XLEN{1'b0}};
+            htimedelta_q           <= {riscv::XLEN{1'b0}};
             // virtual supervisor mode registers
             vsstatus_q              <= 64'b0;
             vsepc_q                 <= {riscv::XLEN{1'b0}};
@@ -1634,6 +1704,7 @@ module csr_regfile import ariane_pkg::*; #(
             vsscratch_q             <= {riscv::XLEN{1'b0}};
             vstval_q                <= {riscv::XLEN{1'b0}};
             vsatp_q                 <= {riscv::XLEN{1'b0}};
+            vstimecmp_q             <= {riscv::XLEN{1'b0}}; 
             // timer and counters
             cycle_q                <= {riscv::XLEN{1'b0}};
             instret_q              <= {riscv::XLEN{1'b0}};
@@ -1684,6 +1755,7 @@ module csr_regfile import ariane_pkg::*; #(
             sscratch_q             <= sscratch_d;
             stval_q                <= stval_d;
             satp_q                 <= satp_d;
+            stimecmp_q             <= stimecmp_d;
             // hypervisor mode registers
             hstatus_q              <= hstatus_d;
             hedeleg_q              <= hedeleg_d;
@@ -1693,6 +1765,7 @@ module csr_regfile import ariane_pkg::*; #(
             hcounteren_q           <= hcounteren_d;
             htval_q                <= htval_d;
             htinst_q               <= htinst_d;
+            htimedelta_q           <= htimedelta_d;
             // virtual supervisor mode registers
             vsstatus_q              <= vsstatus_d;
             vsepc_q                 <= vsepc_d;
@@ -1701,6 +1774,7 @@ module csr_regfile import ariane_pkg::*; #(
             vsscratch_q             <= vsscratch_d;
             vstval_q                <= vstval_d;
             vsatp_q                 <= vsatp_d;
+            vstimecmp_q             <= vstimecmp_d;
             // timer and counters
             cycle_q                <= cycle_d;
             instret_q              <= instret_d;

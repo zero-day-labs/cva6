@@ -30,6 +30,7 @@ module decoder import ariane_pkg::*; (
     input  exception_t         ex_i,                    // if an exception occured in if
     input  logic [1:0]         irq_i,                   // external interrupt
     input  irq_ctrl_t          irq_ctrl_i,              // interrupt control and status information from CSRs
+    input  logic               vs_timer_irq_i,          // VS-mode timer interrupt
     // From CSR
     input  riscv::priv_lvl_t   priv_lvl_i,              // current privilege level
     input  logic               v_i,                     // current virtualization mode
@@ -1233,7 +1234,7 @@ module decoder import ariane_pkg::*; (
             // we have three interrupt sources: external interrupts, software interrupts, timer interrupts (order of precedence)
             // for two privilege levels: Supervisor and Machine Mode
             // Virtual Supervisor Interrupt
-            if (irq_ctrl_i.mie[riscv::VS_TIMER_INTERRUPT[$clog2(riscv::XLEN)-1:0]] && irq_ctrl_i.mip[riscv::VS_TIMER_INTERRUPT[$clog2(riscv::XLEN)-1:0]]) begin
+            if (irq_ctrl_i.mie[riscv::VS_TIMER_INTERRUPT[$clog2(riscv::XLEN)-1:0]] && (irq_ctrl_i.mip[riscv::VS_TIMER_INTERRUPT[$clog2(riscv::XLEN)-1:0]] | vs_timer_irq_i)) begin
                 interrupt_cause = riscv::VS_TIMER_INTERRUPT;
             end
             // Virtual Supervisor Software Interrupt

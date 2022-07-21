@@ -36,6 +36,7 @@ module ariane import ariane_pkg::*; #(
   input  logic [1:0]                   irq_i,        // level sensitive IR lines, mip & sip (async)
   input  logic                         ipi_i,        // inter-processor interrupts (async)
   // Timer facilities
+  input  logic [63:0]                  timer_i,      // timer counter
   input  logic                         time_irq_i,   // timer interrupt in (async)
   input  logic                         debug_req_i,  // debug request (async)
 `ifdef FIRESIM_TRACE
@@ -199,6 +200,7 @@ module ariane import ariane_pkg::*; #(
   logic                     tsr_csr_id;
   logic                     hu;
   irq_ctrl_t                irq_ctrl_csr_id;
+  logic                     vs_timer_irq_csr_id;
   logic                     dcache_en_csr_nbdcache;
   logic                     csr_write_fflags_commit_cs;
   logic                     icache_en_csr;
@@ -311,6 +313,7 @@ module ariane import ariane_pkg::*; #(
     .frm_i                      ( frm_csr_id_issue_ex        ),
     .irq_i                      ( irq_i                      ),
     .irq_ctrl_i                 ( irq_ctrl_csr_id            ),
+    .vs_timer_irq_i             ( vs_timer_irq_csr_id        ),
     .debug_mode_i               ( debug_mode                 ),
     .tvm_i                      ( tvm_csr_id                 ),
     .tw_i                       ( tw_csr_id                  ),
@@ -570,6 +573,7 @@ module ariane import ariane_pkg::*; #(
     .frm_o                  ( frm_csr_id_issue_ex           ),
     .fprec_o                ( fprec_csr_ex                  ),
     .irq_ctrl_o             ( irq_ctrl_csr_id               ),
+    .vs_timer_irq_o         ( vs_timer_irq_csr_id           ),
     .ld_st_priv_lvl_o       ( ld_st_priv_lvl_csr_ex         ),
     .ld_st_v_o              ( ld_st_v_csr_ex                ),
     .csr_hs_ld_st_inst_i    ( csr_hs_ld_st_inst_ex          ),
@@ -605,6 +609,7 @@ module ariane import ariane_pkg::*; #(
     .debug_req_i,
     .ipi_i,
     .irq_i,
+    .timer_i,
     .time_irq_i,
     .*
   );

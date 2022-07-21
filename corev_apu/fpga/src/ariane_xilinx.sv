@@ -189,6 +189,7 @@ logic ndmreset_n;
 logic debug_req_irq;
 logic timer_irq;
 logic ipi;
+logic [63:0] timer;
 
 logic clk;
 logic eth_clk;
@@ -694,6 +695,7 @@ ariane #(
     .hart_id_i    ( '0                  ),
     .irq_i        ( irq                 ),
     .ipi_i        ( ipi                 ),
+    .timer_i      ( timer               ),
     .time_irq_i   ( timer_irq           ),
     .debug_req_i  ( debug_req_irq       ),
     .axi_req_o    ( axi_ariane_req      ),
@@ -730,7 +732,8 @@ clint #(
     .axi_resp_o  ( axi_clint_resp ),
     .rtc_i       ( rtc            ),
     .timer_irq_o ( timer_irq      ),
-    .ipi_o       ( ipi            )
+    .ipi_o       ( ipi            ),
+    .timer_o     ( timer          )
 );
 
 axi_slave_connect i_axi_slave_connect_clint (.axi_req_o(axi_clint_req), .axi_resp_i(axi_clint_resp), .slave(master[ariane_soc::CLINT]));

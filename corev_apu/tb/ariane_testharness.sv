@@ -600,6 +600,7 @@ module ariane_testharness #(
   // ---------------
   logic ipi;
   logic timer_irq;
+  logic [63:0] timer;
 
   ariane_axi_soc::req_t    axi_clint_req;
   ariane_axi_soc::resp_t   axi_clint_resp;
@@ -617,7 +618,8 @@ module ariane_testharness #(
     .axi_resp_o  ( axi_clint_resp ),
     .rtc_i       ( rtc_i          ),
     .timer_irq_o ( timer_irq      ),
-    .ipi_o       ( ipi            )
+    .ipi_o       ( ipi            ),
+    .timer_o     ( timer          )
   );
 
   axi_slave_connect i_axi_slave_connect_clint (
@@ -695,6 +697,7 @@ module ariane_testharness #(
     .irq_i                ( irqs                ),
     .ipi_i                ( ipi                 ),
     .time_irq_i           ( timer_irq           ),
+    .timer_i              ( timer               ),
 `ifdef RVFI_TRACE
     .rvfi_o               ( rvfi                ),
 `endif
