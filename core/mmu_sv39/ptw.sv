@@ -138,7 +138,7 @@ module ptw import ariane_pkg::*; #(
     logic [riscv::GPLEN-1:0] gpaddr_q, gpaddr_n;
     // 4 byte aligned physical pointer
     logic [riscv::PLEN-1:0] ptw_pptr_q, ptw_pptr_n;
-    logic [riscv::PLEN-1:0] gptw_pptr_q, gptw_pptr_n;
+    logic [riscv::GPLEN-1:0] gptw_pptr_q, gptw_pptr_n;
 
     // GTLB output signals
     riscv::pte_t gtlb_content;
