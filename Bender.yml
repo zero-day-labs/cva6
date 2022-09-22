@@ -44,7 +44,10 @@ sources:
     - core/re_name.sv
     - core/csr_buffer.sv
     - core/mmu_sv32/cva6_tlb_sv32.sv
+    - core/mmu_sv39/set_tlb.sv
+    - core/mmu_sv39/gtlb.sv
     - core/mmu_sv39/tlb.sv
+    - core/mmu_sv39/l2_tlb.sv
     - core/decoder.sv
     - core/scoreboard.sv
     - core/perf_counters.sv

@@ -255,6 +255,7 @@ module set_tlb import ariane_pkg::*; #(
       tc_sram #(
         // tag + valid bit
         .PrintSimCfg(1'b1),
+        .NumPorts   (1'b1),
         .DataWidth  ( $bits(tlb_tag_t) + 1 ),
         .NumWords   ( TLB_SETS     )
       ) i_tag_sram (
@@ -313,6 +314,7 @@ module set_tlb import ariane_pkg::*; #(
       tc_sram #(
         // pte size
         .SimInit    ( 1'b1               ),
+        .NumPorts   (1'b1),
         .DataWidth  ( 64                 ),
         .NumWords   ( TLB_SETS           )
       ) i_content_sram (
@@ -335,6 +337,7 @@ module set_tlb import ariane_pkg::*; #(
       tc_sram #(
         // pte size
         .SimInit    (1'b1),
+        .NumPorts   (1'b1),
         .DataWidth  ( 64                 ),
         .NumWords   ( TLB_SETS           )
       ) i_tag_sram (
