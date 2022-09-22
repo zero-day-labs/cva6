@@ -252,10 +252,11 @@ module set_tlb import ariane_pkg::*; #(
       assign tag_rdata[i]     = tlb_tag_t'(vld_tag_rdata[i][$bits(tlb_tag_t)-1:0]);
       assign tag_vld_rdata[i] = vld_tag_rdata[i][$bits(tlb_tag_t)];
 
-      sram #(
+      tc_sram #(
         // tag + valid bit
-        .DATA_WIDTH ( $bits(tlb_tag_t) + 1 ),
-        .NUM_WORDS  ( TLB_SETS     )
+        .PrintSimCfg(1'b1),
+        .DataWidth  ( $bits(tlb_tag_t) + 1 ),
+        .NumWords   ( TLB_SETS     )
       ) i_tag_sram (
         .clk_i     ( clk_i                           ),
         .rst_ni    ( rst_ni                          ),
@@ -309,10 +310,11 @@ module set_tlb import ariane_pkg::*; #(
       assign content[i] = riscv::pte_t'(content_rdata[i]);
 
       // Content RAM
-      sram #(
+      tc_sram #(
         // pte size
-        .DATA_WIDTH ( 64                 ),
-        .NUM_WORDS  ( TLB_SETS           )
+        .SimInit    ( 1'b1               ),
+        .DataWidth  ( 64                 ),
+        .NumWords   ( TLB_SETS           )
       ) i_content_sram (
         .clk_i     ( clk_i               ),
         .rst_ni    ( rst_ni              ),
@@ -330,10 +332,11 @@ module set_tlb import ariane_pkg::*; #(
       assign gcontent[i] = riscv::pte_t'(gcontent_rdata[i]);
 
       // Content RAM
-      sram #(
+      tc_sram #(
         // pte size
-        .DATA_WIDTH ( 64                 ),
-        .NUM_WORDS  ( TLB_SETS           )
+        .SimInit    (1'b1),
+        .DataWidth  ( 64                 ),
+        .NumWords   ( TLB_SETS           )
       ) i_tag_sram (
         .clk_i     ( clk_i               ),
         .rst_ni    ( rst_ni              ),
