@@ -320,7 +320,7 @@ module ptw import ariane_pkg::*; #(
     logic allow_access;
 
     assign bad_paddr_o = ptw_access_exception_o ? ptw_pptr_q : 'b0;
-    assign bad_gpaddr_o = ptw_error_at_g_st_o ? ((ptw_stage_q == G_INTERMED_STAGE) ? gptw_pptr_q[riscv::GPLEN:0] : gpaddr_q) : 'b0;
+    assign bad_gpaddr_o = ptw_error_at_g_st_o ? ((ptw_stage_q == G_INTERMED_STAGE) ? gptw_pptr_q : gpaddr_q) : 'b0;
 
     pmp #(
         .PLEN       ( riscv::PLEN            ),
