@@ -173,18 +173,33 @@ module ariane_peripherals #(
     assign reg_bus.error = plic_resp.error;
     assign reg_bus.ready = plic_resp.ready;
 
-    plic_top #(
-      .N_SOURCE    ( ariane_soc::NumSources  ),
-      .N_TARGET    ( ariane_soc::NumTargets  ),
-      .MAX_PRIO    ( ariane_soc::MaxPriority )
-    ) i_plic (
-      .clk_i,
-      .rst_ni,
-      .req_i         ( plic_req    ),
-      .resp_o        ( plic_resp   ),
-      .le_i          ( '0          ), // 0:level 1:edge
-      .irq_sources_i ( irq_sources ),
-      .eip_targets_o ( irq_o       )
+    // plic_top #(
+    //   .N_SOURCE    ( ariane_soc::NumSources  ),
+    //   .N_TARGET    ( ariane_soc::NumTargets  ),
+    //   .MAX_PRIO    ( ariane_soc::MaxPriority )
+    // ) i_plic (
+    //   .clk_i,
+    //   .rst_ni,
+    //   .req_i         ( plic_req    ),
+    //   .resp_o        ( plic_resp   ),
+    //   .le_i          ( '0          ), // 0:level 1:edge
+    //   .irq_sources_i ( irq_sources ),
+    //   .eip_targets_o ( irq_o       )
+    // );
+
+    aplic_top #(
+        .NR_SRC     (ariane_soc::NumSources),
+        .MIN_PRIO   (ariane_soc::MaxPriority),
+        .NR_IDCs    (1) // One core
+    ) i_aplic_top (
+        .i_clk(clk_i),
+        .ni_rst(rst_ni),
+        .i_req(plic_req),
+        .o_resp(plic_resp),
+        // .i_req_2(i_req_2),
+        // .o_resp_2(o_resp_2),
+        .i_irq_sources({irq_sources, 1'b0}),
+        .o_Xeip_targets(irq_o)
     );
 
     // ---------------
