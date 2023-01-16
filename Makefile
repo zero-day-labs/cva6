@@ -167,6 +167,12 @@ src :=  $(filter-out core/ariane_regfile.sv, $(wildcard core/*.sv))             
         corev_apu/rv_plic/rtl/rv_plic_gateway.sv                                     \
         corev_apu/rv_plic/rtl/plic_regmap.sv                                         \
         corev_apu/rv_plic/rtl/plic_top.sv                                            \
+		corev_apu/aia/rtl/aplic_domain_gateway.sv                                    \
+        corev_apu/aia/rtl/aplic_domain_notifier.sv                                   \
+        corev_apu/aia/rtl/aplic_domain_regctl.sv                                     \
+        corev_apu/aia/rtl/aplic_domain_top.sv                                        \
+		corev_apu/aia/rtl/aplic_regmap.sv                                            \
+		corev_apu/aia/rtl/aplic_top.sv                                               \
         corev_apu/riscv-dbg/src/dmi_cdc.sv                                           \
         corev_apu/riscv-dbg/src/dmi_jtag.sv                                          \
         corev_apu/riscv-dbg/src/dmi_jtag_tap.sv                                      \
