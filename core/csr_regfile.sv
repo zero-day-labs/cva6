@@ -106,7 +106,6 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::xlen_t   mtopi_d     ,  mtopi_q;
     riscv::xlen_t   stopi_d     ,  stopi_q;
     localparam logic [riscv::XLEN-1:0] AIA_CSR_DEF_PRIO = 1;
-
     // internal signal to keep track of access exceptions
     logic        read_access_exception, update_access_exception, privilege_violation;
     logic        virtual_read_access_exception, virtual_update_access_exception, virtual_privilege_violation;
