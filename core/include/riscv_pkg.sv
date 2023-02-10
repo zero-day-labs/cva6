@@ -504,6 +504,9 @@ package riscv;
         CSR_MCONFIGPTR     = 12'hF15,
         CSR_MCYCLE         = 12'hB00,
         CSR_MINSTRET       = 12'hB02,
+        // Smaia and Ssaia
+        CSR_MTOPI           = 12'hFB0,
+        CSR_STOPI           = 12'hDB0,
         // Performance counters (Machine Mode)
         CSR_ML1_ICACHE_MISS = 12'hB03,  // L1 Instr Cache Miss
         CSR_ML1_DCACHE_MISS = 12'hB04,  // L1 Data Cache Miss

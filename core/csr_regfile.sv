@@ -102,6 +102,11 @@ module csr_regfile import ariane_pkg::*; #(
     output riscv::pmpcfg_t [15:0] pmpcfg_o,   // PMP configuration containing pmpcfg for max 16 PMPs
     output logic [15:0][riscv::PLEN-3:0] pmpaddr_o            // PMP addresses
 );
+    // AIA Spec
+    riscv::xlen_t   mtopi_d     ,  mtopi_q;
+    riscv::xlen_t   stopi_d     ,  stopi_q;
+    localparam logic [riscv::XLEN-1:0] AIA_CSR_DEF_PRIO = 1;
+
     // internal signal to keep track of access exceptions
     logic        read_access_exception, update_access_exception, privilege_violation;
     logic        virtual_read_access_exception, virtual_update_access_exception, virtual_privilege_violation;
@@ -470,6 +475,9 @@ module csr_regfile import ariane_pkg::*; #(
                     end
                 end
                 riscv::CSR_MENVCFG:            csr_rdata = menvcfg_q;
+                // Smaia and Ssaia
+                riscv::CSR_MTOPI:              csr_rdata = mtopi_q;
+                riscv::CSR_STOPI:              csr_rdata = stopi_q;
                 // Counters and Timers
                 riscv::CSR_CYCLE:              csr_rdata = cycle_q;
                 riscv::CSR_INSTRET:            csr_rdata = instret_q;
@@ -664,6 +672,10 @@ module csr_regfile import ariane_pkg::*; #(
 
         pmpcfg_d                = pmpcfg_q;
         pmpaddr_d               = pmpaddr_q;
+
+        /** AIA registers */
+        mtopi_d                 = mtopi_q;
+        stopi_d                 = stopi_q;
 
         // check for correct access rights and that we are writing
         if (csr_we) begin
@@ -1330,6 +1342,8 @@ module csr_regfile import ariane_pkg::*; #(
                     mstatus_d.spp  = priv_lvl_q[0];
                     // set cause
                     scause_d       = ex_i.cause;
+                    stopi_d        = (ex_i.cause[riscv::XLEN-1]) ? 
+                                     (((ex_i.cause & 4'hF) << 16) | AIA_CSR_DEF_PRIO) : '0;
                     // set epc
                     sepc_d         = {{riscv::XLEN-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
                     // set mtval or stval
@@ -1368,6 +1382,8 @@ module csr_regfile import ariane_pkg::*; #(
                 // save the previous privilege mode
                 mstatus_d.mpp  = priv_lvl_q;
                 mcause_d       = ex_i.cause;
+                mtopi_d        = (ex_i.cause[riscv::XLEN-1]) ? 
+                                 (((ex_i.cause & 4'hF) << 16) | AIA_CSR_DEF_PRIO) : '0;
                 // set epc
                 mepc_d         = {{riscv::XLEN-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
                 // set mtval or stval
@@ -1940,6 +1956,7 @@ module csr_regfile import ariane_pkg::*; #(
             senvcfg_q              <= {riscv::XLEN{1'b0}};
             dcache_q               <= {{riscv::XLEN-1{1'b0}}, 1'b1};
             icache_q               <= {{riscv::XLEN-1{1'b0}}, 1'b1};
+            mtopi_q                <= {riscv::XLEN{1'b0}};
             // supervisor mode registers
             sepc_q                 <= {riscv::XLEN{1'b0}};
             scause_q               <= {riscv::XLEN{1'b0}};
@@ -1957,6 +1974,7 @@ module csr_regfile import ariane_pkg::*; #(
             htval_q                <= {riscv::XLEN{1'b0}};
             htinst_q               <= {riscv::XLEN{1'b0}};
             henvcfg_q              <= {riscv::XLEN{1'b0}};
+            stopi_q                <= {riscv::XLEN{1'b0}};
             // virtual supervisor mode registers
             vsstatus_q              <= 64'b0;
             vsepc_q                 <= {riscv::XLEN{1'b0}};
@@ -2006,6 +2024,7 @@ module csr_regfile import ariane_pkg::*; #(
             senvcfg_q              <= senvcfg_d;
             dcache_q               <= dcache_d;
             icache_q               <= icache_d;
+            mtopi_q                <= mtopi_d;
             // supervisor mode registers
             sepc_q                 <= sepc_d;
             scause_q               <= scause_d;
@@ -2014,6 +2033,7 @@ module csr_regfile import ariane_pkg::*; #(
             sscratch_q             <= sscratch_d;
             stval_q                <= stval_d;
             satp_q                 <= satp_d;
+            stopi_q                <= stopi_d;
             // hypervisor mode registers
             hstatus_q              <= hstatus_d;
             hedeleg_q              <= hedeleg_d;
