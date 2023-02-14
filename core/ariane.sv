@@ -206,6 +206,8 @@ module ariane import ariane_pkg::*; #(
   logic                     single_step_csr_commit;
   riscv::pmpcfg_t [15:0]    pmpcfg;
   logic [15:0][riscv::PLEN-3:0] pmpaddr;
+  logic [riscv::XLEN-1:0]   mtopi;
+  logic [riscv::XLEN-1:0]   stopi;
   // ----------------------------
   // Performance Counters <-> *
   // ----------------------------
@@ -316,7 +318,9 @@ module ariane import ariane_pkg::*; #(
     .tw_i                       ( tw_csr_id                  ),
     .vtw_i                      ( vtw_csr_id                 ),
     .tsr_i                      ( tsr_csr_id                 ),
-    .hu_i                       ( hu                          )
+    .hu_i                       ( hu                         ),
+    .stopi_o                    ( stopi                      ),
+    .mtopi_o                    ( mtopi                      )
   );
 
   // ---------
@@ -570,6 +574,8 @@ module ariane import ariane_pkg::*; #(
     .frm_o                  ( frm_csr_id_issue_ex           ),
     .fprec_o                ( fprec_csr_ex                  ),
     .irq_ctrl_o             ( irq_ctrl_csr_id               ),
+    .stopi_i                ( stopi                         ),
+    .mtopi_i                ( mtopi                         ),
     .ld_st_priv_lvl_o       ( ld_st_priv_lvl_csr_ex         ),
     .ld_st_v_o              ( ld_st_v_csr_ex                ),
     .csr_hs_ld_st_inst_i    ( csr_hs_ld_st_inst_ex          ),

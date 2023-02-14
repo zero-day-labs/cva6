@@ -41,7 +41,9 @@ module id_stage (
     input  logic                          tw_i,
     input  logic                          vtw_i,
     input  logic                          tsr_i,
-    input  logic                          hu_i                 // hypervisor user mode
+    input  logic                          hu_i,                // hypervisor user mode
+    output logic [riscv::XLEN-1:0]                    stopi_o,
+    output logic [riscv::XLEN-1:0]                    mtopi_o
 );
     // ID/ISSUE register stage
     struct packed {
@@ -91,8 +93,10 @@ module id_stage (
         .vtw_i,
         .tsr_i,
         .hu_i,
-        .instruction_o           ( decoded_instruction          ),
-        .is_control_flow_instr_o ( is_control_flow_instr        )
+        .instruction_o           ( decoded_instruction             ),
+        .is_control_flow_instr_o ( is_control_flow_instr           ),
+        .stopi_o                 ( stopi_o                         ),
+        .mtopi_o                 ( mtopi_o                         )
     );
 
     // ------------------
