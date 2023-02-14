@@ -105,6 +105,8 @@ module csr_regfile import ariane_pkg::*; #(
     output logic [15:0][riscv::PLEN-3:0] pmpaddr_o            // PMP addresses
 );
     // AIA Spec
+    logic [7:0] miselect_d, miselect_q; 
+    logic [7:0] siselect_d, siselect_q; 
     localparam logic [riscv::XLEN-1:0] AIA_CSR_DEF_PRIO = 1;
 
     // internal signal to keep track of access exceptions
@@ -476,8 +478,40 @@ module csr_regfile import ariane_pkg::*; #(
                 end
                 riscv::CSR_MENVCFG:            csr_rdata = menvcfg_q;
                 // Smaia and Ssaia
-                riscv::CSR_MTOPI:              csr_rdata = (mtopi_i == 0) ? '0 : (((mtopi_i) << 16) | AIA_CSR_DEF_PRIO);
-                riscv::CSR_STOPI:              csr_rdata = (stopi_i == 0) ? '0 : (((stopi_i) << 16) | AIA_CSR_DEF_PRIO);
+                riscv::CSR_MISELECT:           csr_rdata = {{riscv::XLEN-8{1'b0}}, miselect_q};
+                riscv::CSR_MIREG: begin
+                    case (miselect_q) inside
+                        [8'h30 : 8'h3F]: begin
+                            // Return 1 iprio array not implemented yet
+                            csr_rdata = AIA_CSR_DEF_PRIO;
+                        end
+                        [8'h70 : 8'hFF]: begin
+                            // IMSIC not implemented yet
+                            read_access_exception = 1'b1;
+                        end 
+                        default: read_access_exception = 1'b1;
+                    endcase
+                end
+                riscv::CSR_MTOPI:              csr_rdata = (mtopi_i == 0) ? '0 : 
+                                                           (((mtopi_i) << 16) | AIA_CSR_DEF_PRIO);
+                riscv::CSR_MVIEN:              csr_rdata = '0;
+                riscv::CSR_MVIP:               csr_rdata = '0;
+                riscv::CSR_STOPI:              csr_rdata = (stopi_i == 0) ? '0 : 
+                                                           (((stopi_i) << 16) | AIA_CSR_DEF_PRIO);
+                riscv::CSR_SISELECT:           csr_rdata = {{riscv::XLEN-8{1'b0}}, siselect_q};
+                riscv::CSR_SIREG: begin
+                    case (siselect_q) inside
+                        [8'h30 : 8'h3F]: begin
+                            // Return 1 iprio array not implemented yet
+                            csr_rdata = AIA_CSR_DEF_PRIO;
+                        end
+                        [8'h70 : 8'hFF]: begin
+                            // IMSIC not implemented yet
+                            read_access_exception = 1'b1;
+                        end 
+                        default: read_access_exception = 1'b1;
+                    endcase
+                end
                 // Counters and Timers
                 riscv::CSR_CYCLE:              csr_rdata = cycle_q;
                 riscv::CSR_INSTRET:            csr_rdata = instret_q;
@@ -1165,6 +1199,35 @@ module csr_regfile import ariane_pkg::*; #(
                         mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | riscv::MIP_VSSIP;
                     end
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
+                end
+                // Smaia and Ssaia
+                riscv::CSR_MISELECT: miselect_d = csr_wdata[7:0];
+                riscv::CSR_MIREG: begin
+                    case (miselect_q) inside
+                        [8'h30 : 8'h3F]: begin
+                            // Do nothing, iprio array not implemented yet
+                        end
+                        [8'h70 : 8'hFF]: begin
+                            // IMSIC not implemented yet
+                            update_access_exception = 1'b1;
+                        end 
+                        default: update_access_exception = 1'b1;
+                    endcase
+                end
+                riscv::CSR_MVIEN:;  // Do nothing, not supported by openSBI
+                riscv::CSR_MVIP:;   // Do nothing, not supported by openSBI
+                riscv::CSR_SISELECT: siselect_d = csr_wdata[7:0];
+                riscv::CSR_SIREG: begin
+                    case (siselect_q) inside
+                        [8'h30 : 8'h3F]: begin
+                            // Do nothing, iprio array not implemented yet
+                        end
+                        [8'h70 : 8'hFF]: begin
+                            // IMSIC not implemented yet
+                            update_access_exception = 1'b1;
+                        end 
+                        default: update_access_exception = 1'b1;
+                    endcase
                 end
                 // performance counters
                 riscv::CSR_MCYCLE:             cycle_d     = csr_wdata;
@@ -1947,6 +2010,9 @@ module csr_regfile import ariane_pkg::*; #(
             senvcfg_q              <= {riscv::XLEN{1'b0}};
             dcache_q               <= {{riscv::XLEN-1{1'b0}}, 1'b1};
             icache_q               <= {{riscv::XLEN-1{1'b0}}, 1'b1};
+            // AIA
+            miselect_q             <= '0;
+            siselect_q             <= '0;
             // supervisor mode registers
             sepc_q                 <= {riscv::XLEN{1'b0}};
             scause_q               <= {riscv::XLEN{1'b0}};
@@ -2013,6 +2079,9 @@ module csr_regfile import ariane_pkg::*; #(
             senvcfg_q              <= senvcfg_d;
             dcache_q               <= dcache_d;
             icache_q               <= icache_d;
+            // AIA
+            miselect_q             <= miselect_d;
+            siselect_q             <= siselect_q;
             // supervisor mode registers
             sepc_q                 <= sepc_d;
             scause_q               <= scause_d;
