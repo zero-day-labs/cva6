@@ -1323,11 +1323,15 @@ module csr_regfile import ariane_pkg::*; #(
         // we are currently not in debug mode and could potentially enter
         if (!debug_mode_q) begin
             dcsr_d.prv = priv_lvl_o;
+            // save virtualization mode bit
+            dcsr_d.v   = v_q;
             // trigger module fired
 
             // caused by a breakpoint
             if (ex_i.valid && ex_i.cause == riscv::BREAKPOINT) begin
                 dcsr_d.prv = priv_lvl_o;
+                // save virtualization mode bit
+                dcsr_d.v   = v_q;
                 // check that we actually want to enter debug depending on the privilege level we are currently in
                 unique case (priv_lvl_o)
                     riscv::PRIV_LVL_M: begin
@@ -1335,12 +1339,12 @@ module csr_regfile import ariane_pkg::*; #(
                         set_debug_pc_o = dcsr_q.ebreakm;
                     end
                     riscv::PRIV_LVL_S: begin
-                        debug_mode_d = dcsr_q.ebreaks;
-                        set_debug_pc_o = dcsr_q.ebreaks;
+                        debug_mode_d = v_q ? dcsr_q.ebreakvs : dcsr_q.ebreaks;
+                        set_debug_pc_o = v_q ? dcsr_q.ebreakvs : dcsr_q.ebreaks;
                     end
                     riscv::PRIV_LVL_U: begin
-                        debug_mode_d = dcsr_q.ebreaku;
-                        set_debug_pc_o = dcsr_q.ebreaku;
+                        debug_mode_d = v_q ? dcsr_q.ebreakvu : dcsr_q.ebreaku;
+                        set_debug_pc_o = v_q ? dcsr_q.ebreakvu : dcsr_q.ebreaku;
                     end
                     default:;
                 endcase
@@ -1352,6 +1356,8 @@ module csr_regfile import ariane_pkg::*; #(
             // we've got a debug request
             if (ex_i.valid && ex_i.cause == riscv::DEBUG_REQUEST) begin
                 dcsr_d.prv = priv_lvl_o;
+                // save virtualization mode bit
+                dcsr_d.v   = v_q;
                 // save the PC
                 dpc_d = {{riscv::XLEN-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
                 // enter debug mode
@@ -1365,6 +1371,8 @@ module csr_regfile import ariane_pkg::*; #(
             // single step enable and we just retired an instruction
             if (dcsr_q.step && commit_ack_i[0]) begin
                 dcsr_d.prv = priv_lvl_o;
+                // save virtualization mode bit
+                dcsr_d.v   = v_q;
                 // valid CTRL flow change
                 if (commit_instr_i[0].fu == CTRL_FLOW) begin
                     // we saved the correct target address during execute
@@ -1504,6 +1512,8 @@ module csr_regfile import ariane_pkg::*; #(
             eret_o = 1'b1;
             // restore the previous privilege level
             priv_lvl_d     = riscv::priv_lvl_t'(dcsr_q.prv);
+            // restore the previous virtualization mode
+            v_d            = dcsr_q.v;
             // actually return from debug mode
             debug_mode_d = 1'b0;
         end
