@@ -167,7 +167,7 @@ package ariane_pkg;
     localparam bit RVD = (riscv::IS_XLEN64 ? 1:0) & riscv::FPU_EN;              // Is D extension enabled for only 64 bit CPU
 `endif
     localparam bit RVA = 1'b1; // Is A extension enabled
-    localparam bit RVH = 1'b0; // Is H extension enabled (disabled by default)
+    localparam bit RVH = cva6_config_pkg::CVA6ConfigHExtEn; // Is H extension enabled (disabled by default)
 
     // Transprecision floating-point extensions configuration
     localparam bit XF16    = cva6_config_pkg::CVA6ConfigF16En; // Is half-precision float extension (Xf16) enabled
