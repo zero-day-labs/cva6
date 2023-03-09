@@ -23,6 +23,9 @@ module ariane_peripherals #(
     input  logic       clk_i           , // Clock
     input  logic       rst_ni          , // Asynchronous reset active low
     AXI_BUS.Slave      plic            ,
+    `ifdef MSI_MODE
+    AXI_BUS.Master     msi_channel     ,
+    `endif
     AXI_BUS.Slave      uart            ,
     AXI_BUS.Slave      spi             ,
     AXI_BUS.Slave      ethernet        ,
@@ -54,6 +57,7 @@ module ariane_peripherals #(
     // ---------------
     // 1. PLIC
     // ---------------
+    localparam UART_IRQ = 10;
     logic [ariane_soc::NumSources-1:0] irq_sources;
 
     // Unused interrupt sources
@@ -166,18 +170,65 @@ module ariane_peripherals #(
     assign reg_bus.error = plic_resp.error;
     assign reg_bus.ready = plic_resp.ready;
 
-    plic_top #(
-      .N_SOURCE    ( ariane_soc::NumSources  ),
-      .N_TARGET    ( ariane_soc::NumTargets  ),
-      .MAX_PRIO    ( ariane_soc::MaxPriority )
-    ) i_plic (
-      .clk_i,
-      .rst_ni,
-      .req_i         ( plic_req    ),
-      .resp_o        ( plic_resp   ),
-      .le_i          ( '0          ), // 0:level 1:edge
-      .irq_sources_i ( irq_sources ),
-      .eip_targets_o ( irq_o       )
+    // plic_top #(
+    //   .N_SOURCE    ( ariane_soc::NumSources  ),
+    //   .N_TARGET    ( ariane_soc::NumTargets  ),
+    //   .MAX_PRIO    ( ariane_soc::MaxPriority )
+    // ) i_plic (
+    //   .clk_i,
+    //   .rst_ni,
+    //   .req_i         ( plic_req    ),
+    //   .resp_o        ( plic_resp   ),
+    //   .le_i          ( '0          ), // 0:level 1:edge
+    //   .irq_sources_i ( irq_sources ),
+    //   .eip_targets_o ( irq_o       )
+    // );
+    
+    `ifdef MSI_MODE
+    ariane_axi::req_t         msi_req;
+    ariane_axi::resp_t        msi_resp; 
+
+    assign msi_channel.aw_burst     = 2'b01;
+    assign msi_channel.aw_addr      = msi_req.aw.addr;
+    assign msi_channel.aw_valid     = msi_req.aw_valid;
+    assign msi_resp.aw_ready        = msi_channel.aw_ready;
+
+    assign msi_channel.w_data       = msi_req.w.data;
+    assign msi_channel.w_strb       = msi_req.w.strb;
+    assign msi_channel.w_valid      = msi_req.w_valid;
+    assign msi_resp.w_ready         = msi_channel.w_ready;
+
+    assign msi_channel.b_ready      = msi_req.b_ready;
+    assign msi_resp.b_valid         = msi_channel.b_valid;
+    assign msi_resp.b.resp          = msi_channel.b_resp;
+
+    // Related to a read transactio. Zero?
+    assign msi_channel.ar_addr      = msi_req.ar.addr;
+    assign msi_channel.ar_valid     = msi_req.ar_valid;
+    assign msi_resp.ar_ready        = msi_channel.ar_ready;
+
+    assign msi_channel.r_ready      = msi_req.r_ready;
+    assign msi_resp.r_valid         = msi_channel.r_valid;
+    assign msi_resp.r.data          = msi_channel.r_data;
+    assign msi_resp.r.resp          = msi_channel.r_resp;
+    `endif
+
+   aplic_top #(
+        .NR_SRC         ( ariane_soc::NumSources),
+        .MIN_PRIO       ( ariane_soc::MaxPriority),
+        .NR_IDCs        ( 1                     ) // One core
+    ) i_aplic_top (
+        .i_clk          ( clk_i                 ),
+        .ni_rst         ( rst_ni                ),
+        .i_req_cfg      ( plic_req              ),
+        .o_resp_cfg     ( plic_resp             ),
+        .i_irq_sources  ( {irq_sources, 1'b0}   ),
+        `ifdef DIRECT_MODE
+        .o_Xeip_targets ( irq_o                 )
+        `elsif MSI_MODE
+        .o_req          ( msi_req               ),
+        .i_resp         ( msi_resp              )
+        `endif
     );
 
     // ---------------
@@ -270,7 +321,7 @@ module ariane_peripherals #(
             .PRDATA  ( uart_prdata     ),
             .PREADY  ( uart_pready     ),
             .PSLVERR ( uart_pslverr    ),
-            .INT     ( irq_sources[0]  ),
+            .INT     ( irq_sources[UART_IRQ]  ),
             .OUT1N   (                 ), // keep open
             .OUT2N   (                 ), // keep open
             .RTSN    (                 ), // no flow control

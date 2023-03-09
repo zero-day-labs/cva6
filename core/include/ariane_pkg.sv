@@ -23,6 +23,8 @@
   `include "l15.tmp.h"
 `endif
 
+`define MSI_MODE
+
 package ariane_pkg;
 
     // ---------------

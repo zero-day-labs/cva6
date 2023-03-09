@@ -95,6 +95,18 @@ module csr_regfile import ariane_pkg::*; #(
     // Caches
     output logic                  icache_en_o,                // L1 ICache Enable
     output logic                  dcache_en_o,                // L1 DCache Enable
+    // IMSIC
+`ifdef MSI_MODE
+    output  logic [1:0]                     imsic_priv_lvl_o    ,
+    output  logic [$clog2(ariane_soc::NrVSIntpFiles):0]           imsic_vgein_o       ,
+    output  logic [riscv::XLEN-1:0]         imsic_addr_o        ,
+    output  logic [riscv::XLEN-1:0]         imsic_data_o        ,
+    output  logic                           imsic_we_o          ,
+    output  logic                           imsic_claim_o       ,
+    input   logic [riscv::XLEN-1:0]         imsic_data_i        ,
+    input   logic                           imsic_exception_i   ,
+    input   logic [ariane_soc::NrIntpFiles-1:0][$clog2(ariane_soc::NumSources)-1:0]     imsic_xtopei_i      ,
+`endif
     // Performance Counter
     output logic  [4:0]           perf_addr_o,                // read/write address to performance counter module (up to 29 aux counters possible in riscv encoding.h)
     output logic[riscv::XLEN-1:0] perf_data_o,                // write data to performance counter module
@@ -105,9 +117,14 @@ module csr_regfile import ariane_pkg::*; #(
     output logic [15:0][riscv::PLEN-3:0] pmpaddr_o            // PMP addresses
 );
     // AIA Spec
-    logic [7:0] miselect_d, miselect_q; 
-    logic [7:0] siselect_d, siselect_q; 
-    localparam logic [riscv::XLEN-1:0] AIA_CSR_DEF_PRIO = 1;
+    localparam logic [riscv::XLEN-1:0]      AIA_CSR_DEF_PRIO = 1;
+     logic [7:0]                             miselect_d     , miselect_q     ; 
+    logic [7:0]                             siselect_d     , siselect_q     ; 
+    `ifdef MSI_MODE
+    logic [1:0]                             rimsic_priv_lvl, wimsic_priv_lvl;
+    logic [riscv::XLEN-1:0]                 rimsic_addr    , wimsic_addr    ;
+    logic [$clog2(ariane_soc::NumSources):0]rimsic_vgein   , wimsic_vgein   ;
+    `endif
 
     // internal signal to keep track of access exceptions
     logic        read_access_exception, update_access_exception, privilege_violation;
@@ -233,6 +250,11 @@ module csr_regfile import ariane_pkg::*; #(
         virtual_read_access_exception = 1'b0;
         csr_rdata = '0;
         perf_addr_o = csr_addr.address[4:0];
+        `ifdef MSI_MODE
+        rimsic_addr         = '0;
+        rimsic_priv_lvl     = '0;
+        rimsic_vgein        = '0;
+        `endif
 
         if (csr_read) begin
             unique case (csr_addr.address)
@@ -486,18 +508,26 @@ module csr_regfile import ariane_pkg::*; #(
                             csr_rdata = AIA_CSR_DEF_PRIO;
                         end
                         [8'h70 : 8'hFF]: begin
-                            // IMSIC not implemented yet
+                            `ifdef MSI_MODE
+                            rimsic_addr         = {{riscv::XLEN-8{1'b0}}, miselect_q}; 
+                            rimsic_priv_lvl     = riscv::PRIV_LVL_M;
+                            rimsic_vgein        = '0;
+                            csr_rdata           = imsic_data_i;
+                            `else
                             read_access_exception = 1'b1;
+                            `endif
                         end 
                         default: read_access_exception = 1'b1;
                     endcase
                 end
+                `ifdef MSI_MODE
+                riscv::CSR_MTOPIE:             csr_rdata = ((imsic_xtopei_i[ariane_soc::M_FILE] << 16)|
+                                                            imsic_xtopei_i[ariane_soc::M_FILE]);
+                `endif
                 riscv::CSR_MTOPI:              csr_rdata = (mtopi_i == 0) ? '0 : 
                                                            (((mtopi_i) << 16) | AIA_CSR_DEF_PRIO);
                 riscv::CSR_MVIEN:              csr_rdata = '0;
                 riscv::CSR_MVIP:               csr_rdata = '0;
-                riscv::CSR_STOPI:              csr_rdata = (stopi_i == 0) ? '0 : 
-                                                           (((stopi_i) << 16) | AIA_CSR_DEF_PRIO);
                 riscv::CSR_SISELECT:           csr_rdata = {{riscv::XLEN-8{1'b0}}, siselect_q};
                 riscv::CSR_SIREG: begin
                     case (siselect_q) inside
@@ -506,12 +536,24 @@ module csr_regfile import ariane_pkg::*; #(
                             csr_rdata = AIA_CSR_DEF_PRIO;
                         end
                         [8'h70 : 8'hFF]: begin
-                            // IMSIC not implemented yet
+                            `ifdef MSI_MODE
+                            rimsic_addr         = {{riscv::XLEN-8{1'b0}}, siselect_q}; 
+                            rimsic_priv_lvl     = riscv::PRIV_LVL_S;
+                            rimsic_vgein        = '0;
+                            csr_rdata           = imsic_data_i;
+                            `else
                             read_access_exception = 1'b1;
+                            `endif
                         end 
                         default: read_access_exception = 1'b1;
                     endcase
                 end
+                `ifdef MSI_MODE
+                riscv::CSR_STOPIE:             csr_rdata = ((imsic_xtopei_i[ariane_soc::S_FILE] << 16)|
+                                                            imsic_xtopei_i[ariane_soc::S_FILE]);
+                `endif
+                riscv::CSR_STOPI:              csr_rdata = (stopi_i == 0) ? '0 : 
+                                                           (((stopi_i) << 16) | AIA_CSR_DEF_PRIO);
                 // Counters and Timers
                 riscv::CSR_CYCLE:              csr_rdata = cycle_q;
                 riscv::CSR_INSTRET:            csr_rdata = instret_q;
@@ -706,6 +748,20 @@ module csr_regfile import ariane_pkg::*; #(
 
         pmpcfg_d                = pmpcfg_q;
         pmpaddr_d               = pmpaddr_q;
+        
+        // AIA
+        miselect_d              = miselect_q;
+        siselect_d              = siselect_q;
+
+        `ifdef MSI_MODE
+        wimsic_addr             = '0;
+        wimsic_priv_lvl         = '0;
+        wimsic_vgein            = '0;   
+        imsic_data_o            = '0; 
+        imsic_we_o              = '0;
+        imsic_claim_o           = '0; 
+        `endif
+
         // check for correct access rights and that we are writing
         if (csr_we) begin
             unique case (csr_addr.address)
@@ -1208,12 +1264,25 @@ module csr_regfile import ariane_pkg::*; #(
                             // Do nothing, iprio array not implemented yet
                         end
                         [8'h70 : 8'hFF]: begin
-                            // IMSIC not implemented yet
+                            `ifdef MSI_MODE
+                            wimsic_addr         = {{riscv::XLEN-8{1'b0}}, miselect_q}; 
+                            wimsic_priv_lvl     = riscv::PRIV_LVL_M;
+                            wimsic_vgein        = '0;
+                            imsic_data_o        = csr_wdata;
+                            imsic_we_o          = 1'b1;
+                            `else
                             update_access_exception = 1'b1;
+                            `endif
                         end 
                         default: update_access_exception = 1'b1;
                     endcase
                 end
+                `ifdef MSI_MODE
+                riscv::CSR_MTOPIE: begin
+                    wimsic_priv_lvl     = riscv::PRIV_LVL_M;
+                    imsic_claim_o       = 1'b1; 
+                end
+                `endif
                 riscv::CSR_MVIEN:;  // Do nothing, not supported by openSBI
                 riscv::CSR_MVIP:;   // Do nothing, not supported by openSBI
                 riscv::CSR_SISELECT: siselect_d = csr_wdata[7:0];
@@ -1223,12 +1292,25 @@ module csr_regfile import ariane_pkg::*; #(
                             // Do nothing, iprio array not implemented yet
                         end
                         [8'h70 : 8'hFF]: begin
-                            // IMSIC not implemented yet
+                            `ifdef MSI_MODE
+                            wimsic_addr         = {{riscv::XLEN-8{1'b0}}, siselect_q}; 
+                            wimsic_priv_lvl     = riscv::PRIV_LVL_S;
+                            wimsic_vgein        = '0;
+                            imsic_data_o        = csr_wdata;
+                            imsic_we_o          = 1'b1;
+                            `else
                             update_access_exception = 1'b1;
+                            `endif
                         end 
                         default: update_access_exception = 1'b1;
                     endcase
                 end
+                `ifdef MSI_MODE
+                riscv::CSR_STOPIE: begin
+                    wimsic_priv_lvl     = riscv::PRIV_LVL_S;
+                    imsic_claim_o       = 1'b1; 
+                end
+                `endif
                 // performance counters
                 riscv::CSR_MCYCLE:             cycle_d     = csr_wdata;
                 riscv::CSR_MINSTRET:           instret     = csr_wdata;
@@ -1675,6 +1757,16 @@ module csr_regfile import ariane_pkg::*; #(
     end
 
     // ---------------------------
+    // IMSIC Output assign
+    // ---------------------------
+    /** Give priority to writes */
+    `ifdef MSI_MODE
+    assign imsic_addr_o        = ((imsic_we_o == 1'b1) || (imsic_claim_o == 1'b1) ) ? wimsic_addr    : rimsic_addr;
+    assign imsic_priv_lvl_o    = ((imsic_we_o == 1'b1) || (imsic_claim_o == 1'b1) ) ? wimsic_priv_lvl: rimsic_priv_lvl;
+    assign imsic_vgein_o       = ((imsic_we_o == 1'b1) || (imsic_claim_o == 1'b1) ) ? wimsic_vgein   : rimsic_vgein;
+    `endif
+
+    // ---------------------------
     // CSR OP Select Logic
     // ---------------------------
     always_comb begin : csr_op_logic
@@ -2081,7 +2173,7 @@ module csr_regfile import ariane_pkg::*; #(
             icache_q               <= icache_d;
             // AIA
             miselect_q             <= miselect_d;
-            siselect_q             <= siselect_q;
+            siselect_q             <= siselect_d;
             // supervisor mode registers
             sepc_q                 <= sepc_d;
             scause_q               <= scause_d;

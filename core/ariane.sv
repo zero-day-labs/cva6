@@ -38,6 +38,18 @@ module ariane import ariane_pkg::*; #(
   // Timer facilities
   input  logic                         time_irq_i,   // timer interrupt in (async)
   input  logic                         debug_req_i,  // debug request (async)
+  // IMSIC
+`ifdef MSI_MODE
+  output  logic [1:0]                     imsic_priv_lvl_o    ,
+  output  logic [$clog2(ariane_soc::NrVSIntpFiles):0]           imsic_vgein_o       ,
+  output  logic [riscv::XLEN-1:0]         imsic_addr_o        ,
+  output  logic [riscv::XLEN-1:0]         imsic_data_o        ,
+  output  logic                           imsic_we_o          ,
+  output  logic                           imsic_claim_o       ,
+  input   logic [riscv::XLEN-1:0]         imsic_data_i        ,
+  input   logic                           imsic_exception_i   ,
+  input   logic [ariane_soc::NrIntpFiles:0][$clog2(ariane_soc::NumSources)-1:0]     imsic_xtopei_i      ,
+`endif
 `ifdef FIRESIM_TRACE
   // firesim trace port
   output traced_instr_pkg::trace_port_t trace_o,
@@ -601,6 +613,15 @@ module ariane import ariane_pkg::*; #(
     .debug_mode_o           ( debug_mode                    ),
     .single_step_o          ( single_step_csr_commit        ),
     .dcache_en_o            ( dcache_en_csr_nbdcache        ),
+    .imsic_priv_lvl_o       ( imsic_priv_lvl_o              ),  
+    .imsic_vgein_o          ( imsic_vgein_o                 ),
+    .imsic_addr_o           ( imsic_addr_o                  ),  
+    .imsic_data_o           ( imsic_data_o                  ),  
+    .imsic_we_o             ( imsic_we_o                    ),
+    .imsic_claim_o          ( imsic_claim_o                 ),    
+    .imsic_data_i           ( imsic_data_i                  ),  
+    .imsic_exception_i      ( imsic_exception_i             ),
+    .imsic_xtopei_i         ( imsic_xtopei_i                ),      
     .icache_en_o            ( icache_en_csr                 ),
     .perf_addr_o            ( addr_csr_perf                 ),
     .perf_data_o            ( data_csr_perf                 ),

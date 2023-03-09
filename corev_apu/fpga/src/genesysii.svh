@@ -15,6 +15,10 @@
 // include KINTEX7 specific code (relevant for KC705, GENESYSII,...)
 `define KINTEX7
 
+// This define should be removed once the aia_defines.svh is global
+`define MSI_MODE
+// `define DIRECT_MODE
+
 `define ARIANE_DATA_WIDTH 64
 
 // Instantiate protocl checker

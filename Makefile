@@ -167,6 +167,15 @@ src :=  $(filter-out core/ariane_regfile.sv, $(wildcard core/*.sv))             
         corev_apu/rv_plic/rtl/rv_plic_gateway.sv                                     \
         corev_apu/rv_plic/rtl/plic_regmap.sv                                         \
         corev_apu/rv_plic/rtl/plic_top.sv                                            \
+		corev_apu/aia/rtl/aplic_domain_gateway.sv                                    \
+		corev_apu/aia/rtl/axi4_lite_write_master.sv                                  \
+        corev_apu/aia/rtl/aplic_domain_notifier.sv                                   \
+        corev_apu/aia/rtl/aplic_domain_regctl.sv                                     \
+        corev_apu/aia/rtl/aplic_domain_top.sv                                        \
+		corev_apu/aia/rtl/aplic_regmap.sv                                            \
+		corev_apu/aia/rtl/aplic_top.sv                                               \
+		corev_apu/aia/rtl/imsic_regmap.sv										     \
+		corev_apu/aia/rtl/imsic_top.sv										         \
         corev_apu/riscv-dbg/src/dmi_cdc.sv                                           \
         corev_apu/riscv-dbg/src/dmi_jtag.sv                                          \
         corev_apu/riscv-dbg/src/dmi_jtag_tap.sv                                      \
@@ -755,7 +764,8 @@ fpga: $(ariane_pkg) $(util) $(src) $(fpga_src) $(uart_src)
 	@echo read_verilog -sv {$(filter-out $(fpga_filter), $(src))} 	   >> corev_apu/fpga/scripts/add_sources.tcl
 	@echo read_verilog -sv {$(fpga_src)}   >> corev_apu/fpga/scripts/add_sources.tcl
 	@echo "[FPGA] Generate Bitstream"
-	cd corev_apu/fpga && make BOARD=$(BOARD) XILINX_PART=$(XILINX_PART) XILINX_BOARD=$(XILINX_BOARD) CLK_PERIOD_NS=$(CLK_PERIOD_NS)
+	cd corev_apu/fpga && make -j$(nproc) BOARD=$(BOARD) XILINX_PART=$(XILINX_PART) XILINX_BOARD=$(XILINX_BOARD) CLK_PERIOD_NS=$(CLK_PERIOD_NS)
+#	$(MAKE) -C ./corev_apu/fpga BOARD=$(BOARD) XILINX_PART=$(XILINX_PART) XILINX_BOARD=$(XILINX_BOARD) CLK_PERIOD_NS=$(CLK_PERIOD_NS)
 
 .PHONY: fpga
 
