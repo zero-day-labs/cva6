@@ -187,7 +187,9 @@ module ariane_peripherals #(
     `ifdef MSI_MODE
     ariane_axi::req_t         msi_req;
     ariane_axi::resp_t        msi_resp; 
+    // axi_master_connect i_axi_master_connect_aplic (.axi_req_i(msi_req), .axi_resp_o(msi_resp), .master(msi_channel));
 
+    assign msi_channel.aw_id         = msi_req.aw.id;
     assign msi_channel.aw_burst     = 2'b01;
     assign msi_channel.aw_addr      = msi_req.aw.addr;
     assign msi_channel.aw_valid     = msi_req.aw_valid;
@@ -196,6 +198,7 @@ module ariane_peripherals #(
     assign msi_channel.w_data       = msi_req.w.data;
     assign msi_channel.w_strb       = msi_req.w.strb;
     assign msi_channel.w_valid      = msi_req.w_valid;
+    assign msi_channel.w_last       = msi_req.w.last;
     assign msi_resp.w_ready         = msi_channel.w_ready;
 
     assign msi_channel.b_ready      = msi_req.b_ready;

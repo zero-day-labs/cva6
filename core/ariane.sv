@@ -48,7 +48,7 @@ module ariane import ariane_pkg::*; #(
   output  logic                           imsic_claim_o       ,
   input   logic [riscv::XLEN-1:0]         imsic_data_i        ,
   input   logic                           imsic_exception_i   ,
-  input   logic [ariane_soc::NrIntpFiles:0][$clog2(ariane_soc::NumSources)-1:0]     imsic_xtopei_i      ,
+  input   logic [ariane_soc::NrIntpFiles-1:0][$clog2(ariane_soc::NumSources)-1:0]     imsic_xtopei_i      ,
 `endif
 `ifdef FIRESIM_TRACE
   // firesim trace port

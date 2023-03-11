@@ -14,7 +14,7 @@ package ariane_soc;
   // M-Mode Hart, S-Mode Hart
   localparam int unsigned NumTargets = 2;
   // Uart, SPI, Ethernet, reserved
-  localparam int unsigned NumSources = 30;
+  localparam int unsigned NumSources = 32;
   localparam int unsigned MaxPriority = 7;
 
   `ifdef MSI_MODE

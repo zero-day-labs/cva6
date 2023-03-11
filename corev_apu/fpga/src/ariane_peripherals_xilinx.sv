@@ -64,12 +64,13 @@ module ariane_peripherals #(
     // ---------------
     // 1. PLIC
     // ---------------
-    localparam UART_IRQ = 9;
-    localparam SPI_IRQ  = 10;
+    localparam UART_IRQ = 0;
+    localparam SPI_IRQ  = 1;
+    localparam ETH_IRQ  = 2;
     logic [ariane_soc::NumSources-1:0] irq_sources;
 
     // Unused interrupt sources
-    assign irq_sources[ariane_soc::NumSources-1:11] = '0;
+    assign irq_sources[ariane_soc::NumSources-1:7] = '0;
 
     REG_BUS #(
         .ADDR_WIDTH ( 32 ),
@@ -196,6 +197,12 @@ module ariane_peripherals #(
     ariane_axi::req_t         msi_req;
     ariane_axi::resp_t        msi_resp; 
 
+
+    /** This line should be a replacement for the list of assigns */
+    /** Implies that other signals should be hwierd to 0 in aplic ?*/
+    // axi_master_connect i_axi_master_connect_aplic (.axi_req_i(msi_req), .axi_resp_o(msi_resp), .master(msi_channel));
+
+    assign msi_channel.aw_id         = msi_req.aw.id;
     assign msi_channel.aw_burst     = 2'b01;
     assign msi_channel.aw_addr      = msi_req.aw.addr;
     assign msi_channel.aw_valid     = msi_req.aw_valid;
@@ -204,6 +211,7 @@ module ariane_peripherals #(
     assign msi_channel.w_data       = msi_req.w.data;
     assign msi_channel.w_strb       = msi_req.w.strb;
     assign msi_channel.w_valid      = msi_req.w_valid;
+    assign msi_channel.w_last       = msi_req.w.last;
     assign msi_resp.w_ready         = msi_channel.w_ready;
 
     assign msi_channel.b_ready      = msi_req.b_ready;
@@ -613,7 +621,7 @@ module ariane_peripherals #(
        .phy_mdio_i(eth_mdio_i),
        .phy_mdio_o(eth_mdio_o),
        .phy_mdio_oe(eth_mdio_oe),
-       .eth_irq(irq_sources[2])
+       .eth_irq(irq_sources[ETH_IRQ])
     );
 
        IOBUF #(
@@ -629,7 +637,7 @@ module ariane_peripherals #(
        );
 
     end else begin
-        assign irq_sources [2] = 1'b0;
+        assign irq_sources [ETH_IRQ] = 1'b0;
         assign ethernet.aw_ready = 1'b1;
         assign ethernet.ar_ready = 1'b1;
         assign ethernet.w_ready = 1'b1;

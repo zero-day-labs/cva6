@@ -254,7 +254,7 @@ logic                           imsic_we          ;
 logic                           imsic_claim       ;
 logic [riscv::XLEN-1:0]         imsic_data_o      ;
 logic                           imsic_exception   ;
-logic [1:0][NR_SRC_LEN-1:0]     imsic_xtopei      ;
+logic [ariane_soc::NrIntpFiles-1:0][NR_SRC_LEN-1:0]     imsic_xtopei      ;
 `endif
 
 logic [NBSlave-1:0] pc_asserted;
