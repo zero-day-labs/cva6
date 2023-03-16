@@ -37,3 +37,6 @@
 [submodule "corev_apu/tb/common_verification"]
 	path = corev_apu/tb/common_verification
 	url = https://github.com/pulp-platform/common_verification.git
+[submodule "corev_apu/iDMA"]
+	path = corev_apu/iDMA
+	url = https://github.com/pulp-platform/iDMA.git
