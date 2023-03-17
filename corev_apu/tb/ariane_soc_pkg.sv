@@ -32,7 +32,6 @@ package ariane_soc;
   localparam IdWidthSlave = IdWidth + $clog2(NrSlaves);
 
   // must be in order from highest address to lowest
-  //? Why this position?
   typedef enum int unsigned {
     DRAM      =  0,
     IOMMU_CFG =  1, // IOMMU programming IF

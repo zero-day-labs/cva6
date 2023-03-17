@@ -874,19 +874,19 @@ module ariane_peripherals #(
      `AXI_ASSIGN_FROM_RESP(idma_axi_master, axi_iommu_tr_rsp)
   
       dma_core_wrap #(
-					.AXI_ADDR_WIDTH		( AxiAddrWidth           ),
-					.AXI_DATA_WIDTH		( AxiDataWidth           ),
-					.AXI_ID_WIDTH  		( AxiIdWidth             ),
-					.AXI_USER_WIDTH		( AxiUserWidth           ),
-					.AXI_SLV_ID_WIDTH (ariane_soc::IdWidthSlave)
+				.AXI_ADDR_WIDTH		( AxiAddrWidth           	),
+				.AXI_DATA_WIDTH		( AxiDataWidth           	),
+				.AXI_ID_WIDTH  		( AxiIdWidth             	),
+				.AXI_USER_WIDTH		( AxiUserWidth           	),
+				.AXI_SLV_ID_WIDTH ( ariane_soc::IdWidthSlave)
 			) i_dma (
-					.clk_i      ( clk_i            ),
-					.rst_ni     ( rst_ni           ),
-					.testmode_i ( 1'b0             ),
-					// slave port
-					.axi_slave  ( dma_cfg          ),
-					// master port
-					.axi_master ( idma_axi_master  )
+				.clk_i      			( clk_i            ),
+				.rst_ni     			( rst_ni           ),
+				.testmode_i 			( 1'b0             ),
+				// slave port
+				.axi_slave  			( dma_cfg          ),
+				// master port
+				.axi_master 			( idma_axi_master  )
 			);
 
 		// --------------
@@ -945,55 +945,60 @@ module ariane_peripherals #(
 			ariane_axi_soc::resp_slv_t axi_iommu_cfg_rsp;
 			`AXI_ASSIGN_TO_REQ(axi_iommu_cfg_req, iommu_cfg)
 			`AXI_ASSIGN_FROM_RESP(iommu_cfg, axi_iommu_cfg_rsp)
+
+			// Memory-mapped Register IF types
+			// name, addr_t, data_t, strb_t
+			`REG_BUS_TYPEDEF_ALL(iommu_reg, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
+			`AXI_LITE_TYPEDEF_ALL(axi_lite, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
   
-			// TODO: Where to define reg and axi_lite structs?
+			// TODO: Check includes in all files
       riscv_iommu #(
-				.IOTLB_ENTRIES		(16),
-				.DDTC_ENTRIES			(16),
-				.PDTC_ENTRIES			(16),
-				.DEVICE_ID_WIDTH  (AxiAddrWidth),	//? Master ID width? Slave ID width?
-				.PSCID_WIDTH      (20),
-				.GSCID_WIDTH      (16),
+				.IOTLB_ENTRIES		( 16								 				),
+				.DDTC_ENTRIES			( 16								 				),
+				.PDTC_ENTRIES			( 16								 				),
+				.DEVICE_ID_WIDTH  ( ariane_soc::IdWidth				),	//? Master ID width? Slave ID width?
+				.PSCID_WIDTH      ( 20								 				),
+				.GSCID_WIDTH      ( 16								 				),
 
-				.InclPID          (0),
-				.InclWSI_IG       (1),
-				.InclMSI_IG       (0),
+				.InclPID          ( 1'b0							 				),
+				.InclWSI_IG       ( 1'b1							 				),
+				.InclMSI_IG       ( 1'b0							 				),
 
-				.ADDR_WIDTH				(AxiAddrWidth							),
-				.DATA_WIDTH				(AxiDataWidth							),
-				.ID_WIDTH					(AxiIdWidth								),
-				.USER_WIDTH				(AxiUserWidth							),
-				.aw_chan_t				(ariane_axi_soc::aw_chan_t),
-				.w_chan_t					(ariane_axi_soc::w_chan_t	),
-				.b_chan_t					(ariane_axi_soc::b_chan_t	),
-				.ar_chan_t				(ariane_axi_soc::ar_chan_t),
-				.r_chan_t					(ariane_axi_soc::r_chan_t	),
-				.axi_req_t				(ariane_axi_soc::req_t		),
-				.axi_rsp_t				(ariane_axi_soc::resp_t		),
-				.axi_lite_req_t		(axi_lite_req_t						),
-				.axi_lite_rsp_t		(axi_lite_rsp_t						),
-				.reg_req_t				(reg_req_t								),
-				.reg_rsp_t				(reg_rsp_t								)
+				.ADDR_WIDTH				( AxiAddrWidth							),
+				.DATA_WIDTH				( AxiDataWidth							),
+				.ID_WIDTH					( ariane_soc::IdWidth				),
+				.USER_WIDTH				( AxiUserWidth							),
+				.aw_chan_t				( ariane_axi_soc::aw_chan_t ),
+				.w_chan_t					( ariane_axi_soc::w_chan_t	),
+				.b_chan_t					( ariane_axi_soc::b_chan_t	),
+				.ar_chan_t				( ariane_axi_soc::ar_chan_t ),
+				.r_chan_t					( ariane_axi_soc::r_chan_t	),
+				.axi_req_t				( ariane_axi_soc::req_t		  ),
+				.axi_rsp_t				( ariane_axi_soc::resp_t		),
+				.axi_lite_req_t		( axi_lite_req_t						),
+				.axi_lite_resp_t	( axi_lite_resp_t						),
+				.reg_req_t				( iommu_reg_req_t						),
+				.reg_rsp_t				( iommu_reg_rsp_t						)
 			) i_riscv_iommu (
 
-				.clk_i						(clk_i							),
-				.rst_ni						(rst_ni							),
+				.clk_i						( clk_i							  ),
+				.rst_ni						( rst_ni							),
 
 				// Translation Request Interface (Slave)
-				.dev_tr_req_i			(axi_iommu_tr_req		),
-				.dev_tr_resp_o		(axi_iommu_tr_rsp		),
+				.dev_tr_req_i			( axi_iommu_tr_req		),
+				.dev_tr_resp_o		( axi_iommu_tr_rsp		),
 
 				// Translation Completion Interface (Master)
-				.dev_comp_resp_i	(axi_iommu_comp_req	),
-				.dev_comp_req_o		(axi_iommu_comp_rsp	),
+				.dev_comp_resp_i	( axi_iommu_comp_req	),
+				.dev_comp_req_o		( axi_iommu_comp_rsp	),
 
 				// Implicit Memory Accesses Interface (Master)
-				.mem_resp_i				(axi_iommu_mem_req	),
-				.mem_req_o				(axi_iommu_mem_rsp	),
+				.mem_resp_i				( axi_iommu_mem_req		),
+				.mem_req_o				( axi_iommu_mem_rsp		),
 
 				// Programming Interface (Slave) (AXI4 Full -> AXI4-Lite -> Reg IF)
-				.prog_req_i				(axi_iommu_cfg_req	),
-				.prog_resp_o			(axi_iommu_cfg_rsp	),
+				.prog_req_i				( axi_iommu_cfg_req		),
+				.prog_resp_o			( axi_iommu_cfg_rsp		),
 
 				.wsi_wires_o			()	//? To connect where in the PLIC?
 			);
@@ -1051,7 +1056,6 @@ module ariane_peripherals #(
       assign iommu_mem.b_ready   = 1'b0;
       assign iommu_mem.ar_valid  = 1'b0;
       assign iommu_mem.r_ready   = 1'b0;
-  
     end  
 
 endmodule
