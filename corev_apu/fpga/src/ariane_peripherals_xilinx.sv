@@ -73,7 +73,7 @@ module ariane_peripherals #(
     logic [ariane_soc::NumSources-1:0] irq_sources;
 
     // Unused interrupt sources
-    assign irq_sources[ariane_soc::NumSources-1:7] = '0;
+    assign irq_sources[ariane_soc::NumSources-1:23] = '0;
 
     REG_BUS #(
         .ADDR_WIDTH ( 32 ),
@@ -1000,7 +1000,7 @@ module ariane_peripherals #(
 				.prog_req_i				( axi_iommu_cfg_req		),
 				.prog_resp_o			( axi_iommu_cfg_rsp		),
 
-				.wsi_wires_o			()	//? To connect where in the PLIC?
+				.wsi_wires_o			(irq_sources[22:7])
 			);
   
 		//-----------

@@ -450,6 +450,7 @@ module iommu_translation_wrapper import ariane_pkg::*; #(
         .en_stage1_i            (ptw_en_stage1),        // Enable signal for stage 1 translation. Defined by DC/PC
         .en_stage2_i            (ptw_en_stage2),        // Enable signal for stage 2 translation. Defined by DC only
         .is_store_i             (is_store),             // Indicate whether this translation was triggered by a store or a load
+        .is_rx_i                (is_rx),                // Read-for-execute
 
         // PTW AXI Master memory interface
         .mem_resp_i             (ptw_axi_resp),           // Response port from memory
