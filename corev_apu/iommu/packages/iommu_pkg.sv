@@ -147,10 +147,10 @@ package iommu_pkg;
     //--------------------------
 
     typedef enum logic [1:0] {
-        RSV_1           = 2'b00;
-        MRIF            = 2'b01;
-        RSV_2           = 2'b10;
-        WRITE_THROUGH   = 2'b11;
+        RSV_1           = 2'b00,
+        MRIF            = 2'b01,
+        RSV_2           = 2'b10,
+        WRITE_THROUGH   = 2'b11
     } msi_pte_mode_e;
 
     // MSI PTE (Write-through mode)

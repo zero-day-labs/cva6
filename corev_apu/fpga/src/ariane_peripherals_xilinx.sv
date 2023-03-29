@@ -956,7 +956,7 @@ module ariane_peripherals #(
 				.IOTLB_ENTRIES		( 16								 				),
 				.DDTC_ENTRIES			( 16								 				),
 				.PDTC_ENTRIES			( 16								 				),
-				.DEVICE_ID_WIDTH  ( ariane_soc::IdWidth				),	//? Master ID width? Slave ID width?
+				.DEVICE_ID_WIDTH  ( 24												),	// Fixed to 24 bits, even if ddtp.mode = 1LVL
 				.PSCID_WIDTH      ( 20								 				),
 				.GSCID_WIDTH      ( 16								 				),
 

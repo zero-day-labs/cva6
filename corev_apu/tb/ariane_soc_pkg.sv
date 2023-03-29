@@ -21,7 +21,7 @@ package ariane_soc;
     CVA6        = 0,
     DEBUG       = 1,   
     IOMMU_COMP  = 2,  // IOMMU Master IF to give completions to TRs
-    IOMMU_MEM   = 3,  // IOMMU Master IF for implicit memory accesses
+    IOMMU_MEM   = 3   // IOMMU Master IF for implicit memory accesses
   } axi_master_t;
 
   // Added IOMMU Completion IF port and Memory IF port (+2)
