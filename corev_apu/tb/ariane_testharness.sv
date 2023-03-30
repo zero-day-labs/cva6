@@ -14,6 +14,7 @@
 //              Instantiates an AXI-Bus and memories
 
 `include "axi/assign.svh"
+`include "register_interface/typedef.svh"
 
 module ariane_testharness #(
   parameter int unsigned AXI_USER_WIDTH    = ariane_pkg::AXI_USER_WIDTH,
@@ -494,14 +495,16 @@ module ariane_testharness #(
     '{ idx: ariane_soc::SPI,      start_addr: ariane_soc::SPIBase,      end_addr: ariane_soc::SPIBase + ariane_soc::SPILength           },
     '{ idx: ariane_soc::Ethernet, start_addr: ariane_soc::EthernetBase, end_addr: ariane_soc::EthernetBase + ariane_soc::EthernetLength },
     '{ idx: ariane_soc::GPIO,     start_addr: ariane_soc::GPIOBase,     end_addr: ariane_soc::GPIOBase + ariane_soc::GPIOLength         },
+    '{ idx: ariane_soc::DMA_CFG,  start_addr: ariane_soc::DMABase,      end_addr: ariane_soc::DMABase + ariane_soc::DMALength           },
+    '{ idx: ariane_soc::IOMMU,    start_addr: ariane_soc::IOMMUBase,    end_addr: ariane_soc::IOMMUBase + ariane_soc::IOMMULength       },
     '{ idx: ariane_soc::DRAM,     start_addr: ariane_soc::DRAMBase,     end_addr: ariane_soc::DRAMBase + ariane_soc::DRAMLength         }
   };
 
   localparam axi_pkg::xbar_cfg_t AXI_XBAR_CFG = '{
     NoSlvPorts: ariane_soc::NrSlaves,
     NoMstPorts: ariane_soc::NB_PERIPHERALS,
-    MaxMstTrans: 1, // Probably requires update
-    MaxSlvTrans: 1, // Probably requires update
+    MaxMstTrans: 8, // Probably requires update
+    MaxSlvTrans: 8, // Probably requires update
     FallThrough: 1'b0,
     LatencyMode: axi_pkg::NO_LATENCY,
     AxiIdWidthSlvPorts: ariane_soc::IdWidth,
@@ -579,33 +582,39 @@ module ariane_testharness #(
     .InclUART     ( 1'b0                     ),
 `endif
     .InclSPI      ( 1'b0                     ),
-    .InclEthernet ( 1'b0                     )
+    .InclEthernet ( 1'b0                     ),
+    .InclDMA      ( 1'b1                     ),
+    .InclIOMMU    ( 1'b1                     ),
   ) i_ariane_peripherals (
-    .clk_i     ( clk_i                        ),
-    .rst_ni    ( ndmreset_n                   ),
-    .plic      ( master[ariane_soc::PLIC]     ),
-    .uart      ( master[ariane_soc::UART]     ),
-    .spi       ( master[ariane_soc::SPI]      ),
-    .ethernet  ( master[ariane_soc::Ethernet] ),
-    .timer     ( master[ariane_soc::Timer]    ),
-    .irq_o     ( irqs                         ),
-    .rx_i      ( rx                           ),
-    .tx_o      ( tx                           ),
-    .eth_txck  ( ),
-    .eth_rxck  ( ),
-    .eth_rxctl ( ),
-    .eth_rxd   ( ),
-    .eth_rst_n ( ),
-    .eth_tx_en ( ),
-    .eth_txd   ( ),
-    .phy_mdio  ( ),
-    .eth_mdc   ( ),
-    .mdio      ( ),
-    .mdc       ( ),
-    .spi_clk_o ( ),
-    .spi_mosi  ( ),
-    .spi_miso  ( ),
-    .spi_ss    ( )
+    .clk_i      ( clk_i                         ),
+    .rst_ni     ( ndmreset_n                    ),
+    .plic       ( master[ariane_soc::PLIC]      ),
+    .uart       ( master[ariane_soc::UART]      ),
+    .spi        ( master[ariane_soc::SPI]       ),
+    .ethernet   ( master[ariane_soc::Ethernet]  ),
+    .timer      ( master[ariane_soc::Timer]     ),
+    .dma_cfg    ( master[ariane_soc::DMA_CFG]   ),   
+    .iommu_comp ( slave[ariane_soc::IOMMU_COMP] ),   
+    .iommu_mem  ( slave[ariane_soc::IOMMU_MEM]  ),   
+    .iommu_cfg  ( master[ariane_soc::IOMMU_CFG] ),
+    .irq_o      ( irqs                          ),
+    .rx_i       ( rx                            ),
+    .tx_o       ( tx                            ),
+    .eth_txck   ( ),
+    .eth_rxck   ( ),
+    .eth_rxctl  ( ),
+    .eth_rxd    ( ),
+    .eth_rst_n  ( ),
+    .eth_tx_en  ( ),
+    .eth_txd    ( ),
+    .phy_mdio   ( ),
+    .eth_mdc    ( ),
+    .mdio       ( ),
+    .mdc        ( ),
+    .spi_clk_o  ( ),
+    .spi_mosi   ( ),
+    .spi_miso   ( ),
+    .spi_ss     ( )
   );
 
   uart_bus #(.BAUD_RATE(115200), .PARITY_EN(0)) i_uart_bus (.rx(tx), .tx(rx), .rx_en(1'b1));
