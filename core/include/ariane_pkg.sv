@@ -23,6 +23,9 @@
   `include "l15.tmp.h"
 `endif
 
+`define APLIC
+`define DIRECT_MODE
+
 package ariane_pkg;
 
     // ---------------

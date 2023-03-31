@@ -14,7 +14,8 @@
 `define GENESYSII
 // include KINTEX7 specific code (relevant for KC705, GENESYSII,...)
 `define KINTEX7
-
+`define APLIC
+`define DIRECT_MODE
 `define ARIANE_DATA_WIDTH 64
 
 // Instantiate protocl checker

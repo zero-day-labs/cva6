@@ -62,7 +62,7 @@ module ariane_peripherals #(
 );
 
     // ---------------
-    // 1. PLIC
+    // 1. IRQC
     // ---------------
     logic [ariane_soc::NumSources-1:0] irq_sources;
 
@@ -172,6 +172,7 @@ module ariane_peripherals #(
     `REG_BUS_ASSIGN_TO_REQ(plic_req, reg_bus)
     `REG_BUS_ASSIGN_FROM_RSP(reg_bus, plic_rsp)
 
+`ifndef APLIC
     plic_top #(
       .N_SOURCE    ( ariane_soc::NumSources  ),
       .N_TARGET    ( ariane_soc::NumTargets  ),
@@ -187,6 +188,27 @@ module ariane_peripherals #(
       .irq_sources_i ( irq_sources ),
       .eip_targets_o ( irq_o       )
     );
+`else
+   aplic_top #(
+        .NR_SRC         ( ariane_soc::NumSources    ),
+        .MIN_PRIO       ( ariane_soc::MaxPriority   ),
+        .NR_IDCs        ( 1                         ), // One core
+        .reg_req_t      ( plic_req_t                ),
+        .reg_rsp_t      ( plic_rsp_t                )
+    ) i_aplic_top (
+        .i_clk          ( clk_i                     ),
+        .ni_rst         ( rst_ni                    ),
+        .i_req_cfg      ( plic_req                  ),
+        .o_resp_cfg     ( plic_rsp                 ),
+        .i_irq_sources  ( {irq_sources, 1'b0}       ),
+        `ifdef DIRECT_MODE
+        .o_Xeip_targets ( irq_o                     )
+        `elsif MSI_MODE
+        .o_req          ( msi_req                   ),
+        .i_resp         ( msi_resp                  )
+        `endif
+    );
+`endif
 
     // ---------------
     // 2. UART
