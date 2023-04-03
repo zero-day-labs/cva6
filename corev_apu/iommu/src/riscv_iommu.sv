@@ -19,12 +19,12 @@
 
 /* verilator lint_off WIDTH */
 
-`include "riscv_pkg.sv"
-`include "iommu_pkg.sv"
-`include "axi_pkg.sv"
-`include "ariane_axi_pkg.sv"
-`include "ariane_axi_soc_pkg.sv"
-`include "iommu_reg_pkg.sv"
+// `include "riscv_pkg.sv"
+// `include "iommu_pkg.sv"
+// `include "axi_pkg.sv"
+// `include "ariane_axi_pkg.sv"
+// `include "ariane_axi_soc_pkg.sv"
+// `include "iommu_reg_pkg.sv"
 
 module riscv_iommu #(
     parameter int unsigned  IOTLB_ENTRIES       = 4,
@@ -422,7 +422,7 @@ module riscv_iommu #(
         // AR request received (this way we are giving priority to read transactions)
         if (dev_tr_req_i.ar_valid) begin
 
-            ar_request  = 1'b1;
+            ar_request      =  1'b1;
             iova            =  dev_tr_req_i.ar.addr;
             device_id       =  dev_tr_req_i.ar.id;
             // ARPROT[2] indicates data access (r) when LOW, instruction access (rx) when HIGH
@@ -513,7 +513,7 @@ module riscv_iommu #(
                 axi_pkg::BURST_INCR: begin
                     // check if burst is within 4K range
                     if (((iova & 12'hfff) + ((burst_length + 1) << n_bytes)) < (1'b1 << 12)) begin
-                        allow_request  = 1'b0;     // Allow transaction
+                        allow_request  = 1'b1;     // Allow transaction
                     end
 
                     // Boundary violation

@@ -1032,23 +1032,10 @@ module ariane_peripherals #(
   
       // Connect directly the device to the System Interconnect
       // TR IF req => Comp IF req
-      assign iommu_comp.aw        = axi_iommu_tr_req.aw;
-      assign iommu_comp.aw_valid  = axi_iommu_tr_req.aw_valid;
-      assign iommu_comp.w         = axi_iommu_tr_req.w;
-      assign iommu_comp.w_valid   = axi_iommu_tr_req.w_valid;
-      assign iommu_comp.b_ready   = axi_iommu_tr_req.b_ready;
-      assign iommu_comp.ar        = axi_iommu_tr_req.ar;
-      assign iommu_comp.ar_valid  = axi_iommu_tr_req.ar_valid;
-      assign iommu_comp.r_ready   = axi_iommu_tr_req.r_ready;
+        `AXI_ASSIGN_FROM_REQ(iommu_comp, axi_iommu_tr_req)
 
       // Comp IF resp => TR IF resp
-      assign axi_iommu_tr_rsp.aw_ready = iommu_comp.aw_ready;
-      assign axi_iommu_tr_rsp.ar_ready = iommu_comp.ar_ready;
-      assign axi_iommu_tr_rsp.w_ready  = iommu_comp.w_ready;
-      assign axi_iommu_tr_rsp.b_valid  = iommu_comp.b_valid;
-      assign axi_iommu_tr_rsp.b        = iommu_comp.b;
-      assign axi_iommu_tr_rsp.r_valid  = iommu_comp.r_valid;
-      assign axi_iommu_tr_rsp.r        = iommu_comp.r;
+        `AXI_ASSIGN_TO_RESP(axi_iommu_tr_rsp, iommu_comp)
 
 			// Set memory IF request xVALID/xREADY wires to a known state
       assign iommu_mem.aw_valid  = 1'b0;

@@ -8,6 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+`include "axi/assign.svh"
 `include "register_interface/assign.svh"
 `include "register_interface/typedef.svh"
 
@@ -724,8 +725,8 @@ module ariane_peripherals #(
 			`AXI_ASSIGN_TO_RESP(axi_iommu_comp_rsp, iommu_comp)
 
 			// AXI Bus between System Interconnect (Mst) and IOMMU Programming IF (Slv)
-			ariane_axi_soc::req_slv_t  axi_iommu_cfg_req;
-			ariane_axi_soc::resp_slv_t axi_iommu_cfg_rsp;
+			ariane_axi_soc::req_t  axi_iommu_cfg_req;
+			ariane_axi_soc::resp_t axi_iommu_cfg_rsp;
 			`AXI_ASSIGN_TO_REQ(axi_iommu_cfg_req, iommu_cfg)
 			`AXI_ASSIGN_FROM_RESP(iommu_cfg, axi_iommu_cfg_rsp)
 
@@ -734,11 +735,10 @@ module ariane_peripherals #(
 			`REG_BUS_TYPEDEF_ALL(iommu_reg, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
 			`AXI_LITE_TYPEDEF_ALL(axi_lite, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
 			
-			// TODO: Check includes in all files
       riscv_iommu #(
-				.IOTLB_ENTRIES		( 16								 				),
-				.DDTC_ENTRIES			( 16								 				),
-				.PDTC_ENTRIES			( 16								 				),
+				.IOTLB_ENTRIES		( 4								 					),
+				.DDTC_ENTRIES			( 4								 					),
+				.PDTC_ENTRIES			( 4								 					),
 				.DEVICE_ID_WIDTH  ( 24												),
 				.PSCID_WIDTH      ( 20								 				),
 				.GSCID_WIDTH      ( 16								 				),
@@ -772,12 +772,12 @@ module ariane_peripherals #(
 				.dev_tr_resp_o		( axi_iommu_tr_rsp		),
 
 				// Translation Completion Interface (Master)
-				.dev_comp_resp_i	( axi_iommu_comp_req	),
-				.dev_comp_req_o		( axi_iommu_comp_rsp	),
+				.dev_comp_resp_i	( axi_iommu_comp_rsp	),
+				.dev_comp_req_o		( axi_iommu_comp_req	),
 
 				// Implicit Memory Accesses Interface (Master)
-				.mem_resp_i				( axi_iommu_mem_req		),
-				.mem_req_o				( axi_iommu_mem_rsp		),
+				.mem_resp_i				( axi_iommu_mem_rsp		),
+				.mem_req_o				( axi_iommu_mem_req		),
 
 				// Programming Interface (Slave) (AXI4 Full -> AXI4-Lite -> Reg IF)
 				.prog_req_i				( axi_iommu_cfg_req		),
@@ -815,23 +815,10 @@ module ariane_peripherals #(
 
       // Connect directly the device to the System Interconnect
       // TR IF req => Comp IF req
-      assign iommu_comp.aw        = axi_iommu_tr_req.aw;
-      assign iommu_comp.aw_valid  = axi_iommu_tr_req.aw_valid;
-      assign iommu_comp.w         = axi_iommu_tr_req.w;
-      assign iommu_comp.w_valid   = axi_iommu_tr_req.w_valid;
-      assign iommu_comp.b_ready   = axi_iommu_tr_req.b_ready;
-      assign iommu_comp.ar        = axi_iommu_tr_req.ar;
-      assign iommu_comp.ar_valid  = axi_iommu_tr_req.ar_valid;
-      assign iommu_comp.r_ready   = axi_iommu_tr_req.r_ready;
+			`AXI_ASSIGN_FROM_REQ(iommu_comp, axi_iommu_tr_req)
 
       // Comp IF resp => TR IF resp
-      assign axi_iommu_tr_rsp.aw_ready = iommu_comp.aw_ready;
-      assign axi_iommu_tr_rsp.ar_ready = iommu_comp.ar_ready;
-      assign axi_iommu_tr_rsp.w_ready  = iommu_comp.w_ready;
-      assign axi_iommu_tr_rsp.b_valid  = iommu_comp.b_valid;
-      assign axi_iommu_tr_rsp.b        = iommu_comp.b;
-      assign axi_iommu_tr_rsp.r_valid  = iommu_comp.r_valid;
-      assign axi_iommu_tr_rsp.r        = iommu_comp.r;
+			`AXI_ASSIGN_TO_RESP(axi_iommu_tr_rsp, iommu_comp)
 
 			// Set memory IF request xVALID/xREADY wires to a known state
       assign iommu_mem.aw_valid  = 1'b0;
