@@ -506,6 +506,25 @@ package riscv;
         CSR_MCYCLEH        = 12'hB80,
         CSR_MINSTRET       = 12'hB02,
         CSR_MINSTRETH      = 12'hB82,
+        // Smaia and Ssaia
+        CSR_MISELECT        = 12'h350,                
+        CSR_MIREG           = 12'h351, 
+        CSR_MTOPIE          = 12'h35C,
+        CSR_MTOPI           = 12'hFB0,
+        CSR_MVIEN           = 12'h308,            
+        CSR_MVIP            = 12'h309,            
+        CSR_STOPI           = 12'hDB0,
+        CSR_SISELECT        = 12'h150,
+        CSR_SIREG           = 12'h151,
+        CSR_STOPIE          = 12'h15C,
+        CSR_HVIEN           = 12'h608,
+        CSR_HVICTL          = 12'h609,
+        CSR_HVIPRIO1        = 12'h646,
+        CSR_HVIPRIO2        = 12'h647,
+        CSR_VSISELECT       = 12'h250,
+        CSR_VSIREG          = 12'h251,
+        CSR_VSTOPEI         = 12'h25C,
+        CSR_VSTOPI          = 12'hEB0,
         // Performance counters (Machine Mode)
         CSR_ML1_ICACHE_MISS = 12'hB03,  // L1 Instr Cache Miss
         CSR_ML1_DCACHE_MISS = 12'hB04,  // L1 Data Cache Miss
@@ -815,7 +834,8 @@ package riscv;
         ret = csr_addr;
         unique case (csr_addr.address) inside
             [CSR_SSTATUS:CSR_STVEC],
-            [CSR_SSCRATCH:CSR_SATP]: begin
+            [CSR_SSCRATCH:CSR_SATP],
+            CSR_STOPI               : begin
                 if(v) begin
                     ret.csr_decode.priv_lvl = PRIV_LVL_HS;
                 end

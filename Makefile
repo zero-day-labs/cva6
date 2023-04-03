@@ -157,6 +157,10 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         corev_apu/aia/rtl/aplic_domain_top.sv                                        \
 		corev_apu/aia/rtl/aplic_regmap.sv                                            \
 		corev_apu/aia/rtl/aplic_top.sv                                               \
+		corev_apu/aia/rtl/counter.sv										         \
+		corev_apu/aia/rtl/axi4_lite_write_master.sv  							     \
+		corev_apu/aia/rtl/imsic_regmap.sv										     \
+		corev_apu/aia/rtl/imsic_top.sv										         \
         corev_apu/riscv-dbg/src/dmi_cdc.sv                                           \
         corev_apu/riscv-dbg/src/dmi_jtag.sv                                          \
         corev_apu/riscv-dbg/src/dmi_jtag_tap.sv                                      \
@@ -178,6 +182,7 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         vendor/pulp-platform/axi/src/axi_join.sv                                                \
         vendor/pulp-platform/axi/src/axi_delayer.sv                                             \
         vendor/pulp-platform/axi/src/axi_to_axi_lite.sv                                         \
+        vendor/pulp-platform/axi/src/axi_lite_to_axi.sv                                         \
         vendor/pulp-platform/axi/src/axi_id_prepend.sv                                          \
         vendor/pulp-platform/axi/src/axi_atop_filter.sv                                         \
         vendor/pulp-platform/axi/src/axi_err_slv.sv                                             \
@@ -544,6 +549,8 @@ xrun-check-benchmarks:
 
 xrun-ci: xrun-asm-tests xrun-amo-tests xrun-mul-tests xrun-fp-tests xrun-benchmarks
 
+VERILATOR_ROOT = /home/d3boker1/Build/verilator
+ 
 # verilator-specific
 verilate_command := $(verilator)                                                                                 \
                     -f core/Flist.cva6                                                                           \

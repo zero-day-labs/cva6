@@ -26,6 +26,9 @@ module ariane_peripherals #(
     input  logic       clk_i           , // Clock
     input  logic       rst_ni          , // Asynchronous reset active low
     AXI_BUS.Slave      plic            ,
+`ifdef MSI_MODE
+    AXI_BUS.Master     msi_channel     ,
+`endif
     AXI_BUS.Slave      uart            ,
     AXI_BUS.Slave      spi             ,
     AXI_BUS.Slave      ethernet        ,
@@ -55,12 +58,18 @@ module ariane_peripherals #(
 );
 
     // ---------------
-    // 1. PLIC
+    // 1. IRQC
     // ---------------
+    localparam UART_IRQ         = 0;
+    localparam SPI_IRQ          = 1;
+    localparam ETH_IRQ          = 2;
+    localparam TIMER_FIRST_IRQ  = 3;
+    localparam TIMER_LAST_IRQ   = 6;
+    localparam LAST_IRQ         = TIMER_LAST_IRQ + 1;
     logic [ariane_soc::NumSources-1:0] irq_sources;
 
     // Unused interrupt sources
-    assign irq_sources[ariane_soc::NumSources-1:7] = '0;
+    assign irq_sources[ariane_soc::NumSources-1:LAST_IRQ] = '0;
 
     REG_BUS #(
         .ADDR_WIDTH ( 32 ),
@@ -165,6 +174,7 @@ module ariane_peripherals #(
     `REG_BUS_ASSIGN_TO_REQ(plic_req, reg_bus)
     `REG_BUS_ASSIGN_FROM_RSP(reg_bus, plic_rsp)
 
+`ifndef APLIC
     plic_top #(
       .N_SOURCE    ( ariane_soc::NumSources  ),
       .N_TARGET    ( ariane_soc::NumTargets  ),
@@ -180,6 +190,50 @@ module ariane_peripherals #(
       .irq_sources_i ( irq_sources ),
       .eip_targets_o ( irq_o       )
     );
+`else
+    `ifdef MSI_MODE
+        ariane_axi::req_t         lite_msi_req, mst_msi_req;
+        ariane_axi::resp_t        lite_msi_resp, mst_msi_resp; 
+
+        axi_lite_to_axi#(
+            .AxiDataWidth   ( AxiDataWidth          ),
+            .req_lite_t     ( ariane_axi::req_t     ),
+            .resp_lite_t    ( ariane_axi::resp_t    ),
+            .req_t          ( ariane_axi::req_t     ),
+            .resp_t         ( ariane_axi::resp_t    )    
+        ) axi_lite_to_axi_i (
+            .slv_req_lite_i ( lite_msi_req          ),
+            .slv_resp_lite_o( lite_msi_resp         ),
+            .slv_aw_cache_i ( '0                    ),
+            .slv_ar_cache_i ( '0                    ),
+            .mst_req_o      ( mst_msi_req           ),
+            .mst_resp_i     ( mst_msi_resp          )
+        );
+
+        `AXI_ASSIGN_FROM_REQ(msi_channel, mst_msi_req)
+        `AXI_ASSIGN_TO_RESP(mst_msi_resp, msi_channel)
+    `endif
+
+    aplic_top #(
+        .NR_SRC         ( ariane_soc::NumSources    ),
+        .MIN_PRIO       ( ariane_soc::MaxPriority   ),
+        .NR_IDCs        ( 1                         ), // One core
+        .reg_req_t      ( plic_req_t                ),
+        .reg_rsp_t      ( plic_rsp_t                )
+    ) i_aplic_top (
+        .i_clk          ( clk_i                     ),
+        .ni_rst         ( rst_ni                    ),
+        .i_req_cfg      ( plic_req                  ),
+        .o_resp_cfg     ( plic_rsp                  ),
+        .i_irq_sources  ( {irq_sources, 1'b0}       ),
+        `ifdef DIRECT_MODE
+        .o_Xeip_targets ( irq_o                     )
+        `elsif MSI_MODE
+        .o_req          ( lite_msi_req              ),
+        .i_resp         ( lite_msi_resp             )
+        `endif
+    );
+`endif
 
     // ---------------
     // 2. UART
@@ -271,7 +325,7 @@ module ariane_peripherals #(
             .PRDATA  ( uart_prdata     ),
             .PREADY  ( uart_pready     ),
             .PSLVERR ( uart_pslverr    ),
-            .INT     ( irq_sources[0]  ),
+            .INT     ( irq_sources[UART_IRQ]  ),
             .OUT1N   (                 ), // keep open
             .OUT2N   (                 ), // keep open
             .RTSN    (                 ), // no flow control
@@ -284,7 +338,7 @@ module ariane_peripherals #(
             .SOUT    ( tx_o            )
         );
     end else begin
-        assign irq_sources[0] = 1'b0;
+        assign irq_sources[UART_IRQ] = 1'b0;
         /* pragma translate_off */
         mock_uart i_mock_uart (
             .clk_i     ( clk_i        ),
@@ -470,16 +524,15 @@ module ariane_peripherals #(
             .sck_o          ( spi_clk_o              ),
             .sck_i          ( '0                     ),
             .sck_t          (                        ),
-            .ip2intc_irpt   ( irq_sources[1]         )
-            // .ip2intc_irpt   ( irq_sources[1]         )
+            .ip2intc_irpt   ( irq_sources[SPI_IRQ]   )
         );
-        // assign irq_sources [1] = 1'b0;
+        // assign irq_sources [SPI_IRQ] = 1'b0;
     end else begin
         assign spi_clk_o = 1'b0;
         assign spi_mosi = 1'b0;
         assign spi_ss = 1'b0;
 
-        assign irq_sources [1] = 1'b0;
+        assign irq_sources [SPI_IRQ] = 1'b0;
         assign spi.aw_ready = 1'b1;
         assign spi.ar_ready = 1'b1;
         assign spi.w_ready = 1'b1;
@@ -504,7 +557,7 @@ module ariane_peripherals #(
       end
     else
       begin
-        assign irq_sources [2] = 1'b0;
+        assign irq_sources [ETH_IRQ] = 1'b0;
         assign ethernet.aw_ready = 1'b1;
         assign ethernet.ar_ready = 1'b1;
         assign ethernet.w_ready = 1'b1;
@@ -613,7 +666,7 @@ module ariane_peripherals #(
             .PRDATA  ( timer_prdata     ),
             .PREADY  ( timer_pready     ),
             .PSLVERR ( timer_pslverr    ),
-            .irq_o   ( irq_sources[6:3] )
+            .irq_o   ( irq_sources[TIMER_LAST_IRQ:TIMER_FIRST_IRQ] )
         );
     end
 endmodule

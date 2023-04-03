@@ -154,7 +154,11 @@ module ariane_xilinx (
 );
 // 24 MByte in 8 byte words
 localparam NumWords = (24 * 1024 * 1024) / 8;
+`ifdef MSI_MODE
+localparam NBSlave = 3; // debug, ariane, aplic
+`else
 localparam NBSlave = 2; // debug, ariane
+`endif
 localparam AxiAddrWidth = 64;
 localparam AxiDataWidth = 64;
 localparam AxiIdWidthMaster = 4;
@@ -241,8 +245,25 @@ dm::dmi_resp_t debug_resp;
 logic dmactive;
 
 // IRQ
+`ifdef MSI_MODE
+logic [ariane_soc::NrIntpFiles-1:0] irq;
+`else
 logic [1:0] irq;
+`endif
 assign test_en    = 1'b0;
+
+// IMSIC
+`ifdef MSI_MODE
+logic [1:0]                                                       imsic_priv_lvl    ;
+logic [ariane_soc::NrVSIntpFilesW:0]                              imsic_vgein       ;
+logic [riscv::XLEN-1:0]                                           imsic_addr        ;
+logic [riscv::XLEN-1:0]                                           imsic_data_i      ;
+logic                                                             imsic_we          ;
+logic                                                             imsic_claim       ;
+logic [riscv::XLEN-1:0]                                           imsic_data_o      ;
+logic                                                             imsic_exception   ;
+logic [ariane_soc::NrIntpFiles-1:0][ariane_soc::NrSourcesW-1:0]   imsic_xtopei      ;
+`endif
 
 logic [NBSlave-1:0] pc_asserted;
 
@@ -271,6 +292,9 @@ assign addr_map = '{
   '{ idx: ariane_soc::UART,     start_addr: ariane_soc::UARTBase,     end_addr: ariane_soc::UARTBase + ariane_soc::UARTLength         },
   '{ idx: ariane_soc::Timer,    start_addr: ariane_soc::TimerBase,    end_addr: ariane_soc::TimerBase + ariane_soc::TimerLength       },
   '{ idx: ariane_soc::SPI,      start_addr: ariane_soc::SPIBase,      end_addr: ariane_soc::SPIBase + ariane_soc::SPILength           },
+`ifdef MSI_MODE
+  '{ idx: ariane_soc::IMSIC,    start_addr: ariane_soc::IMSICBase,    end_addr: ariane_soc::IMSICBase + ariane_soc::IMSICLength       },
+`endif
   '{ idx: ariane_soc::Ethernet, start_addr: ariane_soc::EthernetBase, end_addr: ariane_soc::EthernetBase + ariane_soc::EthernetLength },
   '{ idx: ariane_soc::GPIO,     start_addr: ariane_soc::GPIOBase,     end_addr: ariane_soc::GPIOBase + ariane_soc::GPIOLength         },
   '{ idx: ariane_soc::DRAM,     start_addr: ariane_soc::DRAMBase,     end_addr: ariane_soc::DRAMBase + ariane_soc::DRAMLength         }
@@ -709,10 +733,61 @@ ariane #(
     .debug_req_i  ( debug_req_irq       ),
     .axi_req_o    ( axi_ariane_req      ),
     .axi_resp_i   ( axi_ariane_resp     )
+`ifdef MSI_MODE
+    ,
+    .imsic_priv_lvl_o ( imsic_priv_lvl  ),
+    .imsic_vgein_o    ( imsic_vgein     ),
+    .imsic_addr_o     ( imsic_addr      ),
+    .imsic_data_o     ( imsic_data_o    ),
+    .imsic_we_o       ( imsic_we        ),
+    .imsic_claim_o    ( imsic_claim     ),
+    .imsic_data_i     ( imsic_data_i    ),
+    .imsic_exception_i( imsic_exception ),
+    .imsic_xtopei_i   ( imsic_xtopei    )
+`endif
 );
 
 `AXI_ASSIGN_FROM_REQ(slave[0], axi_ariane_req)
 `AXI_ASSIGN_TO_RESP(axi_ariane_resp, slave[0])
+
+// ---------------
+// IMSIC
+// ---------------
+`ifdef MSI_MODE
+ariane_axi_soc::req_slv_t  axi_imsic_req;
+ariane_axi_soc::resp_slv_t axi_imsic_resp;
+
+imsic_top #(
+    .NR_SRC             ( ariane_soc::NumSources      ),
+    .MIN_PRIO           ( ariane_soc::MaxPriority     ),
+    .NR_INTP_FILES      ( ariane_soc::NrIntpFiles     ),
+    .AXI_ADDR_WIDTH     ( AxiAddrWidth                ),
+    .AXI_DATA_WIDTH     ( AxiDataWidth                ),
+    .AXI_ID_WIDTH       ( ariane_soc::IdWidthSlave    ),
+    .axi_req_t          ( ariane_axi_soc::req_slv_t   ),
+    .axi_resp_t         ( ariane_axi_soc::resp_slv_t  )
+) i_imsic_top (
+    .i_clk              ( clk                         ),
+    .ni_rst             ( ndmreset_n                  ),
+    .i_req              ( axi_imsic_req               ),
+    .o_resp             ( axi_imsic_resp              ),
+    /** CSR channel */
+    .i_priv_lvl         ( imsic_priv_lvl              ),
+    .i_vgein            ( imsic_vgein                 ),
+    .i_imsic_addr       ( imsic_addr                  ),
+    .i_imsic_data       ( imsic_data_o                ),
+    .i_imsic_we         ( imsic_we                    ),
+    .i_imsic_claim      ( imsic_claim                 ),
+    .o_imsic_data       ( imsic_data_i                ),
+    .o_imsic_exception  ( imsic_exception             ),
+    .o_xtopei           ( imsic_xtopei                ),
+    /** end CSR channel */
+    .o_Xeip_targets     ( irq                         )
+);
+
+`AXI_ASSIGN_TO_REQ(axi_imsic_req, master[ariane_soc::IMSIC])
+`AXI_ASSIGN_FROM_RESP(master[ariane_soc::IMSIC], axi_imsic_resp)
+`endif
 
 // ---------------
 // CLINT
@@ -819,13 +894,20 @@ ariane_peripherals #(
     .clk_200MHz_i ( ddr_clock_out                ),
     .rst_ni       ( ndmreset_n                   ),
     .plic         ( master[ariane_soc::PLIC]     ),
+`ifdef MSI_MODE
+    .msi_channel  ( slave[2]                     ),
+`endif
     .uart         ( master[ariane_soc::UART]     ),
     .spi          ( master[ariane_soc::SPI]      ),
     .gpio         ( master[ariane_soc::GPIO]     ),
     .eth_clk_i    ( eth_clk                      ),
     .ethernet     ( master[ariane_soc::Ethernet] ),
     .timer        ( master[ariane_soc::Timer]    ),
-    .irq_o        ( irq                          ),
+`ifdef MSI_MODE
+    .irq_o        (                              ),
+`elsif DIRECT_MODE
+    .irq_o        (  irq                         ),
+`endif
     .rx_i         ( rx                           ),
     .tx_o         ( tx                           ),
     .eth_txck,

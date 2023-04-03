@@ -24,9 +24,23 @@
 `endif
 
 `define APLIC
-`define DIRECT_MODE
+// `define DIRECT_MODE
+`define MSI_MODE
 
 package ariane_pkg;
+
+    // ---------------
+    // AIA
+    // ---------------
+    // localparam int unsigned NrVSIntpFiles   = cva6_config_pkg::CVA6ConfigNrVSIntpFiles;
+    localparam int unsigned NrVSIntpFilesW  = cva6_config_pkg::CVA6ConfigNrVSIntpFilesW;
+
+    localparam int unsigned NrIntpFiles     = cva6_config_pkg::CVA6ConfigNrIntpFiles; 
+    localparam int unsigned NrSourcesW      = cva6_config_pkg::CVA6ConfigNrSourcesW;
+
+    localparam int unsigned M_FILE    = 0;
+    localparam int unsigned S_FILE    = 1;
+
 
     // ---------------
     // Global Config
@@ -294,6 +308,7 @@ package ariane_pkg;
                                                     | riscv::HSTATUS_SPV
                                                     | riscv::HSTATUS_SPVP
                                                     | riscv::HSTATUS_HU
+                                                    | riscv::HSTATUS_VGEIN
                                                     | riscv::HSTATUS_VTVM
                                                     | riscv::HSTATUS_VTW
                                                     | riscv::HSTATUS_VTSR;

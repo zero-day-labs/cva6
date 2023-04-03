@@ -54,4 +54,11 @@ package cva6_config_pkg;
 
     localparam CVA6ConfigNrPMPEntries = 8;
 
+    // CVA6 Config AIA
+    localparam CVA6ConfigNrVSIntpFiles      = 1;
+    localparam CVA6ConfigNrVSIntpFilesW     = $clog2(CVA6ConfigNrVSIntpFiles);
+    localparam CVA6ConfigNrIntpFiles        = 2 + CVA6ConfigNrVSIntpFiles;
+    localparam CVA6ConfigNrSourcesW         = $clog2(30);
+
+
 endpackage
