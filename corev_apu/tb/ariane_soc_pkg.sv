@@ -25,7 +25,7 @@ package ariane_soc;
   } axi_master_t;
 
   // Added IOMMU Completion IF port and Memory IF port (+2)
-  localparam NrSlaves = 2+2; // actually masters, but slaves on the crossbar
+  localparam NrSlaves = 4; // actually masters, but slaves on the crossbar
 
   // 4 is recommended by AXI standard, so lets stick to it, do not change
   localparam IdWidth   = 4;
@@ -47,7 +47,7 @@ package ariane_soc;
     Debug     =  11
   } axi_slaves_t;
 
-  localparam NB_PERIPHERALS = Debug + 1;  //? Shouldn't increment ?
+  localparam NB_PERIPHERALS = Debug + 1;
 
 
   localparam logic[63:0] DebugLength    = 64'h1000;
