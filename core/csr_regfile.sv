@@ -529,7 +529,7 @@ module csr_regfile import ariane_pkg::*; #(
                                 rimsic_vgein        = hstatus_q.vgein[ariane_pkg::NrVSIntpFilesW:0];
                                 csr_rdata           = imsic_data_i;
                                 `else
-                                virtual_read_access_exception = 1'b1; = 1'b1;
+                                virtual_read_access_exception = 1'b1;
                                 `endif
                             end 
                             default: virtual_read_access_exception = 1'b1;
