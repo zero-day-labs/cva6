@@ -1399,21 +1399,18 @@ module decoder import ariane_pkg::*; (
                     interrupt_cause = riscv::VS_TIMER_INTERRUPT;
                     vs_interrupt_topi = riscv::IRQ_VS_TIMER;
                     s_interrupt_topi  = riscv::IRQ_VS_TIMER;
-                    m_interrupt_topi  = riscv::IRQ_VS_TIMER;
                 end
                 // Virtual Supervisor Software Interrupt
                 if (irq_ctrl_i.mie[riscv::VS_SW_INTERRUPT[$clog2(riscv::XLEN)-1:0]] && irq_ctrl_i.mip[riscv::VS_SW_INTERRUPT[$clog2(riscv::XLEN)-1:0]]) begin
                     interrupt_cause = riscv::VS_SW_INTERRUPT;
                     vs_interrupt_topi = riscv::IRQ_VS_SOFT;
                     s_interrupt_topi  = riscv::IRQ_VS_SOFT;
-                    m_interrupt_topi  = riscv::IRQ_VS_SOFT;
                 end
                 // Virtual Supervisor External Interrupt
                 if (irq_ctrl_i.mie[riscv::VS_EXT_INTERRUPT[$clog2(riscv::XLEN)-1:0]] && irq_ctrl_i.mip[riscv::VS_EXT_INTERRUPT[$clog2(riscv::XLEN)-1:0]]) begin
                     interrupt_cause = riscv::VS_EXT_INTERRUPT;
                     vs_interrupt_topi = riscv::IRQ_VS_EXT;
                     s_interrupt_topi  = riscv::IRQ_VS_EXT;
-                    m_interrupt_topi  = riscv::IRQ_VS_EXT;
                 end
                 // Hypervisor Guest External Interrupts
                 if (irq_ctrl_i.mie[riscv::HS_EXT_INTERRUPT[$clog2(riscv::XLEN)-1:0]] && irq_ctrl_i.mip[riscv::HS_EXT_INTERRUPT[$clog2(riscv::XLEN)-1:0]]) begin
