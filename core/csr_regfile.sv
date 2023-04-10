@@ -565,7 +565,8 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_VSTOPI: begin
                     if(~ariane_pkg::RVH) read_access_exception = 1'b1;   
                     else begin
-                        csr_rdata = ((vstopi_i-1) == 0) ? '0 : 
+                        /** TODO (D3boker1): needs optimization in "vstopi_i-1" to not infer an adder*/
+                        csr_rdata = (vstopi_i == 0) ? '0 : 
                                     (((vstopi_i-1) << 16) | AIA_CSR_DEF_PRIO); 
                     end
                 end
