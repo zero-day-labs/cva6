@@ -21,7 +21,7 @@ package cva6_config_pkg;
     localparam CVA6ConfigCvxifEn = 1;
     localparam CVA6ConfigCExtEn = 1;
     localparam CVA6ConfigAExtEn = 1;
-    localparam CVA6ConfigHExtEn = 0; // hypervisor extension disabled by default
+    localparam CVA6ConfigHExtEn = 1; // hypervisor extension disabled by default
 
     localparam CVA6ConfigFetchUserEn = 0;
     localparam CVA6ConfigFetchUserWidth = CVA6ConfigXlen;
@@ -55,7 +55,7 @@ package cva6_config_pkg;
     localparam CVA6ConfigNrPMPEntries = 8;
 
     // CVA6 Config AIA
-    localparam CVA6ConfigNrVSIntpFiles      = 1;
+    localparam CVA6ConfigNrVSIntpFiles      = 0; // By default do not implement VS-files
     localparam CVA6ConfigNrVSIntpFilesW     = $clog2(CVA6ConfigNrVSIntpFiles);
     localparam CVA6ConfigNrIntpFiles        = 2 + CVA6ConfigNrVSIntpFiles;
     localparam CVA6ConfigNrSourcesW         = $clog2(30);
