@@ -225,33 +225,34 @@ module ariane_peripherals #(
         // `AXI_ASSIGN_FROM_REQ(msi_channel, mst_msi_req)
         // `AXI_ASSIGN_TO_RESP(mst_msi_resp, msi_channel)
 
-        ariane_axi::req_t         msi_req;
-        ariane_axi::resp_t        msi_resp; 
+        ariane_axi::req_t         lite_msi_req;
+        ariane_axi::resp_t        lite_msi_resp; 
 
-        assign msi_channel.aw_id         = msi_req.aw.id;
+        /** AW Channel */
+        assign msi_channel.aw_id        = lite_msi_req.aw.id;
         assign msi_channel.aw_burst     = 2'b01;
-        assign msi_channel.aw_addr      = msi_req.aw.addr;
-        assign msi_channel.aw_valid     = msi_req.aw_valid;
-        assign msi_resp.aw_ready        = msi_channel.aw_ready;
-
-        assign msi_channel.w_data       = msi_req.w.data;
-        assign msi_channel.w_strb       = msi_req.w.strb;
-        assign msi_channel.w_valid      = msi_req.w_valid;
-        assign msi_channel.w_last       = msi_req.w.last;
-        assign msi_resp.w_ready         = msi_channel.w_ready;
-
-        assign msi_channel.b_ready      = msi_req.b_ready;
-        assign msi_resp.b_valid         = msi_channel.b_valid;
-        assign msi_resp.b.resp          = msi_channel.b_resp;
-
-        assign msi_channel.ar_addr      = msi_req.ar.addr;
-        assign msi_channel.ar_valid     = msi_req.ar_valid;
-        assign msi_resp.ar_ready        = msi_channel.ar_ready;
-
-        assign msi_channel.r_ready      = msi_req.r_ready;
-        assign msi_resp.r_valid         = msi_channel.r_valid;
-        assign msi_resp.r.data          = msi_channel.r_data;
-        assign msi_resp.r.resp          = msi_channel.r_resp;
+        assign msi_channel.aw_addr      = lite_msi_req.aw.addr;
+        assign msi_channel.aw_valid     = lite_msi_req.aw_valid;
+        assign lite_msi_resp.aw_ready   = msi_channel.aw_ready;
+        /** W Channel */
+        assign msi_channel.w_data       = lite_msi_req.w.data;
+        assign msi_channel.w_strb       = lite_msi_req.w.strb;
+        assign msi_channel.w_valid      = lite_msi_req.w_valid;
+        assign msi_channel.w_last       = lite_msi_req.w.last;
+        assign lite_msi_resp.w_ready    = msi_channel.w_ready;
+        /** B Channel */
+        assign msi_channel.b_ready      = lite_msi_req.b_ready;
+        assign lite_msi_resp.b_valid    = msi_channel.b_valid;
+        assign lite_msi_resp.b.resp     = msi_channel.b_resp;
+        /** AR Channel */
+        assign msi_channel.ar_addr      = lite_msi_req.ar.addr;
+        assign msi_channel.ar_valid     = lite_msi_req.ar_valid;
+        assign lite_msi_resp.ar_ready   = msi_channel.ar_ready;
+        /** R Channel */
+        assign msi_channel.r_ready      = lite_msi_req.r_ready;
+        assign lite_msi_resp.r_valid    = msi_channel.r_valid;
+        assign lite_msi_resp.r.data     = msi_channel.r_data;
+        assign lite_msi_resp.r.resp     = msi_channel.r_resp;
     `endif
 
     aplic_top #(
