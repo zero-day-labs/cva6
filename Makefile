@@ -157,7 +157,6 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         corev_apu/aia/rtl/aplic_domain_top.sv                                        \
 		corev_apu/aia/rtl/aplic_regmap.sv                                            \
 		corev_apu/aia/rtl/aplic_top.sv                                               \
-		corev_apu/aia/rtl/counter.sv										         \
 		corev_apu/aia/rtl/axi4_lite_write_master.sv  							     \
 		corev_apu/aia/rtl/imsic_regmap.sv										     \
 		corev_apu/aia/rtl/imsic_top.sv										         \
