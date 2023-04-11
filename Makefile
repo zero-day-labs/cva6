@@ -547,8 +547,6 @@ xrun-check-benchmarks:
 	ci/check-tests.sh $(XRUN_RESULTS_DIR)/benchmarks/ $(shell wc -l $(riscv-benchmarks-list) | awk -F " " '{ print $1 }')
 
 xrun-ci: xrun-asm-tests xrun-amo-tests xrun-mul-tests xrun-fp-tests xrun-benchmarks
-
-VERILATOR_ROOT = /home/d3boker1/Build/verilator
  
 # verilator-specific
 verilate_command := $(verilator)                                                                                 \
