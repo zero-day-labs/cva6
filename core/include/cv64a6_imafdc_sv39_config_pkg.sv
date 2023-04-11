@@ -55,7 +55,7 @@ package cva6_config_pkg;
     localparam CVA6ConfigNrPMPEntries = 8;
 
     // CVA6 Config AIA
-    localparam CVA6ConfigNrVSIntpFiles      = 1; // By default do not implement VS-files
+    localparam CVA6ConfigNrVSIntpFiles      = 0; // By default do not implement VS-files
     localparam CVA6ConfigNrVSIntpFilesW     = $clog2(CVA6ConfigNrVSIntpFiles);
     localparam CVA6ConfigNrIntpFiles        = 2 + CVA6ConfigNrVSIntpFiles;
     localparam CVA6ConfigNrSourcesW         = $clog2(30);
