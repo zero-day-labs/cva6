@@ -522,6 +522,9 @@ module csr_regfile import ariane_pkg::*; #(
                         read_access_exception = 1'b1;
                     end else begin
                         case (vsiselect_q) inside
+                            [8'h30 : 8'h3F]: begin
+                                
+                            end
                             [8'h70 : 8'hFF]: begin
                                 `ifdef MSI_MODE
                                 rimsic_addr         = {{riscv::XLEN-8{1'b0}}, vsiselect_q}; 
