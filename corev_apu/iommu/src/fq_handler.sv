@@ -206,6 +206,9 @@ module fq_handler import ariane_pkg::*; #(
         fq_mf_o     = fq_mf_i;
         fq_of_o     = fq_of_i;
 
+        error_wen_o = 1'b0;
+        fq_ip_o     = 1'b0;
+
         state_n     = state_q;
         wr_state_n  = wr_state_q;
         fq_pptr_n   = fq_pptr_q;
@@ -266,7 +269,7 @@ module fq_handler import ariane_pkg::*; #(
 
                                 fq_entry_n.iotval2      = {23'b0, gpaddr};    // zero-extended GPA
                                 fq_entry_n.iotval2[0]   = is_implicit;        // Guest page fault was caused by an implicit access
-                                fq_entry_n.iotval2[1]   = 1'b0;                 // Always zero since A/D update of bits is not implemented
+                                fq_entry_n.iotval2[1]   = 1'b0;               // Always zero since A/D update of bits is not implemented
                             end
 
                         // Set pptr with the paddr of the next entry

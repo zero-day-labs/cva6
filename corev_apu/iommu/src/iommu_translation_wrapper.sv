@@ -237,7 +237,7 @@ module iommu_translation_wrapper import ariane_pkg::*; #(
 
     // To indicate if the IOMMU supports and uses MSI as interrupt generation mechanism
     logic   msi_ig_en;
-    assign  msi_ig_en = (!capabilities_i.igs.q[0] & !fctl_i.wsi.q);
+    assign  msi_ig_en = (!fctl_i.wsi.q);
 
 
     // Update wires
@@ -911,14 +911,23 @@ module iommu_translation_wrapper import ariane_pkg::*; #(
                         - (3): U-mode transaction and PTE has U=0;
                         - (4): S-mode transaction and PTE has U=1 and (SUM=0 or x=1).
                     */
-                    if ((is_store && ((!iotlb_lu_content.w && en_stage1) || (!iotlb_lu_g_content.w && en_stage2))   ) ||    // (1)
-                        (is_rx && ((!iotlb_lu_content.x && en_stage1) || (!iotlb_lu_g_content.x && en_stage2))      ) ||    // (2)
-                        ((priv_lvl_i == riscv::PRIV_LVL_U) && !iotlb_lu_content.u && en_stage1                      ) ||    // (3)
-                        (is_s_priv && iotlb_lu_content.u && (!pdtc_lu_content.ta.sum || iotlb_lu_content.x)         )       // (4)
+                    if  ((is_store && (!iotlb_lu_content.w && en_stage1)                                     ) ||    // (1)
+                         (is_rx && (!iotlb_lu_content.x && en_stage1)                                        ) ||    // (2)
+                         ((priv_lvl_i == riscv::PRIV_LVL_U) && !iotlb_lu_content.u && en_stage1              ) ||    // (3)
+                         (is_s_priv && iotlb_lu_content.u && (!pdtc_lu_content.ta.sum || iotlb_lu_content.x) )       // (4)
                         ) begin
                             if (is_store)   cause_code = iommu_pkg::STORE_PAGE_FAULT;
                             else            cause_code = iommu_pkg::LOAD_PAGE_FAULT;
-                            trans_error   = 1'b1;
+                            trans_error     = 1'b1;
+                            trans_valid_o   = 1'b0;
+                    end
+
+                    else if ((is_store && (!iotlb_lu_g_content.w && en_stage2)  ) ||    // (1)
+                             (is_rx && (!iotlb_lu_g_content.x && en_stage2)     )       // (2)
+                            ) begin
+                            if (is_store)   cause_code = iommu_pkg::STORE_GUEST_PAGE_FAULT;
+                            else            cause_code = iommu_pkg::LOAD_GUEST_PAGE_FAULT;
+                            trans_error     = 1'b1;
                             trans_valid_o   = 1'b0;
                     end 
 

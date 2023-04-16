@@ -869,7 +869,7 @@ module iommu_regmap_wrapper #(
   end
 
   // MSI and WSI support
-  else if (!InclMSI_IG && InclWSI_IG) begin
+  else if (InclMSI_IG && InclWSI_IG) begin
       assign reg2hw.capabilities.igs.q = 2'h2;
       assign capabilities_igs_qs = 2'h2;
   end
@@ -3541,8 +3541,8 @@ module iommu_regmap_wrapper #(
 
   // Interrupts can not be generated as MSI (0) if caps.IGS != {0,2}, and can not be generated as WSI (1) if caps.IGS != {1,2}
   assign fctl_wsi_we = (addr_hit[1] & reg_we & !reg_error) & 
-    (reg_wdata[1] == 1'b0 & reg2hw.capabilities.igs.q inside {2'b00, 2'b10}) | 
-    (reg_wdata[1] == 1'b1 & reg2hw.capabilities.igs.q inside {2'b01, 2'b10});
+    (((reg_wdata[1] == 1'b0) & (reg2hw.capabilities.igs.q inside {2'b00, 2'b10})) | 
+     ((reg_wdata[1] == 1'b1) & (reg2hw.capabilities.igs.q inside {2'b01, 2'b10})));
   assign fctl_wsi_wd = reg_wdata[1];
 
   assign fctl_gxl_we = addr_hit[1] & reg_we & !reg_error;

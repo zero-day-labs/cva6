@@ -391,8 +391,8 @@ package iommu_pkg;
         imsic_num = '0;
         i = 0;
         for (int unsigned k = 0 ; k < MSI_MASK_LEN; k++) begin
-            if (masked_gpaddr[k]) begin
-                imsic_num[i] = 1'b1;
+            if (mask[k]) begin
+                imsic_num[i] = masked_gpaddr[k];
                 i++;
             end
         end
