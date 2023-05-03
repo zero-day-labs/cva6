@@ -281,7 +281,7 @@ assign addr_map = '{
 localparam axi_pkg::xbar_cfg_t AXI_XBAR_CFG = '{
   NoSlvPorts:         ariane_soc::NrSlaves,
   NoMstPorts:         ariane_soc::NB_PERIPHERALS,
-  MaxMstTrans:        8, // Modified to 8 //? Why?
+  MaxMstTrans:        8, // Modified to 8
   MaxSlvTrans:        8, // Modified to 8
   FallThrough:        1'b0,
   LatencyMode:        axi_pkg::CUT_ALL_PORTS,

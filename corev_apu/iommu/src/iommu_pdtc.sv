@@ -36,7 +36,7 @@ module iommu_pdtc import ariane_pkg::*; #(
     input  logic                        update_i,       // update flag
     input  logic [DEVICE_ID_WIDTH-1:0]  up_did_i,       // device ID to be inserted
     input  logic [PROCESS_ID_WIDTH-1:0] up_pid_i,       // process ID to be inserted
-    input iommu_pkg::pc_t               up_content_i,   // PC to be inserted
+    input  iommu_pkg::pc_t              up_content_i,   // PC to be inserted
 
     // Lookup signals
     input  logic                        lookup_i,       // lookup flag

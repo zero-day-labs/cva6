@@ -207,7 +207,6 @@ module cq_handler import ariane_pkg::*; #(
         flush_pv_o          = 1'b0;
         flush_pid_o         = '0;
 
-        cq_ip_o             = 1'b0;
         error_wen_o         = 1'b0;
 
         cq_head_o           = cq_head_i;
