@@ -217,7 +217,7 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         corev_apu/tb/common/SimJTAG.sv                                               \
         corev_apu/iommu/src/riscv_iommu.sv                                           \
         corev_apu/iDMA/src/systems/cva6_reg/dma_core_wrap.sv                         \
-        corev_apu/iDMA/src/frontends/iDMA_transfer_id_gen.sv                         \
+        corev_apu/iDMA/src/frontends/idma_transfer_id_gen.sv                         \
         corev_apu/register_interface/src/axi_to_reg.sv                               \
         corev_apu/register_interface/src/axi_lite_to_reg.sv                          \
         vendor/pulp-platform/axi/src/axi_burst_splitter.sv
