@@ -39,4 +39,4 @@
 	url = https://github.com/pulp-platform/common_verification.git
 [submodule "corev_apu/aia"]
 	path = corev_apu/aia
-	url = https://gitlab.com/ESRGv3/aia.git
+	url = git@github.com:zero-day-labs/riscv-aia.git
