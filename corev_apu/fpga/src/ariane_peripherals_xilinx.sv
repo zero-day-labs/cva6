@@ -963,7 +963,7 @@ module ariane_peripherals #(
 
 				.InclPID          ( 1'b0							 				),
 				.InclWSI_IG       ( 1'b1							 				),
-				.InclMSI_IG       ( 1'b0							 				),
+				.InclMSI_IG       ( 1'b1							 				),
 
 				.ADDR_WIDTH				( AxiAddrWidth							),
 				.DATA_WIDTH				( AxiDataWidth							),
