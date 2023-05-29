@@ -17,6 +17,11 @@ package ariane_soc;
   localparam int unsigned NumSources = 30;
   localparam int unsigned MaxPriority = 7;
 
+  // Number of interrupt wires used by IOMMU (1, 2, 4, 8, 16)
+  localparam int unsigned IOMMUNumWires = 4;
+  // Last used interrupt wire index
+  localparam int unsigned LastIntIndex = 6 + IOMMUNumWires;
+
   typedef enum int unsigned {
     CVA6        = 0,
     DEBUG       = 1,   

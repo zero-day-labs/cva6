@@ -1,30 +1,46 @@
-// IOMMU AXI-REG top configuration module:
-//
-// Instantiates the IOMMU register map, accessible through a register interface,
-// and an AXILite-to-RegIF module, so the Register map may be configured through
-// the Slave AXILite interface.
-//
+// Copyright © 2023 University of Minho
+// SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
+
+// Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
+// you may not use this file except in compliance with the License, 
+// or, at your option, the Apache License version 2.0. 
+// You may obtain a copy of the License at https://solderpad.org/licenses/SHL-2.1/.
+// Unless required by applicable law or agreed to in writing, 
+// any work distributed under the License is distributed on an “AS IS” BASIS, 
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+// See the License for the specific language governing permissions and limitations under the License.
+
+/*
+    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
+    Date:   02/02/2023
+
+    Description:    Wrapper module for the RISC-V IOMMU register programming interface:
+                    Instantiates the IOMMU register map and performs conversion between 
+                    register interface protocol and AXI4.
+*/
 
 // `include "packages/iommu_reg_pkg.sv"
 
 module iommu_regmap_if #(
     /// The width of the address.
-    parameter int   ADDR_WIDTH = 64,
+    parameter int           ADDR_WIDTH = -1,
     /// The width of the data.
-    parameter int   DATA_WIDTH = 64,
+    parameter int           DATA_WIDTH = -1,
     /// AXI ID width
-    parameter int   ID_WIDTH  = 4,
+    parameter int           ID_WIDTH  = -1,
     /// AXI user width
-    parameter int   USER_WIDTH  = 0,
+    parameter int           USER_WIDTH  = 1,
     /// Buffer depth (how many outstanding transactions do we allow)
-    parameter int   BUFFER_DEPTH = 2,
+    parameter int           BUFFER_DEPTH = 2,
     /// Whether the AXI-Lite W channel should be decoupled with a register. This
     /// can help break long paths at the expense of registers.
-    parameter bit   DECOUPLE_W = 1,
+    parameter bit           DECOUPLE_W = 1,
     // Include IOMMU WSI generation support
-    parameter bit   InclWSI_IG = 1,
+    parameter bit           InclWSI_IG = 1,
     // Include IOMMU MSI generation support
-    parameter bit   InclMSI_IG = 0,
+    parameter bit           InclMSI_IG = 0,
+    // Number of interrupt vectors supported
+    parameter int unsigned  N_INT_VEC = 16,
     /// AXI Full request struct type
     parameter type  axi_req_t = logic,
     /// AXI Full response struct type
@@ -70,8 +86,8 @@ module iommu_regmap_if #(
         .AxiDataWidth       (DATA_WIDTH),
         .AxiIdWidth         (ID_WIDTH),
         .AxiUserWidth       (USER_WIDTH),
-        .AxiMaxWriteTxns    (32'd1),    //? What is the correct value
-        .AxiMaxReadTxns     (32'd1),    //? What is the correct value
+        .AxiMaxWriteTxns    (32'd1),    
+        .AxiMaxReadTxns     (32'd1),   
         .FallThrough        (1'b0),     // The data at the head of the FIFO is immediately presented on the data output lines
         .full_req_t         (axi_req_t),
         .full_resp_t        (axi_rsp_t),
@@ -95,8 +111,8 @@ module iommu_regmap_if #(
     axi_lite_to_reg #(
         .DATA_WIDTH      (DATA_WIDTH),
         .ADDR_WIDTH      (ADDR_WIDTH),
-        .BUFFER_DEPTH    (BUFFER_DEPTH), //? What is the correct value for this?
-        .DECOUPLE_W      (DECOUPLE_W),   //? What is the correct value for this?
+        .BUFFER_DEPTH    (BUFFER_DEPTH), 
+        .DECOUPLE_W      (DECOUPLE_W),   
         .axi_lite_req_t  (axi_lite_req_t),
         .axi_lite_rsp_t  (axi_lite_resp_t),
         .reg_req_t       (reg_req_t),
@@ -120,6 +136,7 @@ module iommu_regmap_if #(
         .DATA_WIDTH (DATA_WIDTH),
         .InclWSI_IG (InclWSI_IG),
         .InclMSI_IG (InclMSI_IG),
+        .N_INT_VEC  (N_INT_VEC),
         .reg_req_t  (reg_req_t),
         .reg_rsp_t  (reg_rsp_t)
     ) i_iommu_regmap_wrapper (

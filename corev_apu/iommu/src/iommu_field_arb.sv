@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Write enable and data arbitration logic for register slice conforming to Comportibility guide.
-//
-//
+
+
 // Edited by: Manuel Rodríguez <manuel.cederog@gmail.com>
-// Edited at: 12/10/2022
+//        at: 12/10/2022
 //
 // IOMMU Register field internal write arbiter
 //

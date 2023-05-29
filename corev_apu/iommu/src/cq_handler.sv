@@ -1,21 +1,20 @@
+// Copyright © 2023 University of Minho
+// SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
+
+// Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
+// you may not use this file except in compliance with the License, 
+// or, at your option, the Apache License version 2.0. 
+// You may obtain a copy of the License at https://solderpad.org/licenses/SHL-2.1/.
+// Unless required by applicable law or agreed to in writing, 
+// any work distributed under the License is distributed on an “AS IS” BASIS, 
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+// See the License for the specific language governing permissions and limitations under the License.
+
 /*
-    Author: Manuel Rodríguez, University of Minho
+    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
     Date: 15/02/2023
 
     Description: RISC-V IOMMU Command Queue handler module.
-*/
-
-//! NOTES:
-/*
-    -   SW must ensure that the CQ is properly aligned according to its size:
-        For log2(N)-1 <= 7, the base PPN must be aligned to 4KiB, so bits [11:0] must be 0.
-        For log2(N)-1  > 7, the MSB index increases by one for each level (for 8 -> [12:0]; for 9 -> [13:0]; etc).
-    -   Invalidations are performed by the TLBs through combinational logic in one single cycle.
-    -   Registers that are handled both by SW and HW have an input port and an output port.
-    !-   IOMMU support for WSI (caps.IGS) and enable of WSI (fctl.WSI) must be checked externally before setting cqcsr.fence_w_ip
-    -   Write enable signal at HW side of the regmap for head register should be hardwired to 1
-    -   ipsr.cip write enable signal may be the value of the signal itself, in order to be written only when is set.
-        Signal is only cleared by SW.
 */
 
 /* verilator lint_off WIDTH */
@@ -174,7 +173,7 @@ module cq_handler import ariane_pkg::*; #(
         mem_req_o.b_ready       = 1'b0;
 
         // AR
-        mem_req_o.ar.id                     = 4'b0010;              //? Can we define any value for AR.ID?
+        mem_req_o.ar.id                     = 4'b0010;              
         mem_req_o.ar.addr[riscv::PLEN-1:0]  = cq_pptr_q;            // Physical address to access
         mem_req_o.ar.len                    = 8'd1;                 // CQ entries are 16-bytes wide (2 beats)
         mem_req_o.ar.size                   = 3'b011;               // 64 bits (8 bytes) per beat

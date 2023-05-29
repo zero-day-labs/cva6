@@ -1,4 +1,4 @@
-// Copyright (c) 2023 University of Minho
+// Copyright © 2023 University of Minho
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and limitations under the License.
 
 /*
-    Author: Manuel Rodríguez, University of Minho
+    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
     Date: 08/03/2023
 
     Description: RISC-V IOMMU MSI Interrupt Generation Module.
@@ -20,16 +20,18 @@
 //! NOTES:
 /*
     -   Interrupt generation is triggered on a possitive transition of cip or fip.
-    -   Since we only have two possible interrupt sources for now, we use some bits to monitor possitive 
-        transitions of cip or fip independently, so if a transition of fip occurs while processing a CQ interrupt,
-        it is not lost.
     -   The IOMMU must not send MSIs for interrupt vectors with mask M = 1. These messages must be saved and later sent if
         the corresponding mask is cleared to 0.
     -   A register could be used for each source to save messages from vectors with M = 1 (Remember that the same vector 
         can be used by different sources. That's why we can have more than one pending message per vector).
 */
 
-module iommu_msi_ig (
+module iommu_msi_ig #(
+    parameter int unsigned N_INT_VEC = 16,
+
+    // DO NOT MODIFY
+    parameter int unsigned LOG2_INTVEC = $clog2(N_INT_VEC)
+) (
     input  logic clk_i,
     input  logic rst_ni,
 
@@ -39,9 +41,9 @@ module iommu_msi_ig (
     input  logic cip_i,
     input  logic fip_i,
 
-    // Interrupt vectors
-    input  logic [3:0]  civ_i,
-    input  logic [3:0]  fiv_i,
+    // icvec
+    input  logic[(LOG2_INTVEC-1):0]   civ_i,
+    input  logic[(LOG2_INTVEC-1):0]   fiv_i,
 
     // MSI config table
     input  logic [53:0] msi_addr_x_i[16],
@@ -78,7 +80,7 @@ module iommu_msi_ig (
     logic   is_cq_int_q, is_cq_int_n;
 
     // Pending interrupts
-    logic [15:0] pending_q, pending_n;
+    logic [(N_INT_VEC-1):0] pending_q, pending_n;
 
     always_comb begin : int_generation_fsm
 

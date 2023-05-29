@@ -1,4 +1,4 @@
-// Copyright (c) 2023 University of Minho
+// Copyright © 2023 University of Minho
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -11,10 +11,10 @@
 // See the License for the specific language governing permissions and limitations under the License.
 
 /*
-    Author: Manuel Rodríguez, University of Minho
+    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
     Date: 19/01/2023
 
-    Description: RISC-V IOMMU Hardware CDW (Context Directory Walker).
+    Description: RISC-V IOMMU Hardware Context Directory Walker (CDW) module.
 */
 
 //# Disabled verilator_lint_off WIDTH

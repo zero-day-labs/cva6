@@ -1,4 +1,4 @@
-// Copyright (c) 2022 University of Minho
+// Copyright © 2023 University of Minho
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -9,6 +9,7 @@
 // any work distributed under the License is distributed on an “AS IS” BASIS, 
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
+
 /*
     Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
     Date:    10/11/2022
@@ -36,7 +37,7 @@ module iommu_pdtc import ariane_pkg::*; #(
     input  logic                        update_i,       // update flag
     input  logic [DEVICE_ID_WIDTH-1:0]  up_did_i,       // device ID to be inserted
     input  logic [PROCESS_ID_WIDTH-1:0] up_pid_i,       // process ID to be inserted
-    input  iommu_pkg::pc_t              up_content_i,   // PC to be inserted
+    input  iommu_pkg::pc_t               up_content_i,   // PC to be inserted
 
     // Lookup signals
     input  logic                        lookup_i,       // lookup flag
@@ -50,7 +51,7 @@ module iommu_pdtc import ariane_pkg::*; #(
     // 24-bits device_id may be divided into up to three levels.
     // 20-bits process_id may be divided into up to three levels.
     struct packed {
-        logic [DEVICE_ID_WIDTH-1:0]     device_id;  // device_id 
+        logic [DEVICE_ID_WIDTH-1:0]     device_id;  // device_id
         logic [PROCESS_ID_WIDTH-1:0]    process_id; // process_id
         logic                           valid;      // valid bit
     } [PDTC_ENTRIES-1:0] tags_q, tags_n;
@@ -151,7 +152,6 @@ module iommu_pdtc import ariane_pkg::*; #(
     //# PLRU - Pseudo Least Recently Used Replacement
     // -----------------------------------------------
     
-    //? Is it necessary to update LRU on updates?
     logic[2*(PDTC_ENTRIES-1)-1:0] plru_tree_q, plru_tree_n;
     always_comb begin : plru_replacement
         plru_tree_n = plru_tree_q;

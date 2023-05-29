@@ -1,4 +1,4 @@
-// Copyright (c) 2022 University of Minho
+// Copyright © 2023 University of Minho
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -9,16 +9,14 @@
 // any work distributed under the License is distributed on an “AS IS” BASIS, 
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
+
 /*
-    Author: Manuel Rodríguez, University of Minho
+    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
     Date:    04/11/2022
 
-    Description: Sv39x4 IO Translation Look-aside Buffer (IO Address Translation Cache) for RISC-V IOMMU.
-                This module is an adaptation of the CVA6 Sv39 TLB developed by:
-                -   David Schaffenrath, TU Graz,
-                -   Florian Zaruba, ETH Zurich;
-                And the CVA6 Sv39x4 TLB developed by:
-                -   Bruno Sá, University of Minho.
+    Description:    Sv39x4 IO Translation Lookaside Buffer (IOTLB) for RISC-V IOMMU.
+                    This module is an adaptation of the CVA6 Sv39 TLB developed by 
+                    Bruno Sá, University of Minho.
 */
 
 module iommu_iotlb_sv39x4 import ariane_pkg::*; #(
@@ -92,11 +90,10 @@ module iommu_iotlb_sv39x4 import ariane_pkg::*; #(
         logic                  is_msi;        // IOTLB entry contains a GPA associated with a guest vIMSIC
         logic                  s_stg_en;      // s-stage translation enable
         logic                  g_stg_en;      // g-stage translation enable
-        logic                  valid;         // valid bit //? Why two V bits? tag and PTE
+        logic                  valid;         // valid bit
     } [IOTLB_ENTRIES-1:0] tags_q, tags_n;
 
     //* IOTLB entries: Same entry for both stages (S/VS and G)
-    // TODO: For now, adopt the same PTE format for the IOTLB. Then, consider to ignore/save some unnecessary bits
     // For G-stage address translation, all memory accesses are considered to be user-level accesses
     // R, W and X permissions are checked in both stages
     // G bit in G-stage PTEs should be cleared by SW and ignored by HW
@@ -410,7 +407,6 @@ module iommu_iotlb_sv39x4 import ariane_pkg::*; #(
     //* PLRU - Pseudo Least Recently Used Replacement
     // -----------------------------------------------
     
-    //? Is it necessary to update LRU on updates?
     logic[2*(IOTLB_ENTRIES-1)-1:0] plru_tree_q, plru_tree_n;
     always_comb begin : plru_replacement
         plru_tree_n = plru_tree_q;

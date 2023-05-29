@@ -1,4 +1,4 @@
-// Copyright (c) 2022 University of Minho
+// Copyright © 2023 University of Minho
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -9,12 +9,16 @@
 // any work distributed under the License is distributed on an “AS IS” BASIS, 
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
+
 /*
     Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
     Date:    10/11/2022
 
-    Description: RISC-V IOMMU overall SV package.
+    Description: RISC-V IOMMU SV package.
 */
+
+`ifndef RISCV_IOMMU_PKG
+`define RISCV_IOMMU_PKG
 
 package iommu_pkg;
 
@@ -25,6 +29,28 @@ package iommu_pkg;
     // to identify memory accesses to virtual guest interrupt files
     localparam MSI_MASK_LEN     = 52;
     localparam MSI_PATTERN_LEN  = 52;
+
+    //--------------------------
+    //#  ICVEC values
+    //--------------------------
+    localparam logic [3:0] icvec_vals [16] = '{
+        4'd0,
+        4'd1,
+        4'd2,
+        4'd3,
+        4'd4,
+        4'd5,
+        4'd6,
+        4'd7,
+        4'd8,
+        4'd9,
+        4'd10,
+        4'd11,
+        4'd12,
+        4'd13,
+        4'd14,
+        4'd15
+    };
 
     //------------------------
     //#  Context Fields
@@ -400,3 +426,5 @@ package iommu_pkg;
     endfunction : extract_imsic_num
 
 endpackage
+
+`endif  /* RISCV_IOMMU_PKG */

@@ -1,4 +1,4 @@
-// Copyright (c) 2023 University of Minho
+// Copyright © 2023 University of Minho
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -11,10 +11,10 @@
 // See the License for the specific language governing permissions and limitations under the License.
 
 /*
-    Author: Manuel Rodríguez, University of Minho
-    Date: 06/02/2023
+    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
+    Date:   06/02/2023
 
-    Description: RISC-V IOMMU Translation Modules Wrapper.
+    Description: RISC-V IOMMU Translation Logic Wrapper.
 */
 
 //! NOTES:
@@ -33,9 +33,13 @@ module iommu_translation_wrapper import ariane_pkg::*; #(
     parameter int unsigned  PROCESS_ID_WIDTH    = 20,
     parameter int unsigned  PSCID_WIDTH         = 20,
     parameter int unsigned  GSCID_WIDTH         = 16,
+    parameter int unsigned  N_INT_VEC           = 16,
 
     parameter bit           InclPID             = 0,
-    parameter bit           InclMSI_IG          = 0
+    parameter bit           InclMSI_IG          = 0,
+
+    // DO NOT MODIFY
+    parameter int unsigned LOG2_INTVEC = $clog2(N_INT_VEC)
 ) (
     input  logic    clk_i,
     input  logic    rst_ni,
@@ -48,7 +52,7 @@ module iommu_translation_wrapper import ariane_pkg::*; #(
     input  logic [PROCESS_ID_WIDTH-1:0]     process_id_i,
     input  logic [riscv::VLEN-1:0]          iova_i,
     
-    input  logic [iommu_pkg::TTYP_LEN-1:0]  trans_type_i,           //? When not implementing ATS, are all requests untranslated?
+    input  logic [iommu_pkg::TTYP_LEN-1:0]  trans_type_i,
     input  riscv::priv_lvl_t                priv_lvl_i,             // Privilege mode associated with the transaction
 
     // Memory Bus
@@ -99,8 +103,8 @@ module iommu_translation_wrapper import ariane_pkg::*; #(
     output logic                        cq_ip_o,
     output logic                        fq_ip_o,
     // icvec
-    input  logic [3:0]                  civ_i,
-    input  logic [3:0]                  fiv_i,
+    input  logic[(LOG2_INTVEC-1):0]     civ_i,
+    input  logic[(LOG2_INTVEC-1):0]     fiv_i,
     // MSI config table
     input  logic [53:0]                 msi_addr_x_i[16],
     input  logic [31:0]                 msi_data_x_i[16],
@@ -702,7 +706,9 @@ module iommu_translation_wrapper import ariane_pkg::*; #(
     //# MSI Interrupt Generation
     if (InclMSI_IG) begin : gen_msi_ig_support
 
-        iommu_msi_ig i_iommu_msi_ig (
+        iommu_msi_ig #(
+            .N_INT_VEC          (N_INT_VEC)
+        ) i_iommu_msi_ig (
             .clk_i              (clk_i),
             .rst_ni             (rst_ni),
 

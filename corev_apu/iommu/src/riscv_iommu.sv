@@ -1,4 +1,4 @@
-// Copyright (c) 2023 University of Minho
+// Copyright © 2023 University of Minho
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and limitations under the License.
 
 /*
-    Author: Manuel Rodríguez, University of Minho
+    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
     Date: 02/03/2023
 
     Description: RISC-V IOMMU Top Module.
@@ -41,17 +41,19 @@ module riscv_iommu #(
     parameter bit           InclWSI_IG          = 1,
     // Include IOMMU MSI generation support
     parameter bit           InclMSI_IG          = 0,
+    // Number of interrupt vectors supported
+    parameter int unsigned  N_INT_VEC           = 16,
 
     /// AXI Bus Addr width.
-    parameter int   ADDR_WIDTH      = 64,
+    parameter int   ADDR_WIDTH      = -1,
     /// AXI Bus data width.
-    parameter int   DATA_WIDTH      = 64,
+    parameter int   DATA_WIDTH      = -1,
     /// AXI ID width
-    parameter int   ID_WIDTH        = 4,
+    parameter int   ID_WIDTH        = -1,
     /// AXI ID width
-    parameter int   ID_SLV_WIDTH    = 6,
+    parameter int   ID_SLV_WIDTH    = -1,
     /// AXI user width
-    parameter int   USER_WIDTH      = 0,
+    parameter int   USER_WIDTH      = 1,
     /// AXI AW Channel struct type
     parameter type aw_chan_t        = logic,
     /// AXI W Channel struct type
@@ -98,7 +100,7 @@ module riscv_iommu #(
     input  axi_req_t    prog_req_i,
     output axi_rsp_t    prog_resp_o,
 
-    output logic [15:0] wsi_wires_o
+    output logic [(N_INT_VEC-1):0] wsi_wires_o
 );
 
     // To trigger an address translation. Do NOT set if the requested AXI transaction exceeds a 4kiB address boundary
@@ -278,7 +280,9 @@ module riscv_iommu #(
     //# WSI Interrupt Generation
     if (InclWSI_IG) begin : gen_wsi_ig_support
         
-        iommu_wsi_ig i_iommu_wsi_ig (
+        iommu_wsi_ig #(
+            .N_INT_VEC      (N_INT_VEC)
+        ) i_iommu_wsi_ig (
             // fctl.wsi
             .wsi_en_i       (reg2hw.fctl.wsi.q),
 
@@ -296,20 +300,21 @@ module riscv_iommu #(
     end
 
     // Hardwire WSI wires to 0
-    else begin
+    else begin : gen_wsi_support_disabled
         assign wsi_wires_o  = '0;
     end
 
     iommu_translation_wrapper #(
-        .IOTLB_ENTRIES      (IOTLB_ENTRIES),
-        .DDTC_ENTRIES       (DDTC_ENTRIES),
-        .PDTC_ENTRIES       (PDTC_ENTRIES),
-        .DEVICE_ID_WIDTH    (DEVICE_ID_WIDTH),
-        .PROCESS_ID_WIDTH   (PROCESS_ID_WIDTH),
-        .PSCID_WIDTH        (PSCID_WIDTH),
-        .GSCID_WIDTH        (GSCID_WIDTH),
-        .InclPID            (InclPID),
-        .InclMSI_IG         (InclMSI_IG)
+        .IOTLB_ENTRIES      (IOTLB_ENTRIES      ),
+        .DDTC_ENTRIES       (DDTC_ENTRIES       ),
+        .PDTC_ENTRIES       (PDTC_ENTRIES       ),
+        .DEVICE_ID_WIDTH    (DEVICE_ID_WIDTH    ),
+        .PROCESS_ID_WIDTH   (PROCESS_ID_WIDTH   ),
+        .PSCID_WIDTH        (PSCID_WIDTH        ),
+        .GSCID_WIDTH        (GSCID_WIDTH        ),
+        .N_INT_VEC          (N_INT_VEC          ),
+        .InclPID            (InclPID            ),
+        .InclMSI_IG         (InclMSI_IG         )
     ) i_translation_wrapper (
         .clk_i          (clk_i),
         .rst_ni         (rst_ni),
@@ -401,6 +406,7 @@ module riscv_iommu #(
         .DECOUPLE_W      (1               ), // Channel W is decoupled with registers
         .InclWSI_IG      (InclWSI_IG      ),
         .InclMSI_IG      (InclMSI_IG      ),
+        .N_INT_VEC       (N_INT_VEC       ),
         .axi_req_t       (axi_req_t       ),
         .axi_rsp_t       (axi_rsp_t       ),
         .axi_lite_req_t  (axi_lite_req_t  ),
@@ -587,6 +593,23 @@ module riscv_iommu #(
       .slv_req_i    (error_req  ),
       .slv_resp_o   (error_rsp  )
   );
+
+    //pragma translate_off
+    `ifndef VERILATOR
+
+    initial begin : p_assertions
+        assert ((InclMSI_IG) || (InclWSI_IG))
+        else begin $error("At least one Interrupt Generation method must be supported (See spec)."); $stop(); end
+
+        assert ((ADDR_WIDTH >= 1) && (DATA_WIDTH >= 1) && (ID_WIDTH >= 1) && (ID_SLV_WIDTH >= 1) && (USER_WIDTH >= 1))
+        else begin $error("Invalid AXI parameter width"); $stop(); end
+
+        assert ((N_INT_VEC == 1) || (N_INT_VEC == 2) || (N_INT_VEC == 4) || (N_INT_VEC == 8) || (N_INT_VEC == 16))
+        else begin $error("Number of interrupt vectors MUST be a power of two and max 16"); $stop(); end
+    end
+
+    `endif
+    //pragma translate_on
     
 endmodule
 
