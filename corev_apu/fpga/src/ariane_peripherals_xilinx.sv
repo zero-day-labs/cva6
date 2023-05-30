@@ -880,7 +880,7 @@ module ariane_peripherals #(
 			.AXI_DATA_WIDTH		( AxiDataWidth           	),
 			.AXI_ID_WIDTH  		( AxiIdWidth             	),
 			.AXI_USER_WIDTH		( AxiUserWidth           	),
-			.AXI_SLV_ID_WIDTH ( ariane_soc::IdWidthSlave)
+			.AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  )
 		) i_dma (
 			.clk_i      			( clk_i            ),
 			.rst_ni     			( rst_ni           ),
@@ -943,15 +943,14 @@ module ariane_peripherals #(
 		`AXI_ASSIGN_TO_RESP(axi_iommu_comp_rsp, iommu_comp)
 
 		// AXI Bus between System Interconnect (Mst) and IOMMU Programming IF (Slv)
-		ariane_axi_soc::req_t  axi_iommu_cfg_req;
-		ariane_axi_soc::resp_t axi_iommu_cfg_rsp;
+		ariane_axi_soc::req_slv_t  axi_iommu_cfg_req;
+		ariane_axi_soc::resp_slv_t axi_iommu_cfg_rsp;
 		`AXI_ASSIGN_TO_REQ(axi_iommu_cfg_req, iommu_cfg)
 		`AXI_ASSIGN_FROM_RESP(iommu_cfg, axi_iommu_cfg_rsp)
 
 		// Memory-mapped Register IF types
 		// name, addr_t, data_t, strb_t
 		`REG_BUS_TYPEDEF_ALL(iommu_reg, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
-		`AXI_LITE_TYPEDEF_ALL(axi_lite, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
   
         riscv_iommu #(
 			.IOTLB_ENTRIES		(  4						),
@@ -980,8 +979,6 @@ module ariane_peripherals #(
 			.axi_rsp_t			( ariane_axi_soc::resp_t	),
 			.axi_req_slv_t		( ariane_axi_soc::req_slv_t	),
 			.axi_rsp_slv_t		( ariane_axi_soc::resp_slv_t),
-			.axi_lite_req_t		( axi_lite_req_t			),
-			.axi_lite_resp_t	( axi_lite_resp_t			),
 			.reg_req_t			( iommu_reg_req_t			),
 			.reg_rsp_t			( iommu_reg_rsp_t			)
 		) i_riscv_iommu (
