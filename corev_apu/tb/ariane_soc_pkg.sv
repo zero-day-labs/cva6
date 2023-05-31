@@ -32,27 +32,34 @@ package ariane_soc;
   // Added IOMMU Completion IF port and Memory IF port (+2)
   localparam NrSlaves = 4; // actually masters, but slaves on the crossbar
 
+  // Number of DMA masters connected to the DMA XBAR (if implemented)
+  localparam int unsigned NrDmaMasters = 4;
+
   // 4 is recommended by AXI standard, so lets stick to it, do not change
-  localparam IdWidth   = 4;
-  localparam IdWidthSlave = IdWidth + $clog2(NrSlaves);
+  localparam int unsigned IdWidth          = 4;
+  localparam int unsigned IdWidthSlave     = IdWidth + $clog2(NrSlaves);
+  localparam int unsigned IdWidthSlaveDMA  = IdWidth + $clog2(NrDmaMasters);
 
   // must be in order from highest address to lowest
   typedef enum int unsigned {
     DRAM      =  0,
     IOMMU_CFG =  1, // IOMMU programming IF
-    DMA_CFG   =  2, // DMA slave port for configuration of the engine
-    GPIO      =  3,
-    Ethernet  =  4,
-    SPI       =  5,
-    Timer     =  6,
-    UART      =  7,
-    PLIC      =  8,
-    CLINT     =  9,
-    ROM       =  10,
-    Debug     =  11
+    DMA_CFG_1 =  2, // DMA slave port for configuration of the engine
+    DMA_CFG_2 =  3,
+    DMA_CFG_3 =  4,
+    DMA_CFG_4 =  5,
+    GPIO      =  6,
+    Ethernet  =  7,
+    SPI       =  8,
+    Timer     =  9,
+    UART      =  10,
+    PLIC      =  11,
+    CLINT     =  12,
+    ROM       =  13,
+    Debug     =  14
   } axi_slaves_t;
 
-  localparam NB_PERIPHERALS = Debug + 1;
+  localparam int unsigned NB_PERIPHERALS = Debug + 1;
 
 
   localparam logic[63:0] DebugLength    = 64'h1000;
@@ -64,7 +71,7 @@ package ariane_soc;
   localparam logic[63:0] SPILength      = 64'h800000;
   localparam logic[63:0] EthernetLength = 64'h10000;
   localparam logic[63:0] GPIOLength     = 64'h1000;
-  localparam logic[63:0] DMALength      = 64'h1000;     
+  localparam logic[63:0] DMALength      = 64'h1000;     // Same for all iDMAs
   localparam logic[63:0] IOMMULength    = 64'h1000;     // Regmap occupies 4kiB of memory address space
   localparam logic[63:0] DRAMLength     = 64'h40000000; // 1GByte of DDR (split between two chips on Genesys2)
   localparam logic[63:0] SRAMLength     = 64'h1800000;  // 24 MByte of SRAM
@@ -81,7 +88,10 @@ package ariane_soc;
     SPIBase      = 64'h2000_0000,
     EthernetBase = 64'h3000_0000,
     GPIOBase     = 64'h4000_0000,
-    DMABase      = 64'h5000_0000,
+    DMABase_4    = 64'h5000_0000,
+    DMABase_3    = 64'h5000_1000,
+    DMABase_2    = 64'h5000_2000,
+    DMABase_1    = 64'h5000_3000,
     IOMMUBase    = 64'h5001_0000,
     DRAMBase     = 64'h8000_0000
   } soc_bus_start_t;
