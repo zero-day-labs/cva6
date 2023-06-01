@@ -33,7 +33,7 @@ package ariane_soc;
   localparam NrSlaves = 4; // actually masters, but slaves on the crossbar
 
   // Number of DMA masters connected to the DMA XBAR (if implemented)
-  localparam int unsigned NrDmaMasters = 4;
+  localparam int unsigned NrDmaMasters = 2;
 
   // 4 is recommended by AXI standard, so lets stick to it, do not change
   localparam int unsigned IdWidth          = 4;
@@ -44,19 +44,17 @@ package ariane_soc;
   typedef enum int unsigned {
     DRAM      =  0,
     IOMMU_CFG =  1, // IOMMU programming IF
-    DMA_CFG_1 =  2, // DMA slave port for configuration of the engine
-    DMA_CFG_2 =  3,
-    DMA_CFG_3 =  4,
-    DMA_CFG_4 =  5,
-    GPIO      =  6,
-    Ethernet  =  7,
-    SPI       =  8,
-    Timer     =  9,
-    UART      =  10,
-    PLIC      =  11,
-    CLINT     =  12,
-    ROM       =  13,
-    Debug     =  14
+    DMA_CFG_0 =  2, // DMA slave port for configuration of the engine
+    DMA_CFG_1 =  3,
+    GPIO      =  4,
+    Ethernet  =  5,
+    SPI       =  6,
+    Timer     =  7,
+    UART      =  8,
+    PLIC      =  9,
+    CLINT     =  10,
+    ROM       =  11,
+    Debug     =  12
   } axi_slaves_t;
 
   localparam int unsigned NB_PERIPHERALS = Debug + 1;
@@ -88,10 +86,8 @@ package ariane_soc;
     SPIBase      = 64'h2000_0000,
     EthernetBase = 64'h3000_0000,
     GPIOBase     = 64'h4000_0000,
-    DMABase_4    = 64'h5000_0000,
-    DMABase_3    = 64'h5000_1000,
-    DMABase_2    = 64'h5000_2000,
-    DMABase_1    = 64'h5000_3000,
+    DMABase_1    = 64'h5000_0000,
+    DMABase_0    = 64'h5000_1000,
     IOMMUBase    = 64'h5001_0000,
     DRAMBase     = 64'h8000_0000
   } soc_bus_start_t;

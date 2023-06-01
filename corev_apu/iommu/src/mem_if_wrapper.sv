@@ -23,30 +23,30 @@ module mem_if_wrapper
     input  logic    rst_ni,
 
     // External ports: To AXI Bus
-    input  ariane_axi::resp_t       mem_resp_i,
-    output ariane_axi::req_t        mem_req_o,
+    input  ariane_axi_soc::resp_t       mem_resp_i,
+    output ariane_axi_soc::req_t        mem_req_o,
 
     /*--------------------------------------------*/
     
     // From PTW
-    output ariane_axi::resp_t       ptw_resp_o,
-    input  ariane_axi::req_t        ptw_req_i,
+    output ariane_axi_soc::resp_t       ptw_resp_o,
+    input  ariane_axi_soc::req_t        ptw_req_i,
 
     // From CDW
-    output ariane_axi::resp_t       cdw_resp_o,
-    input  ariane_axi::req_t        cdw_req_i,
+    output ariane_axi_soc::resp_t       cdw_resp_o,
+    input  ariane_axi_soc::req_t        cdw_req_i,
 
     // From CQ
-    output ariane_axi::resp_t       cq_resp_o,
-    input  ariane_axi::req_t        cq_req_i,
+    output ariane_axi_soc::resp_t       cq_resp_o,
+    input  ariane_axi_soc::req_t        cq_req_i,
 
     // From FQ
-    output ariane_axi::resp_t       fq_resp_o,
-    input  ariane_axi::req_t        fq_req_i,
+    output ariane_axi_soc::resp_t       fq_resp_o,
+    input  ariane_axi_soc::req_t        fq_req_i,
 
     // From MSI IG
-    output ariane_axi::resp_t       ig_resp_o,
-    input  ariane_axi::req_t        ig_req_i
+    output ariane_axi_soc::resp_t       ig_resp_o,
+    input  ariane_axi_soc::req_t        ig_req_i
 );
 
     logic[1:0] w_select, w_select_fifo;

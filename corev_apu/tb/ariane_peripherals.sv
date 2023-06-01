@@ -33,7 +33,8 @@ module ariane_peripherals #(
     AXI_BUS.Slave      spi             ,
     AXI_BUS.Slave      ethernet        ,
     AXI_BUS.Slave      timer           ,
-    AXI_BUS.Slave      dma_cfg [ariane_soc::NrDmaMasters-1:0],  // DMA Engine configuration IFs    (XBAR   => DMAs )
+    AXI_BUS.Slave      dma_cfg_1       ,                        // DMA Engine configuration IFs    (XBAR   => DMAs )
+    AXI_BUS.Slave      dma_cfg_0       ,
     AXI_BUS.Master     iommu_comp      ,                        // IOMMU Completion IF             (IOMMU  => XBAR )
     AXI_BUS.Master     iommu_mem       ,                        // IOMMU Memory IF                 (IOMMU  => XBAR )
     AXI_BUS.Slave      iommu_cfg       ,                        // IOMMU Programming IF            (XBAR   => IOMMU)
@@ -68,6 +69,8 @@ module ariane_peripherals #(
 
     // Unused interrupt sources
     assign irq_sources[ariane_soc::NumSources-1:ariane_soc::LastIntIndex+1] = '0;
+
+    /*verilator tracing_off*/
 
     REG_BUS #(
         .ADDR_WIDTH ( 32 ),
@@ -624,13 +627,13 @@ module ariane_peripherals #(
         );
     end
 
+    /*verilator tracing_on*/
+
     // --------------------------------------
     //# Direct Memory Access Engine & IOMMU
     // --------------------------------------
 
     // AXI Bus between DMA-device (Mst) and IOMMU TR IF (Slv)
-    //? May be necessary to add extra bits in the AXI ID width: ariane_soc::IdWidthSlaveDMA
-    //? Thus, create a new typedef for DMA slave port, if needed
     ariane_axi_soc::req_t  axi_iommu_tr_req;
     ariane_axi_soc::resp_t axi_iommu_tr_rsp;
 
@@ -644,8 +647,6 @@ module ariane_peripherals #(
         // -----------------------------------------------
 
         localparam logic [3:0] device_ids [ariane_soc::NrDmaMasters] = '{
-            4'd4,
-            4'd3,
             4'd2,
             4'd1
         };
@@ -659,77 +660,70 @@ module ariane_peripherals #(
         ) dma_xbar_slave[ariane_soc::NrDmaMasters-1:0]();
 
         // Connection between DMA XBAR and IOMMU TR IF
-        //? AXI ID Width should be greater ?
         AXI_BUS #(
             .AXI_ADDR_WIDTH ( AxiAddrWidth                  ),
             .AXI_DATA_WIDTH ( AxiDataWidth                  ),
-            .AXI_ID_WIDTH   ( ariane_soc::IdWidthSlaveDMA   ),
+            .AXI_ID_WIDTH   ( ariane_soc::IdWidthSlave      ),
             .AXI_USER_WIDTH ( AxiUserWidth                  )
-        ) dma_xbar_master[0:0]();
+        ) dma_xbar_master ();
 
-        // Address map
-        // DMA masters requests should only aim main memory
-        axi_pkg::xbar_rule_64_t dma_addr_map = '{
-            idx: ariane_soc::DRAM,
-            start_addr: ariane_soc::DRAMBase,
-            end_addr: ariane_soc::DRAMBase + ariane_soc::DRAMLength
-        };
+        dma_xbar_intf #(
+            .aw_chan_t  (ariane_axi_soc::aw_chan_t),
+            .w_chan_t   (ariane_axi_soc::w_chan_t),
+            .b_chan_t   (ariane_axi_soc::b_chan_t),
+            .ar_chan_t  (ariane_axi_soc::ar_chan_t),
+            .r_chan_t   (ariane_axi_soc::r_chan_t),
+            .axi_req_t  (ariane_axi_soc::req_t),
+            .axi_rsp_t  (ariane_axi_soc::resp_t),
 
-        // DMA Interconnect config
-        localparam axi_pkg::xbar_cfg_t DMA_XBAR_CONFIG = '{
-            NoSlvPorts:         4,      // Nr of DMA masters
-            NoMstPorts:         1,      // IOMMU TR IF
-            MaxMstTrans:        1,      // Each DMA master will have max one in-flight transaction
-            MaxSlvTrans:        1,      // One transaction per ID in-flight in the IOMMU TR IF
-            FallThrough:        1'b0,
-            LatencyMode:        axi_pkg::CUT_ALL_PORTS,
-            AxiIdWidthSlvPorts: ariane_soc::IdWidth,
-            AxiIdUsedSlvPorts:  ariane_soc::IdWidth,    //! may be reduced
-            UniqueIds:          1'b1,                   // exp
-            AxiAddrWidth:       AxiAddrWidth,
-            AxiDataWidth:       AxiDataWidth,
-            NoAddrRules:        1
-        };
+            .NrDMAs     (ariane_soc::NrDmaMasters)
+        ) i_dma_xbar_intf (
+            .clk_i      (clk_i),
+            .rst_ni     (rst_ni),
 
-        // DMA XBAR
-        axi_xbar_intf #(
-            .AXI_USER_WIDTH         ( AxiUserWidth            ),
-            .Cfg                    ( DMA_XBAR_CONFIG         ),
-            .rule_t                 ( axi_pkg::xbar_rule_64_t )
-        ) i_axi_xbar_dma (
-            .clk_i                  ( clk_i             ),
-            .rst_ni                 ( rst_ni            ),
-            .test_i                 ( 1'b0              ),
-            .slv_ports              ( dma_xbar_slave    ),  // To connect DMA masters
-            .mst_ports              ( dma_xbar_master   ),  // To connect to IOMMU TR IF
-            .addr_map_i             ( dma_addr_map      ),
-            .en_default_mst_port_i  ( '0                ),
-            .default_mst_port_i     ( '0                )
+            .slv_ports  (dma_xbar_slave),
+            .mst_port   (dma_xbar_master)
         );
 
         // Generate iDMA modules
-        // index 0 is DMA_CFG_1 (0x5003_0000) (dev_id 1)
-        for (genvar i = 0; i < ariane_soc::NrDmaMasters; i++) begin : gen_idmas
-            dma_core_wrap #(
-                .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
-                .AXI_DATA_WIDTH		( AxiDataWidth           	),
-                .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),  //? shouldn't be 4 instead of 6 ?
-                .AXI_USER_WIDTH		( AxiUserWidth           	),
-                .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-                .device_id          ( device_ids[i]             )
-            ) i_dma (
-                .clk_i      			( clk_i            ),
-                .rst_ni     			( rst_ni           ),
-                .testmode_i 			( 1'b0             ),
-                // slave port
-                .axi_slave  			( dma_cfg[i]       ),
-                // master port
-                .axi_master 			( dma_xbar_slave[i])
-            );
-        end
+        // iDMA at 0x5000_1000
+        dma_core_wrap #(
+            .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
+            .AXI_DATA_WIDTH		( AxiDataWidth           	),
+            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),  //? shouldn't be 4 instead of 6 ?
+            .AXI_USER_WIDTH		( AxiUserWidth           	),
+            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
+            .device_id          ( device_ids[0]             )
+        ) i_idma_0 (
+            .clk_i      			( clk_i            ),
+            .rst_ni     			( rst_ni           ),
+            .testmode_i 			( 1'b0             ),
+            // slave port
+            .axi_slave  			( dma_cfg_0        ),
+            // master port
+            .axi_master 			( dma_xbar_slave[0])
+        );
 
-        `AXI_ASSIGN_TO_REQ(axi_iommu_tr_req, dma_xbar_master[0])
-        `AXI_ASSIGN_FROM_RESP(dma_xbar_master[0], axi_iommu_tr_rsp)
+        // iDMA at 0x5000_0000
+        dma_core_wrap #(
+            .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
+            .AXI_DATA_WIDTH		( AxiDataWidth           	),
+            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),  //? shouldn't be 4 instead of 6 ?
+            .AXI_USER_WIDTH		( AxiUserWidth           	),
+            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
+            .device_id          ( device_ids[1]             )
+        ) i_idma_1 (
+            .clk_i      			( clk_i            ),
+            .rst_ni     			( rst_ni           ),
+            .testmode_i 			( 1'b0             ),
+            // slave port
+            .axi_slave  			( dma_cfg_1        ),
+            // master port
+            .axi_master 			( dma_xbar_slave[1])
+        );
+
+        `AXI_ASSIGN_TO_REQ(axi_iommu_tr_req, dma_xbar_master)
+        `AXI_ASSIGN_FROM_RESP(dma_xbar_master, axi_iommu_tr_rsp)
     end
 
 	// --------------
@@ -745,23 +739,35 @@ module ariane_peripherals #(
 	    ariane_axi_soc::resp_slv_t [ariane_soc::NrDmaMasters-1:0] axi_dma_cfg_rsp;
     
         // Generate error slaves and connect to XBAR
-        for (genvar i = 0; i < ariane_soc::NrDmaMasters; i++) begin : gen_idmas
+        `AXI_ASSIGN_TO_REQ(axi_dma_cfg_req[0], dma_cfg_0)
+        `AXI_ASSIGN_FROM_RESP(dma_cfg_0, axi_dma_cfg_rsp[0])
 
-            `AXI_ASSIGN_TO_REQ(axi_dma_cfg_req[i], dma_cfg[i])
-	        `AXI_ASSIGN_FROM_RESP(dma_cfg[i], axi_dma_cfg_rsp[i])
+        axi_err_slv #(
+            .AxiIdWidth ( ariane_soc::IdWidthSlave   ),
+            .req_t      ( ariane_axi_soc::req_slv_t  ),
+            .resp_t     ( ariane_axi_soc::resp_slv_t )
+        ) i_idma_err_slv_0 (
+            .clk_i      ( clk_i    				),
+            .rst_ni     ( rst_ni   				),
+            .slv_req_i  ( axi_dma_cfg_req[0]    ),
+            .slv_resp_o ( axi_dma_cfg_rsp[0]    ),
+            .test_i     ( 1'b0     				)
+        );
 
-            axi_err_slv #(
-                .AxiIdWidth ( ariane_soc::IdWidthSlave   ),
-                .req_t      ( ariane_axi_soc::req_slv_t  ),
-                .resp_t     ( ariane_axi_soc::resp_slv_t )
-            ) i_idma_err_slv (
-                .clk_i      ( clk_i    				),
-                .rst_ni     ( rst_ni   				),
-                .slv_req_i  ( axi_dma_cfg_req[i]    ),
-                .slv_resp_o ( axi_dma_cfg_rsp[i]    ),
-                .test_i     ( 1'b0     				)
-            );
-        end
+        `AXI_ASSIGN_TO_REQ(axi_dma_cfg_req[1], dma_cfg_1)
+        `AXI_ASSIGN_FROM_RESP(dma_cfg_1, axi_dma_cfg_rsp[1])
+
+        axi_err_slv #(
+            .AxiIdWidth ( ariane_soc::IdWidthSlave   ),
+            .req_t      ( ariane_axi_soc::req_slv_t  ),
+            .resp_t     ( ariane_axi_soc::resp_slv_t )
+        ) i_idma_err_slv_1 (
+            .clk_i      ( clk_i    				),
+            .rst_ni     ( rst_ni   				),
+            .slv_req_i  ( axi_dma_cfg_req[1]    ),
+            .slv_resp_o ( axi_dma_cfg_rsp[1]    ),
+            .test_i     ( 1'b0     				)
+        );
 
 	    // Set TR IF request wires to a known state
 	    assign axi_iommu_tr_req.ar_valid = 1'b0;
