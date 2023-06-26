@@ -21,7 +21,9 @@
 
     !NOTE:  The AXI ID of all slaves devices connected to the IOMMU through 
     !       this interconnect MUST be unique. Otherwise, responses may be 
-    !       routed wrongly
+    !       routed wrongly. 
+    !       AXI IDs must start in 1, and the index of the slave port to which
+    !       a device is connected to MUST match with the ID of the device - 1
 */
 
 module dma_xbar #(
@@ -67,7 +69,7 @@ module dma_xbar #(
     logic [NrDMAs-1:0]      aw_ready_group;
     aw_chan_t [NrDMAs-1:0]  aw_group;
 
-    // Concatenate AW valid, ready and channel
+    // Concatenate W valid, ready and channel
     logic [NrDMAs-1:0]      w_valid_group;
     logic [NrDMAs-1:0]      w_ready_group;
     w_chan_t [NrDMAs-1:0]   w_group;
@@ -86,7 +88,7 @@ module dma_xbar #(
         assign slv_resps_o[i].ar_ready  = ar_ready_group[i];
         assign ar_group[i]              = slv_reqs_i[i].ar;
 
-        //AW
+        // AW
         assign aw_valid_group[i]        = slv_reqs_i[i].aw_valid;
         assign slv_resps_o[i].aw_ready  = aw_ready_group[i];
         assign aw_group[i]              = slv_reqs_i[i].aw;
@@ -154,7 +156,7 @@ module dma_xbar #(
       .full_o     (                 ),
       .empty_o    (                 ),
       .usage_o    (                 ),
-      .data_i     ( mst_req_o.aw.id ),
+      .data_i     ( mst_req_o.aw.id - 1),
       .push_i     ( mst_req_o.aw_valid & mst_resp_i.aw_ready ),                 // a new AW transaction was requested and granted
       .data_o     ( w_select_fifo   ),                                          // WID to select the W MUX
       .pop_i      ( mst_req_o.w_valid & mst_resp_i.w_ready & mst_req_o.w.last ) // W transaction has finished
@@ -181,7 +183,7 @@ module dma_xbar #(
     ) i_stream_demux_r (
         .inp_valid_i ( mst_resp_i.r_valid ),
         .inp_ready_o ( mst_req_o.r_ready  ),
-        .oup_sel_i   ( mst_resp_i.r.id    ),
+        .oup_sel_i   ( mst_resp_i.r.id - 1),
         .oup_valid_o ( r_valid_group ),
         .oup_ready_i ( r_ready_group )
     );
@@ -192,7 +194,7 @@ module dma_xbar #(
     ) i_stream_demux_b (
         .inp_valid_i ( mst_resp_i.b_valid ),
         .inp_ready_o ( mst_req_o.b_ready  ),
-        .oup_sel_i   ( mst_resp_i.b.id    ),
+        .oup_sel_i   ( mst_resp_i.b.id - 1),
         .oup_valid_o ( b_valid_group ),
         .oup_ready_i ( b_ready_group )
     );

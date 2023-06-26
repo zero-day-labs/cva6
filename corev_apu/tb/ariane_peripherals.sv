@@ -33,7 +33,9 @@ module ariane_peripherals #(
     AXI_BUS.Slave      spi             ,
     AXI_BUS.Slave      ethernet        ,
     AXI_BUS.Slave      timer           ,
-    AXI_BUS.Slave      dma_cfg_1       ,                        // DMA Engine configuration IFs    (XBAR   => DMAs )
+    AXI_BUS.Slave      dma_cfg_3       ,                        // DMA Engine configuration IFs    (XBAR   => DMAs )
+    AXI_BUS.Slave      dma_cfg_2       ,
+    AXI_BUS.Slave      dma_cfg_1       ,
     AXI_BUS.Slave      dma_cfg_0       ,
     AXI_BUS.Master     iommu_comp      ,                        // IOMMU Completion IF             (IOMMU  => XBAR )
     AXI_BUS.Master     iommu_mem       ,                        // IOMMU Memory IF                 (IOMMU  => XBAR )
@@ -647,8 +649,10 @@ module ariane_peripherals #(
         // -----------------------------------------------
 
         localparam logic [3:0] device_ids [ariane_soc::NrDmaMasters] = '{
+            4'd1,
             4'd2,
-            4'd1
+            4'd3,
+            4'd4
         };
 
         // Connections between DMA Masters and DMA XBAR
@@ -686,14 +690,14 @@ module ariane_peripherals #(
         );
 
         // Generate iDMA modules
-        // iDMA at 0x5000_1000
+        // iDMA at 0x5000_3000
         dma_core_wrap #(
             .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
             .AXI_DATA_WIDTH		( AxiDataWidth           	),
-            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),  //? shouldn't be 4 instead of 6 ?
+            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .device_id          ( device_ids[0]             )
+            .device_id          ( device_ids[3]             )   // 4
         ) i_idma_0 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -701,17 +705,17 @@ module ariane_peripherals #(
             // slave port
             .axi_slave  			( dma_cfg_0        ),
             // master port
-            .axi_master 			( dma_xbar_slave[0])
+            .axi_master 			( dma_xbar_slave[3])
         );
 
-        // iDMA at 0x5000_0000
+        // iDMA at 0x5000_2000
         dma_core_wrap #(
             .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
             .AXI_DATA_WIDTH		( AxiDataWidth           	),
-            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),  //? shouldn't be 4 instead of 6 ?
+            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .device_id          ( device_ids[1]             )
+            .device_id          ( device_ids[2]             )   // 3
         ) i_idma_1 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -719,7 +723,43 @@ module ariane_peripherals #(
             // slave port
             .axi_slave  			( dma_cfg_1        ),
             // master port
+            .axi_master 			( dma_xbar_slave[2])
+        );
+
+        // iDMA at 0x5000_1000
+        dma_core_wrap #(
+            .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
+            .AXI_DATA_WIDTH		( AxiDataWidth           	),
+            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
+            .AXI_USER_WIDTH		( AxiUserWidth           	),
+            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
+            .device_id          ( device_ids[1]             )   // 2
+        ) i_idma_2 (
+            .clk_i      			( clk_i            ),
+            .rst_ni     			( rst_ni           ),
+            .testmode_i 			( 1'b0             ),
+            // slave port
+            .axi_slave  			( dma_cfg_2        ),
+            // master port
             .axi_master 			( dma_xbar_slave[1])
+        );
+
+        // iDMA at 0x5000_0000
+        dma_core_wrap #(
+            .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
+            .AXI_DATA_WIDTH		( AxiDataWidth           	),
+            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
+            .AXI_USER_WIDTH		( AxiUserWidth           	),
+            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
+            .device_id          ( device_ids[0]             )   // 1
+        ) i_idma_3 (
+            .clk_i      			( clk_i            ),
+            .rst_ni     			( rst_ni           ),
+            .testmode_i 			( 1'b0             ),
+            // slave port
+            .axi_slave  			( dma_cfg_3        ),
+            // master port
+            .axi_master 			( dma_xbar_slave[0])
         );
 
         `AXI_ASSIGN_TO_REQ(axi_iommu_tr_req, dma_xbar_master)
@@ -766,6 +806,36 @@ module ariane_peripherals #(
             .rst_ni     ( rst_ni   				),
             .slv_req_i  ( axi_dma_cfg_req[1]    ),
             .slv_resp_o ( axi_dma_cfg_rsp[1]    ),
+            .test_i     ( 1'b0     				)
+        );
+
+        `AXI_ASSIGN_TO_REQ(axi_dma_cfg_req[2], dma_cfg_2)
+        `AXI_ASSIGN_FROM_RESP(dma_cfg_2, axi_dma_cfg_rsp[2])
+
+        axi_err_slv #(
+            .AxiIdWidth ( ariane_soc::IdWidthSlave   ),
+            .req_t      ( ariane_axi_soc::req_slv_t  ),
+            .resp_t     ( ariane_axi_soc::resp_slv_t )
+        ) i_idma_err_slv_2 (
+            .clk_i      ( clk_i    				),
+            .rst_ni     ( rst_ni   				),
+            .slv_req_i  ( axi_dma_cfg_req[2]    ),
+            .slv_resp_o ( axi_dma_cfg_rsp[2]    ),
+            .test_i     ( 1'b0     				)
+        );
+
+        `AXI_ASSIGN_TO_REQ(axi_dma_cfg_req[3], dma_cfg_3)
+        `AXI_ASSIGN_FROM_RESP(dma_cfg_3, axi_dma_cfg_rsp[3])
+
+        axi_err_slv #(
+            .AxiIdWidth ( ariane_soc::IdWidthSlave   ),
+            .req_t      ( ariane_axi_soc::req_slv_t  ),
+            .resp_t     ( ariane_axi_soc::resp_slv_t )
+        ) i_idma_err_slv_3 (
+            .clk_i      ( clk_i    				),
+            .rst_ni     ( rst_ni   				),
+            .slv_req_i  ( axi_dma_cfg_req[3]    ),
+            .slv_resp_o ( axi_dma_cfg_rsp[3]    ),
             .test_i     ( 1'b0     				)
         );
 

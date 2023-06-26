@@ -273,10 +273,10 @@ assign addr_map = '{
   '{ idx: ariane_soc::SPI,        start_addr: ariane_soc::SPIBase,      end_addr: ariane_soc::SPIBase       + ariane_soc::SPILength       },
   '{ idx: ariane_soc::Ethernet,   start_addr: ariane_soc::EthernetBase, end_addr: ariane_soc::EthernetBase  + ariane_soc::EthernetLength  },
   '{ idx: ariane_soc::GPIO,       start_addr: ariane_soc::GPIOBase,     end_addr: ariane_soc::GPIOBase      + ariane_soc::GPIOLength      },
-  '{ idx: ariane_soc::DMA_CFG_1,  start_addr: ariane_soc::DMABase_1,    end_addr: ariane_soc::DMABase_1     + ariane_soc::DMALength       },
-  '{ idx: ariane_soc::DMA_CFG_2,  start_addr: ariane_soc::DMABase_2,    end_addr: ariane_soc::DMABase_2     + ariane_soc::DMALength       },
-  '{ idx: ariane_soc::DMA_CFG_3,  start_addr: ariane_soc::DMABase_3,    end_addr: ariane_soc::DMABase_3     + ariane_soc::DMALength       },
-  '{ idx: ariane_soc::DMA_CFG_4,  start_addr: ariane_soc::DMABase_4,    end_addr: ariane_soc::DMABase_4     + ariane_soc::DMALength       },
+  '{ idx: ariane_soc::DMA_CFG_3,  start_addr: ariane_soc::DMABase_3,    end_addr: ariane_soc::DMABase_3 + ariane_soc::DMALength         },
+  '{ idx: ariane_soc::DMA_CFG_2,  start_addr: ariane_soc::DMABase_2,    end_addr: ariane_soc::DMABase_2 + ariane_soc::DMALength         },
+  '{ idx: ariane_soc::DMA_CFG_1,  start_addr: ariane_soc::DMABase_1,    end_addr: ariane_soc::DMABase_1 + ariane_soc::DMALength         },
+  '{ idx: ariane_soc::DMA_CFG_0,  start_addr: ariane_soc::DMABase_0,    end_addr: ariane_soc::DMABase_0 + ariane_soc::DMALength         },
   '{ idx: ariane_soc::IOMMU_CFG,  start_addr: ariane_soc::IOMMUBase,    end_addr: ariane_soc::IOMMUBase     + ariane_soc::IOMMULength     },
   '{ idx: ariane_soc::DRAM,       start_addr: ariane_soc::DRAMBase,     end_addr: ariane_soc::DRAMBase      + ariane_soc::DRAMLength      }
 };
@@ -832,7 +832,10 @@ ariane_peripherals #(
     .eth_clk_i    ( eth_clk                      ),
     .ethernet     ( master[ariane_soc::Ethernet] ),
     .timer        ( master[ariane_soc::Timer]    ),
-    .dma_cfg      ( master[ariane_soc::DMA_CFG_4:ariane_soc::DMA_CFG_1]  ), // [max addr:min addr], index 0 => DMA_CFG_1
+    .dma_cfg_3    ( master[ariane_soc::DMA_CFG_3]),
+    .dma_cfg_2    ( master[ariane_soc::DMA_CFG_2]),
+    .dma_cfg_1    ( master[ariane_soc::DMA_CFG_1]),
+    .dma_cfg_0    ( master[ariane_soc::DMA_CFG_0]),
     .iommu_comp   ( slave[ariane_soc::IOMMU_COMP]),   
     .iommu_mem    ( slave[ariane_soc::IOMMU_MEM] ),   
     .iommu_cfg    ( master[ariane_soc::IOMMU_CFG]),
