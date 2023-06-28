@@ -270,8 +270,8 @@ module ariane_peripherals #(
         `ifdef DIRECT_MODE
         .o_Xeip_targets ( irq_o                     )
         `elsif MSI_MODE
-        .o_req          ( lite_msi_req              ),
-        .i_resp         ( lite_msi_resp             )
+        .o_req_msi      ( lite_msi_req              ),
+        .i_resp_msi     ( lite_msi_resp             )
         `endif
     );
 `endif
