@@ -17,6 +17,9 @@
 
 `define ARIANE_DATA_WIDTH 64
 
+`define APLIC
+`define DIRECT_MODE
+
 // Instantiate protocl checker
 // `define PROTOCOL_CHECKER
 
