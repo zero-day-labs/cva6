@@ -20,7 +20,7 @@
 `ifndef RISCV_IOMMU_PKG
 `define RISCV_IOMMU_PKG
 
-package iommu_pkg;
+package rv_iommu;
 
     // Device Context max length
     localparam DEV_ID_MAX_LEN   = 24;
@@ -401,6 +401,32 @@ package iommu_pkg;
         logic                   busy;
         logic [3:0]             iommu_mode;
     } ddtp_t;
+
+    //--------------------------
+    //#  HPM Event IDs
+    //--------------------------
+    typedef enum logic[14:0] {
+      NOT_COUNT,
+      UT_REQ,
+      T_REQ,
+      ATS_REQ,
+      IOTLB_MISS,
+      DDTW,
+      PDTW,
+      S1_PTW,
+      S2_PTW
+      // rsv [1 , 16383]
+      // custom [16384 , 32767]
+    } eventid_t;
+
+    //--------------------------
+    //#  Interrupt Generation Support format
+    //--------------------------
+    typedef enum logic[1:0] {
+      MSI_ONLY,
+      WSI_ONLY,
+      BOTH
+    } igs_t;
 
     //--------------------------
     //#  IOMMU functions

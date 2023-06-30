@@ -30,19 +30,15 @@ module riscv_iommu #(
     parameter int unsigned  IOTLB_ENTRIES       = 4,
     parameter int unsigned  DDTC_ENTRIES        = 4,
     parameter int unsigned  PDTC_ENTRIES        = 4,
-    parameter int unsigned  DEVICE_ID_WIDTH     = 24,
-    parameter int unsigned  PROCESS_ID_WIDTH    = 20,
-    parameter int unsigned  PSCID_WIDTH         = 20,
-    parameter int unsigned  GSCID_WIDTH         = 16,
 
     // Include process_id
-    parameter bit           InclPID             = 0,
-    // Include IOMMU WSI generation support
-    parameter bit           InclWSI_IG          = 1,
-    // Include IOMMU MSI generation support
-    parameter bit           InclMSI_IG          = 0,
+    parameter bit               InclPID             = 0,
+    // Interrupt Generation Support
+    parameter rv_iommu::igs_t   IGS                 = rv_iommu::WSI_ONLY,
     // Number of interrupt vectors supported
-    parameter int unsigned  N_INT_VEC           = 16,
+    parameter int unsigned      N_INT_VEC           = 16,
+    // Number of Performance monitoring event counters (set to zero to disable HPM)
+    parameter int unsigned      N_IOHPMCTR          = 0,     // max 31
 
     /// AXI Bus Addr width.
     parameter int   ADDR_WIDTH      = -1,
@@ -75,7 +71,10 @@ module riscv_iommu #(
     /// Regbus request struct type.
     parameter type  reg_req_t       = logic,
     /// Regbus response struct type.
-    parameter type  reg_rsp_t       = logic
+    parameter type  reg_rsp_t       = logic,
+
+    // DO NOT MODIFY MANUALLY
+    parameter int unsigned LOG2_INTVEC = $clog2(N_INT_VEC)
 ) (
     input  logic clk_i,
     input  logic rst_ni,
@@ -107,8 +106,8 @@ module riscv_iommu #(
 
     // Transaction request parameters, selected from AW or AR
     logic [riscv::VLEN-1:0]         iova;
-    logic [DEVICE_ID_WIDTH-1:0]     device_id;
-    logic [iommu_pkg::TTYP_LEN-1:0] trans_type;
+    logic [23:0]                    device_id;
+    logic [rv_iommu::TTYP_LEN-1:0] trans_type;
     // AxBURST
     axi_pkg::burst_t                burst_type;
     // AxLEN
@@ -120,6 +119,13 @@ module riscv_iommu #(
     logic                           trans_valid;
     logic                           trans_error;
     logic [riscv::PLEN-1:0]         spaddr;
+    logic                           iotlb_miss;
+    logic                           ddt_walk;
+    logic                           pdt_walk;
+    logic                           s1_ptw;
+    logic                           s2_ptw;
+    logic [15:0]                    gscid;
+    logic [19:0]                    pscid;
 
     // Boundary violation
     logic                           bound_violation;
@@ -140,6 +146,13 @@ module riscv_iommu #(
     // We must wait for the FQ to write a record for a given error before letting the error slave respond to a subsequent request
     logic                           is_fq_fifo_full;
 
+    // Interrupt vectors
+    logic [(LOG2_INTVEC-1):0]   intv[3] = '{
+        reg2hw.icvec.civ.q,  // CQ
+        reg2hw.icvec.fiv.q,  // FQ
+        reg2hw.icvec.pmiv.q  // HPM
+    };
+
     // WE signals
     assign  hw2reg.cqh.de               = 1'b1;
     assign  hw2reg.fqt.de               = 1'b1;
@@ -155,6 +168,7 @@ module riscv_iommu #(
     assign  hw2reg.fqcsr.busy.de        = 1'b1;
     assign  hw2reg.ipsr.cip.de          = hw2reg.ipsr.cip.d;
     assign  hw2reg.ipsr.fip.de          = hw2reg.ipsr.fip.d;
+    assign  hw2reg.ipsr.pmip.de         = hw2reg.ipsr.pmip.d;
 
     assign  msi_addr_x = '{
         reg2hw.msi_addr_0.addr.q,
@@ -274,24 +288,23 @@ module riscv_iommu #(
     assign axi_aux_req.r_ready                  = dev_tr_req_i.r_ready;
 
     //# WSI Interrupt Generation
-    if (InclWSI_IG) begin : gen_wsi_ig_support
+    if ((IGS == rv_iommu::WSI_ONLY) || (IGS == rv_iommu::BOTH)) begin : gen_wsi_ig_support
         
         iommu_wsi_ig #(
-            .N_INT_VEC      (N_INT_VEC)
+            .N_INT_VEC      (N_INT_VEC  ),
+            .N_SOURCES      (3          )
         ) i_iommu_wsi_ig (
             // fctl.wsi
-            .wsi_en_i       (reg2hw.fctl.wsi.q),
+            .wsi_en_i       (reg2hw.fctl.wsi.q  ),
 
             // ipsr
-            .cip_i          (reg2hw.ipsr.cip.q),
-            .fip_i          (reg2hw.ipsr.fip.q),
+            .intp_i          ({reg2hw.ipsr.pmip.q,reg2hw.ipsr.fip.q,reg2hw.ipsr.cip.q}),
 
             // icvec
-            .civ_i          (reg2hw.icvec.civ.q),
-            .fiv_i          (reg2hw.icvec.fiv.q),
+            .intv_i          (intv              ),
 
             // interrupt wires
-            .wsi_wires_o    (wsi_wires_o)
+            .wsi_wires_o    (wsi_wires_o        )
         );
     end
 
@@ -304,64 +317,60 @@ module riscv_iommu #(
         .IOTLB_ENTRIES      (IOTLB_ENTRIES      ),
         .DDTC_ENTRIES       (DDTC_ENTRIES       ),
         .PDTC_ENTRIES       (PDTC_ENTRIES       ),
-        .DEVICE_ID_WIDTH    (DEVICE_ID_WIDTH    ),
-        .PROCESS_ID_WIDTH   (PROCESS_ID_WIDTH   ),
-        .PSCID_WIDTH        (PSCID_WIDTH        ),
-        .GSCID_WIDTH        (GSCID_WIDTH        ),
         .N_INT_VEC          (N_INT_VEC          ),
         .InclPID            (InclPID            ),
-        .InclMSI_IG         (InclMSI_IG         )
+        .IGS                (IGS                )
     ) i_translation_wrapper (
-        .clk_i          (clk_i),
-        .rst_ni         (rst_ni),
+        .clk_i          (clk_i  ),
+        .rst_ni         (rst_ni ),
 
         .req_trans_i    (allow_request & !is_fq_fifo_full),        // Trigger translation
 
         // Translation request data
-        .device_id_i    (device_id),            // AxID
-        .pid_v_i        (1'b0),                 // We are not using process id by now
-        .process_id_i   ('0),                   // Set to zero
-        .iova_i         (iova),                 // AxADDR
+        .device_id_i    (device_id  ),          // AxID
+        .pid_v_i        (1'b0       ),          // We are not using process id by now
+        .process_id_i   ('0         ),          // Set to zero
+        .iova_i         (iova       ),          // AxADDR
         
-        .trans_type_i   (trans_type),           // Always untranslated requests as PCIe is not implemented
-        .priv_lvl_i     (riscv::PRIV_LVL_U),    // Always U-mode as we do not use process_id (See Spec)
+        .trans_type_i   (trans_type         ),  // Always untranslated requests as PCIe is not implemented
+        .priv_lvl_i     (riscv::PRIV_LVL_U  ),  // Always U-mode as we do not use process_id (See Spec)
 
         // Memory Bus
-        .mem_resp_i     (mem_resp_i),           // Simply connect AXI channels
-        .mem_req_o      (mem_req_o),
+        .mem_resp_i     (mem_resp_i ),           // Simply connect AXI channels
+        .mem_req_o      (mem_req_o  ),
 
         // From Regmap
         .capabilities_i (reg2hw.capabilities),
-        .fctl_i         (reg2hw.fctl),
-        .ddtp_i         (reg2hw.ddtp),
+        .fctl_i         (reg2hw.fctl        ),
+        .ddtp_i         (reg2hw.ddtp        ),
         // CQ
-        .cqb_ppn_i      (reg2hw.cqb.ppn.q),
-        .cqb_size_i     (reg2hw.cqb.log2sz_1.q),
-        .cqh_i          (reg2hw.cqh.q),
-        .cqh_o          (hw2reg.cqh.d),     // WE always set to 1
-        .cqt_i          (reg2hw.cqt.q),
+        .cqb_ppn_i      (reg2hw.cqb.ppn.q       ),
+        .cqb_size_i     (reg2hw.cqb.log2sz_1.q  ),
+        .cqh_i          (reg2hw.cqh.q           ),
+        .cqh_o          (hw2reg.cqh.d           ),     // WE always set to 1
+        .cqt_i          (reg2hw.cqt.q           ),
         // FQ
-        .fqb_ppn_i      (reg2hw.fqb.ppn.q),
-        .fqb_size_i     (reg2hw.fqb.log2sz_1.q),
-        .fqh_i          (reg2hw.fqh.q),
-        .fqt_i          (reg2hw.fqt.q),
-        .fqt_o          (hw2reg.fqt.d),     // WE always set to 1
+        .fqb_ppn_i      (reg2hw.fqb.ppn.q       ),
+        .fqb_size_i     (reg2hw.fqb.log2sz_1.q  ),
+        .fqh_i          (reg2hw.fqh.q           ),
+        .fqt_i          (reg2hw.fqt.q           ),
+        .fqt_o          (hw2reg.fqt.d           ),     // WE always set to 1
         // cqcsr
-        .cq_en_i        (reg2hw.cqcsr.cqen.q),
-        .cq_ie_i        (reg2hw.cqcsr.cie.q),
-        .cq_mf_i        (reg2hw.cqcsr.cqmf.q),
-        .cq_cmd_to_i    (reg2hw.cqcsr.cmd_to.q),    
-        .cq_cmd_ill_i   (reg2hw.cqcsr.cmd_ill.q),
-        .cq_fence_w_ip_i(reg2hw.cqcsr.fence_w_ip.q),
-        .cq_mf_o        (hw2reg.cqcsr.cqmf.d),      // WE driven by cq_error_wen
-        .cq_cmd_to_o    (hw2reg.cqcsr.cmd_to.d),
-        .cq_cmd_ill_o   (hw2reg.cqcsr.cmd_ill.d),
-        .cq_fence_w_ip_o(hw2reg.cqcsr.fence_w_ip.d),
-        .cq_on_o        (hw2reg.cqcsr.cqon.d),      // WE always set to 1
-        .cq_busy_o      (hw2reg.cqcsr.busy.d),
+        .cq_en_i        (reg2hw.cqcsr.cqen.q        ),
+        .cq_ie_i        (reg2hw.cqcsr.cie.q         ),
+        .cq_mf_i        (reg2hw.cqcsr.cqmf.q        ),
+        .cq_cmd_to_i    (reg2hw.cqcsr.cmd_to.q      ),    
+        .cq_cmd_ill_i   (reg2hw.cqcsr.cmd_ill.q     ),
+        .cq_fence_w_ip_i(reg2hw.cqcsr.fence_w_ip.q  ),
+        .cq_mf_o        (hw2reg.cqcsr.cqmf.d        ),      // WE driven by cq_error_wen
+        .cq_cmd_to_o    (hw2reg.cqcsr.cmd_to.d      ),
+        .cq_cmd_ill_o   (hw2reg.cqcsr.cmd_ill.d     ),
+        .cq_fence_w_ip_o(hw2reg.cqcsr.fence_w_ip.d  ),
+        .cq_on_o        (hw2reg.cqcsr.cqon.d        ),      // WE always set to 1
+        .cq_busy_o      (hw2reg.cqcsr.busy.d    ),
         // fqcsr
         .fq_en_i        (reg2hw.fqcsr.fqen.q),
-        .fq_ie_i        (reg2hw.fqcsr.fie.q),
+        .fq_ie_i        (reg2hw.fqcsr.fie.q ),
         .fq_mf_i        (reg2hw.fqcsr.fqmf.q),
         .fq_of_i        (reg2hw.fqcsr.fqof.q),
         .fq_mf_o        (hw2reg.fqcsr.fqmf.d),      // WE driven by fq_error_wen
@@ -371,11 +380,13 @@ module riscv_iommu #(
         // ipsr
         .cq_ip_i        (reg2hw.ipsr.cip.q),
         .fq_ip_i        (reg2hw.ipsr.fip.q),
+        .hpm_ip_i       (reg2hw.ipsr.pmip.q),
         .cq_ip_o        (hw2reg.ipsr.cip.d),        // WE driven by itself
         .fq_ip_o        (hw2reg.ipsr.fip.d),        // WE driven by itself
         // icvec
         .civ_i          (reg2hw.icvec.civ.q),
         .fiv_i          (reg2hw.icvec.fiv.q),
+        .pmiv_i         (reg2hw.icvec.fiv.q),
         // msi_cfg_tbl
         .msi_addr_x_i       (msi_addr_x),
         .msi_data_x_i       (msi_data_x),
@@ -390,32 +401,90 @@ module riscv_iommu #(
         .translated_addr_o  (spaddr),       // Translated address
         .trans_error_o      (trans_error),  // Translation error
 
+        // to HPM
+        .iotlb_miss_o       (iotlb_miss ),   // IOTLB miss
+        .ddt_walk_o         (ddt_walk   ),
+        .pdt_walk_o         (pdt_walk   ),
+        .s1_ptw_o           (s1_ptw     ),
+        .s2_ptw_o           (s2_ptw     ),
+        .gscid_o            (gscid      ),
+        .pscid_o            (pscid      ),
+
         .is_fq_fifo_full_o  (is_fq_fifo_full)
     );
 
     iommu_regmap_if #(
-        .ADDR_WIDTH      (ADDR_WIDTH      ),
-        .DATA_WIDTH      (DATA_WIDTH      ),
-        .ID_WIDTH        (ID_SLV_WIDTH    ),
-        .USER_WIDTH      (USER_WIDTH      ),
-        .DECOUPLE_W      (1               ), // Channel W is decoupled with registers
-        .InclWSI_IG      (InclWSI_IG      ),
-        .InclMSI_IG      (InclMSI_IG      ),
-        .N_INT_VEC       (N_INT_VEC       ),
-        .axi_req_t       (axi_req_slv_t   ),
-        .axi_rsp_t       (axi_rsp_slv_t   ),
-        .reg_req_t       (reg_req_t       ),
-        .reg_rsp_t       (reg_rsp_t       )
+        .ADDR_WIDTH     (ADDR_WIDTH    ),
+        .DATA_WIDTH     (DATA_WIDTH    ),
+        .ID_WIDTH       (ID_SLV_WIDTH  ),
+        .USER_WIDTH     (USER_WIDTH    ),
+        .DECOUPLE_W     (1             ), // Channel W is decoupled with registers
+        .IGS            (IGS           ),
+        .N_INT_VEC      (N_INT_VEC     ),
+        .N_IOHPMCTR     (N_IOHPMCTR    ),
+        .axi_req_t      (axi_req_slv_t ),
+        .axi_rsp_t      (axi_rsp_slv_t ),
+        .reg_req_t      (reg_req_t     ),
+        .reg_rsp_t      (reg_rsp_t     )
     ) i_iommu_regmap_if (
-        .clk_i           (clk_i           ),
-        .rst_ni          (rst_ni          ),
+        .clk_i          (clk_i           ),
+        .rst_ni         (rst_ni          ),
 
-        .prog_req_i      (prog_req_i      ),
-        .prog_resp_o     (prog_resp_o     ),
+        .prog_req_i     (prog_req_i      ),
+        .prog_resp_o    (prog_resp_o     ),
 
-        .reg2hw_o        (reg2hw          ),
-        .hw2reg_i        (hw2reg          )
+        .reg2hw_o       (reg2hw          ),
+        .hw2reg_i       (hw2reg          )
     );
+
+    //# Hardware Performance Monitor
+    if (N_IOHPMCTR > 0) begin : gen_hpm
+
+        iommu_hpm #(
+            // Number of Performance monitoring event counters (set to zero to disable HPM)
+            .N_IOHPMCTR     (N_IOHPMCTR) // max 31
+        ) i_iommu_hpm (
+            .clk_i          (clk_i  ),
+            .rst_ni         (rst_ni ),
+
+            // Event indicators
+            .tr_request_i   (allow_request & !is_fq_fifo_full   ),
+            .iotlb_miss_i   (iotlb_miss                         ),
+            .ddt_walk_i     (ddt_walk                           ),
+            .pdt_walk_i     (pdt_walk                           ),
+            .s1_ptw_i       (s1_ptw                             ),
+            .s2_ptw_i       (s2_ptw                             ),
+
+            // ID filters
+            .did_i          (device_id  ),     // device_id associated with event
+            .pid_i          ('0         ),     // process_id associated with event
+            .pscid_i        (pscid      ),     // PSCID 
+            .gscid_i        (gscid      ),     // GSCID
+            .pid_v_i        (1'b0       ),     // process_id is valid
+
+            // from HPM registers
+            .iocountinh_i   (reg2hw.iocountinh),    // inhibit 63-bit cycles counter
+            .iohpmcycles_i  (reg2hw.iohpmcycles),   // clock cycle counter register
+            .iohpmctr_i     (reg2hw.iohpmctr),      // event counters
+            .iohpmevt_i     (reg2hw.iohpmevt),      // event configuration registers
+
+            // to HPM registers
+            .iohpmcycles_o  (hw2reg.iohpmcycles),   // clock cycle counter value
+            .iohpmctr_o     (hw2reg.iohpmctr),      // event counters value
+            .iohpmevt_o     (hw2reg.iohpmevt),      // event configuration registers
+
+            .hpm_ip_o       (hw2reg.ipsr.pmip.d)    // HPM IP bit. WE driven by itself
+        );
+    end
+
+    else begin : gen_hpm_disabled
+
+        // hardwire outputs to 0
+        assign hw2reg.iohpmcycles   = '0;
+        assign hw2reg.iohpmctr      = '0;
+        assign hw2reg.iohpmevt      = '0;
+        assign hw2reg.ipsr.pmip.d   = '0;
+    end
 
     //# Channel selection
     // Monitor incoming request and select parameters according to the source channel
@@ -426,7 +495,7 @@ module riscv_iommu #(
         aw_request      = 1'b0;
         iova            = '0;
         device_id       = '0;
-        trans_type      = iommu_pkg::NONE;
+        trans_type      = rv_iommu::NONE;
         burst_type      = '0;
         burst_length    = '0;
         n_bytes         = '0;
@@ -438,7 +507,7 @@ module riscv_iommu #(
             iova            =  dev_tr_req_i.ar.addr;
             device_id       =  dev_tr_req_i.ar.id;
             // ARPROT[2] indicates data access (r) when LOW, instruction access (rx) when HIGH
-            trans_type      = (dev_tr_req_i.ar.prot[2]) ? (iommu_pkg::UNTRANSLATED_RX) : (iommu_pkg::UNTRANSLATED_R);
+            trans_type      = (dev_tr_req_i.ar.prot[2]) ? (rv_iommu::UNTRANSLATED_RX) : (rv_iommu::UNTRANSLATED_R);
             burst_type      =  dev_tr_req_i.ar.burst;
             burst_length    =  dev_tr_req_i.ar.len;
             n_bytes         =  dev_tr_req_i.ar.size;
@@ -451,7 +520,7 @@ module riscv_iommu #(
 
             iova            = dev_tr_req_i.aw.addr;
             device_id       = dev_tr_req_i.aw.id;
-            trans_type      = iommu_pkg::UNTRANSLATED_W;
+            trans_type      = rv_iommu::UNTRANSLATED_W;
             burst_type      = dev_tr_req_i.aw.burst;
             burst_length    = dev_tr_req_i.aw.len;
             n_bytes         = dev_tr_req_i.aw.size;
@@ -591,14 +660,17 @@ module riscv_iommu #(
     `ifndef VERILATOR
 
     initial begin : p_assertions
-        assert ((InclMSI_IG) || (InclWSI_IG))
-        else begin $error("At least one Interrupt Generation method must be supported (See spec)."); $stop(); end
+        assert ((IGS == rv_iommu::WSI_ONLY) || (IGS == rv_iommu::MSI_ONLY) || (IGS == rv_iommu::BOTH))
+        else begin $error("RISC-V IOMMU: At least one Interrupt Generation method must be supported (WSI/MSI)."); $stop(); end
 
         assert ((ADDR_WIDTH >= 1) && (DATA_WIDTH >= 1) && (ID_WIDTH >= 1) && (ID_SLV_WIDTH >= 1) && (USER_WIDTH >= 1))
-        else begin $error("Invalid AXI parameter width"); $stop(); end
+        else begin $error("RISC-V IOMMU: Invalid AXI parameter width"); $stop(); end
 
         assert ((N_INT_VEC == 1) || (N_INT_VEC == 2) || (N_INT_VEC == 4) || (N_INT_VEC == 8) || (N_INT_VEC == 16))
-        else begin $error("Number of interrupt vectors MUST be a power of two and max 16"); $stop(); end
+        else begin $error("RISC-V IOMMU: Number of interrupt vectors MUST be a power of two and max 16"); $stop(); end
+
+        assert (N_IOHPMCTR <= 31)
+        else begin $error("RISC-V IOMMU: HPM may only support up to 31 event counters."); $stop(); end
     end
 
     `endif
