@@ -662,7 +662,9 @@ module ariane_peripherals #(
 			.AXI_DATA_WIDTH		( AxiDataWidth              ),
 			.AXI_ID_WIDTH  		( AxiIdWidth                ),
 			.AXI_USER_WIDTH		( AxiUserWidth              ),
-			.AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  )
+			.AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
+
+            .device_id          ( 4'd10                      )
 		) i_dma (
 			.clk_i      ( clk_i            ),
 			.rst_ni     ( rst_ni           ),
@@ -738,14 +740,11 @@ module ariane_peripherals #(
             .IOTLB_ENTRIES	    ( 4							),
             .DDTC_ENTRIES		( 4							),
             .PDTC_ENTRIES		( 4							),
-            .DEVICE_ID_WIDTH    ( 24						),
-            .PSCID_WIDTH        ( 20						),
-            .GSCID_WIDTH        ( 16						),
 
             .InclPID            ( 1'b0						),
-            .InclWSI_IG         ( 1'b1						),
-            .InclMSI_IG         ( 1'b1						),
+            .IGS                ( rv_iommu::BOTH			),
             .N_INT_VEC          ( ariane_soc::IOMMUNumWires ),
+            .N_IOHPMCTR         ( 8                         ),
 
             .ADDR_WIDTH			( AxiAddrWidth				),
             .DATA_WIDTH			( AxiDataWidth				),

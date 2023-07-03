@@ -91,7 +91,7 @@ module iommu_msi_ig #(
     // Pending interrupts
     logic [(N_INT_VEC-1):0]     pending_q, pending_n;
 
-    always_comb begin : wsi_generation_fsm
+    always_comb begin : msi_generation_fsm
 
         // Default values
         // AXI parameters

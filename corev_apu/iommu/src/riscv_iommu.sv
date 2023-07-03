@@ -386,7 +386,7 @@ module riscv_iommu #(
         // icvec
         .civ_i          (reg2hw.icvec.civ.q),
         .fiv_i          (reg2hw.icvec.fiv.q),
-        .pmiv_i         (reg2hw.icvec.fiv.q),
+        .pmiv_i         (reg2hw.icvec.pmiv.q),
         // msi_cfg_tbl
         .msi_addr_x_i       (msi_addr_x),
         .msi_data_x_i       (msi_data_x),
@@ -448,12 +448,12 @@ module riscv_iommu #(
             .rst_ni         (rst_ni ),
 
             // Event indicators
-            .tr_request_i   (allow_request & !is_fq_fifo_full   ),
-            .iotlb_miss_i   (iotlb_miss                         ),
-            .ddt_walk_i     (ddt_walk                           ),
-            .pdt_walk_i     (pdt_walk                           ),
-            .s1_ptw_i       (s1_ptw                             ),
-            .s2_ptw_i       (s2_ptw                             ),
+            .tr_request_i   ( ar_request || aw_request ),
+            .iotlb_miss_i   ( iotlb_miss               ),
+            .ddt_walk_i     ( ddt_walk                 ),
+            .pdt_walk_i     ( pdt_walk                 ),
+            .s1_ptw_i       ( s1_ptw                   ),
+            .s2_ptw_i       ( s2_ptw                   ),
 
             // ID filters
             .did_i          (device_id  ),     // device_id associated with event
