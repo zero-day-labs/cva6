@@ -147,7 +147,8 @@ module riscv_iommu #(
     logic                           is_fq_fifo_full;
 
     // Interrupt vectors
-    logic [(LOG2_INTVEC-1):0]   intv[3] = '{
+    logic [(LOG2_INTVEC-1):0]   intv[3];
+    assign intv = '{
         reg2hw.icvec.civ.q,  // CQ
         reg2hw.icvec.fiv.q,  // FQ
         reg2hw.icvec.pmiv.q  // HPM
@@ -291,8 +292,8 @@ module riscv_iommu #(
     if ((IGS == rv_iommu::WSI_ONLY) || (IGS == rv_iommu::BOTH)) begin : gen_wsi_ig_support
         
         iommu_wsi_ig #(
-            .N_INT_VEC      (N_INT_VEC  ),
-            .N_SOURCES      (3          )
+            .N_INT_VEC  (N_INT_VEC  ),
+            .N_INT_SRCS (3          )
         ) i_iommu_wsi_ig (
             // fctl.wsi
             .wsi_en_i       (reg2hw.fctl.wsi.q  ),

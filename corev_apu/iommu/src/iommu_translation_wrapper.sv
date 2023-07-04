@@ -717,7 +717,7 @@ module iommu_translation_wrapper #(
 
         iommu_msi_ig #(
             .N_INT_VEC          (N_INT_VEC  ),
-            .N_SOURCES          (3          )
+            .N_INT_SRCS         (3          )
         ) i_iommu_msi_ig (
             .clk_i              (clk_i),
             .rst_ni             (rst_ni),
