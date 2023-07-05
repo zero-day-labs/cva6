@@ -92,12 +92,6 @@ module idma_reg64_frontend_reg_top #(
   logic next_id_re;
   logic [63:0] done_qs;
   logic done_re;
-  logic ipsr_rip_qs;
-  logic ipsr_rip_wd;
-  logic ipsr_rip_we;
-  logic ipsr_wip_qs;
-  logic ipsr_wip_wd;
-  logic ipsr_wip_we;
 
   // Register instances
   // R[src_addr]: V(False)
@@ -308,60 +302,8 @@ module idma_reg64_frontend_reg_top #(
     .qs     (done_qs)
   );
 
-  // R[ipsr]: V(False)
 
-  //   F[rip]: 0:0
-  prim_subreg #(
-    .DW      (1),
-    .SWACCESS("W1C"),
-    .RESVAL  (1'h0)
-  ) u_ipsr_rd (
-    .clk_i   (clk_i   ),
-    .rst_ni  (rst_ni  ),
-
-    // from register interface
-    .we     (ipsr_rip_we),
-    .wd     (ipsr_rip_wd),
-
-    // from internal hardware
-    .de     (hw2reg.ipsr.rip.de),
-    .d      (hw2reg.ipsr.rip.d ),
-
-    // to internal hardware
-    .qe     (),
-    .q      (reg2hw.ipsr.rip.q ),
-
-    // to register interface (read)
-    .qs     (ipsr_rip_qs)
-  );
-
-  //   F[wip]: 1:1
-  prim_subreg #(
-    .DW      (1),
-    .SWACCESS("W1C"),
-    .RESVAL  (1'h0)
-  ) u_ipsr_wr (
-    .clk_i   (clk_i    ),
-    .rst_ni  (rst_ni  ),
-
-    // from register interface
-    .we     (ipsr_wip_we),
-    .wd     (ipsr_wip_wd),
-
-    // from internal hardware
-    .de     (hw2reg.ipsr.wip.de),
-    .d      (hw2reg.ipsr.wip.d ),
-
-    // to internal hardware
-    .qe     (),
-    .q      (reg2hw.ipsr.wip.q ),
-
-    // to register interface (read)
-    .qs     (ipsr_wip_qs)
-  );
-
-
-  logic [7:0] addr_hit;
+  logic [6:0] addr_hit;
   always_comb begin
     addr_hit = '0;
     addr_hit[0] = (reg_addr == IDMA_REG64_FRONTEND_SRC_ADDR_OFFSET);
@@ -371,7 +313,6 @@ module idma_reg64_frontend_reg_top #(
     addr_hit[4] = (reg_addr == IDMA_REG64_FRONTEND_STATUS_OFFSET);
     addr_hit[5] = (reg_addr == IDMA_REG64_FRONTEND_NEXT_ID_OFFSET);
     addr_hit[6] = (reg_addr == IDMA_REG64_FRONTEND_DONE_OFFSET);
-    addr_hit[7] = (reg_addr == IDMA_REG64_FRONTEND_IPSR_OFFSET);
   end
 
   assign addrmiss = (reg_re || reg_we) ? ~|addr_hit : 1'b0 ;
@@ -385,8 +326,7 @@ module idma_reg64_frontend_reg_top #(
                (addr_hit[3] & (|(IDMA_REG64_FRONTEND_PERMIT[3] & ~reg_be))) |
                (addr_hit[4] & (|(IDMA_REG64_FRONTEND_PERMIT[4] & ~reg_be))) |
                (addr_hit[5] & (|(IDMA_REG64_FRONTEND_PERMIT[5] & ~reg_be))) |
-               (addr_hit[6] & (|(IDMA_REG64_FRONTEND_PERMIT[6] & ~reg_be))) |
-               (addr_hit[7] & (|(IDMA_REG64_FRONTEND_PERMIT[7] & ~reg_be)))));
+               (addr_hit[6] & (|(IDMA_REG64_FRONTEND_PERMIT[6] & ~reg_be)))));
   end
 
   assign src_addr_we = addr_hit[0] & reg_we & !reg_error;
@@ -412,12 +352,6 @@ module idma_reg64_frontend_reg_top #(
   assign next_id_re = addr_hit[5] & reg_re & !reg_error;
 
   assign done_re = addr_hit[6] & reg_re & !reg_error;
-
-  assign ipsr_rip_we = addr_hit[7] & reg_we & !reg_error;
-  assign ipsr_rip_wd = reg_wdata[0];
-
-  assign ipsr_wip_we = addr_hit[7] & reg_we & !reg_error;
-  assign ipsr_wip_wd = reg_wdata[1];
 
   // Read data return
   always_comb begin
@@ -451,11 +385,6 @@ module idma_reg64_frontend_reg_top #(
 
       addr_hit[6]: begin
         reg_rdata_next[63:0] = done_qs;
-      end
-
-      addr_hit[7]: begin
-        reg_rdata_next[0] = ipsr_rip_qs;
-        reg_rdata_next[1] = ipsr_wip_qs;
       end
 
       default: begin
