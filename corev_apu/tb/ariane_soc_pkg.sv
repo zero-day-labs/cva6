@@ -20,7 +20,7 @@ package ariane_soc;
   // Number of interrupt wires used by IOMMU (1, 2, 4, 8, 16)
   localparam int unsigned IOMMUNumWires = 4;
   // Last used interrupt wire index
-  localparam int unsigned LastIntIndex = 6 + IOMMUNumWires;
+  localparam int unsigned LastIntIndex = 8 + IOMMUNumWires;
 
   typedef enum int unsigned {
     CVA6        = 0,

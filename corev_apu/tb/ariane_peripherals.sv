@@ -664,7 +664,7 @@ module ariane_peripherals #(
 			.AXI_USER_WIDTH		( AxiUserWidth              ),
 			.AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
 
-            .device_id          ( 4'd10                      )
+            .device_id          ( 4'd10                     )
 		) i_dma (
 			.clk_i      ( clk_i            ),
 			.rst_ni     ( rst_ni           ),
@@ -672,7 +672,9 @@ module ariane_peripherals #(
 			// slave port
 			.axi_slave  ( dma_cfg          ),
 			// master port
-			.axi_master ( idma_axi_master  )
+			.axi_master ( idma_axi_master  ),
+            // IRQ
+            // .irq_o      ( irq_sources[8:7] )
 		);
 
 	// --------------
@@ -783,7 +785,7 @@ module ariane_peripherals #(
             .prog_req_i			( axi_iommu_cfg_req		    ),
             .prog_resp_o		( axi_iommu_cfg_rsp		    ),
 
-            .wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+7:7] )
+            .wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+9:9] )
         );
 
     //-----------
