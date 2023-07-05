@@ -672,7 +672,7 @@ module ariane_peripherals #(
 			// slave port
 			.axi_slave  ( dma_cfg          ),
 			// master port
-			.axi_master ( idma_axi_master  ),
+			.axi_master ( idma_axi_master  )
 		);
 
 	// --------------
