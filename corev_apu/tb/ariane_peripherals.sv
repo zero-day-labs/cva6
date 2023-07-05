@@ -673,8 +673,6 @@ module ariane_peripherals #(
 			.axi_slave  ( dma_cfg          ),
 			// master port
 			.axi_master ( idma_axi_master  ),
-            // IRQ
-            // .irq_o      ( irq_sources[8:7] )
 		);
 
 	// --------------
@@ -785,7 +783,7 @@ module ariane_peripherals #(
             .prog_req_i			( axi_iommu_cfg_req		    ),
             .prog_resp_o		( axi_iommu_cfg_rsp		    ),
 
-            .wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+9:9] )
+            .wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+7:7] )
         );
 
     //-----------

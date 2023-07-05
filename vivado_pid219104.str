@@ -192,3 +192,4 @@ dismissDialog("Program Device"); // aP
 selectButton(PAResourceAtoD.CmdMsgDialog_OK, "OK"); // f
 dismissDialog("Close Hardware Target"); // j.a
 // [GUI Memory]: 133 MB (+5022kb) [00:09:48]
+// WARNING: HEventQueue.dispatchEvent() is taking  1237 ms.
