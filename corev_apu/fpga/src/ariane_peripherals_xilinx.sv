@@ -858,6 +858,12 @@ module ariane_peripherals #(
     ariane_axi_soc::req_t  axi_iommu_tr_req;
     ariane_axi_soc::resp_t axi_iommu_tr_rsp;
 
+    // AXI Bus between System Interconnect (Mst) and IOMMU Programming IF (Slv)
+    ariane_axi_soc::req_slv_t  axi_iommu_cfg_req;
+    ariane_axi_soc::resp_slv_t axi_iommu_cfg_rsp;
+    `AXI_ASSIGN_TO_REQ(axi_iommu_cfg_req, iommu_cfg)
+    `AXI_ASSIGN_FROM_RESP(iommu_cfg, axi_iommu_cfg_rsp)
+
     // -----------
     //# DMA Engine
     // -----------
@@ -880,7 +886,9 @@ module ariane_peripherals #(
 			.AXI_DATA_WIDTH		( AxiDataWidth           	),
 			.AXI_ID_WIDTH  		( AxiIdWidth             	),
 			.AXI_USER_WIDTH		( AxiUserWidth           	),
-			.AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  )
+			.AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
+
+            .device_id          ( 4'd10                     )
 		) i_dma (
 			.clk_i      			( clk_i            ),
 			.rst_ni     			( rst_ni           ),
@@ -941,12 +949,6 @@ module ariane_peripherals #(
 		ariane_axi_soc::resp_t axi_iommu_comp_rsp;
 		`AXI_ASSIGN_FROM_REQ(iommu_comp, axi_iommu_comp_req)
 		`AXI_ASSIGN_TO_RESP(axi_iommu_comp_rsp, iommu_comp)
-
-		// AXI Bus between System Interconnect (Mst) and IOMMU Programming IF (Slv)
-		ariane_axi_soc::req_slv_t  axi_iommu_cfg_req;
-		ariane_axi_soc::resp_slv_t axi_iommu_cfg_rsp;
-		`AXI_ASSIGN_TO_REQ(axi_iommu_cfg_req, iommu_cfg)
-		`AXI_ASSIGN_FROM_RESP(iommu_cfg, axi_iommu_cfg_rsp)
 
 		// Memory-mapped Register IF types
 		// name, addr_t, data_t, strb_t
@@ -1010,12 +1012,6 @@ module ariane_peripherals #(
 	// AXI transactions performed to the IOMMU programmming IF are responded with error.
 	// All memory IF request xVALID/xREADY wires are set to zero.
     end else begin : gen_iommu_disabled
-
-		// AXI Bus between System Interconnect (Mst) and IOMMU Programming IF (Slv)
-		ariane_axi_soc::req_slv_t  axi_iommu_cfg_req;
-		ariane_axi_soc::resp_slv_t axi_iommu_cfg_rsp;
-		`AXI_ASSIGN_TO_REQ(axi_iommu_cfg_req, iommu_cfg)
-		`AXI_ASSIGN_FROM_RESP(iommu_cfg, axi_iommu_cfg_rsp)
 
         axi_err_slv #(
             .AxiIdWidth ( ariane_soc::IdWidthSlave   ),

@@ -93,15 +93,6 @@ endif
 
 # Sources
 # Package files -> compile first
-# corev_apu/iommu/packages/iommu_pkg.sv                  \
-# corev_apu/iommu/packages/iommu_reg_pkg.sv              \
-# corev_apu/iommu/packages/iommu_field_pkg.sv            \
-# corev_apu/iDMA/src/frontends/desc64/iDMA_desc64_synth_pkg.sv \
-# corev_apu/iDMA/src/frontends/desc64/iDMA_desc64_reg_pkg.sv \
-# corev_apu/iDMA/src/frontends/register_64bit/iDMA_reg64_frontend_reg_pkg.sv \
-# corev_apu/iDMA/src/frontends/register_64bit/iDMA_reg64_frontend_reg_top.sv \
-# corev_apu/iDMA/src/frontends/register_64bit/iDMA_reg64_frontend.sv \
-# corev_apu/iDMA/src/iDMA_pkg.sv
 ariane_pkg := \
               corev_apu/register_interface/src/reg_intf.sv           \
               corev_apu/tb/rvfi_pkg.sv                               \
