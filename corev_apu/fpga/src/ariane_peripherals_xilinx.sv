@@ -960,7 +960,7 @@ module ariane_peripherals #(
 			.PDTC_ENTRIES	    (  4						),
 
 			.InclPID            ( 1'b0						),
-            .IGS                ( rv_iommu::BOTH			),
+            .IGS                ( rv_iommu::BOTH            ),
             .N_INT_VEC          ( ariane_soc::IOMMUNumWires ),
             .N_IOHPMCTR         ( 8                         ),
 
