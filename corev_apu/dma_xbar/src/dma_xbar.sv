@@ -143,11 +143,10 @@ module dma_xbar #(
 
     // Save AWID whenever a transaction is accepted in AW Channel.
     // While writing data to W Channel, another AW transaction may be accepted, so we need to queue the AWIDs
-    // Only CQ, FQ and MSI IG perform writes to memory, so we can have max 3 outstanding transactions
     fifo_v3 #(
       .DATA_WIDTH ( 4 ),
-      // we can have a maximum of 2 oustanding transactions as each port is blocking
-      .DEPTH      ( 2 )
+      // we can have a maximum of (Nr_DMAs) oustanding transactions
+      .DEPTH      ( Nr_DMAs )
     ) i_fifo_w_channel (
       .clk_i      ( clk_i           ),
       .rst_ni     ( rst_ni          ),
