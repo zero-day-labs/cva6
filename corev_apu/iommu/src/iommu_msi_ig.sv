@@ -19,15 +19,20 @@
 
 //! NOTES:
 /*
-    -   Interrupt generation is triggered on a possitive transition of cip or fip.
+    -   Interrupt generation is triggered on a possitive transition of cip, fip or pmip.
     -   The IOMMU must not send MSIs for interrupt vectors with mask M = 1. These messages must be saved and later sent if
         the corresponding mask is cleared to 0.
-    -   A register could be used for each source to save messages from vectors with M = 1 (Remember that the same vector 
-        can be used by different sources. That's why we can have more than one pending message per vector).
+    -   A register could be used for each vector to save messages M = 1. When a source generates an interrupt whose MSI 
+        vector is masked, the index is saved so that the corresponding MSI is sent after clearing the flag. This means
+        that the mask is associated with one vector, but may be associated with multiple interrupt sources if they 
+        share the same MSI vector.
 */
 
 module iommu_msi_ig #(
+    // Number of interrupt vectors implemented
     parameter int unsigned N_INT_VEC = 16,
+    // Number of interrupt sources
+    parameter int unsigned N_INT_SRCS = 3,
 
     // DO NOT MODIFY
     parameter int unsigned LOG2_INTVEC = $clog2(N_INT_VEC)
@@ -38,12 +43,10 @@ module iommu_msi_ig #(
     input  logic msi_ig_enabled_i,
 
     // Interrupt pending bits
-    input  logic cip_i,
-    input  logic fip_i,
+    input  logic [(N_INT_SRCS-1):0]     intp_i,
 
-    // icvec
-    input  logic[(LOG2_INTVEC-1):0]   civ_i,
-    input  logic[(LOG2_INTVEC-1):0]   fiv_i,
+    // Interrupt vectors
+    input  logic [(LOG2_INTVEC-1):0]    intv_i[N_INT_SRCS],
 
     // MSI config table
     input  logic [53:0] msi_addr_x_i[16],
@@ -72,23 +75,30 @@ module iommu_msi_ig #(
         B_RESP
     }   wr_state_q, wr_state_n;
 
-    // To detect rising edge transition of cip/fip
-    logic   edged_cip_q, edged_cip_n;
-    logic   edged_fip_q, edged_fip_n;
+    // To detect rising edge transition of IP bits
+    logic [(N_INT_SRCS-1):0]  edged_q, edged_n;
 
-    // Control signal to indicate interrupt source
-    logic   is_cq_int_q, is_cq_int_n;
+    // Interrupt source index
+    enum logic [1:0] {
+        CQ,
+        FQ,
+        HPM
+    } int_idx;
+
+    // Interrupt source selector
+    logic [(LOG2_INTVEC-1):0]   intv_q, intv_n;
 
     // Pending interrupts
-    logic [(N_INT_VEC-1):0] pending_q, pending_n;
+    logic [(N_INT_VEC-1):0]     pending_q, pending_n;
 
-    always_comb begin : int_generation_fsm
+    always_comb begin : msi_generation_fsm
 
         // Default values
         // AXI parameters
         // AW
+        /* verilator lint_off WIDTH */
         mem_req_o.aw.id         = 4'b0010;
-        mem_req_o.aw.addr       = (is_cq_int_q) ? ({msi_addr_x_i[civ_i], 2'b0}) : ({msi_addr_x_i[fiv_i], 2'b0});
+        mem_req_o.aw.addr       = {msi_addr_x_i[intv_q], 2'b0};
         mem_req_o.aw.len        = 8'd0;         // MSI writes only 32 bits
         mem_req_o.aw.size       = 3'b010;       // 4-bytes beat
         mem_req_o.aw.burst      = axi_pkg::BURST_FIXED;
@@ -103,7 +113,8 @@ module iommu_msi_ig #(
         mem_req_o.aw_valid      = 1'b0;
 
         // W
-        mem_req_o.w.data        = (is_cq_int_q) ? (msi_data_x_i[civ_i]) : (msi_data_x_i[fiv_i]); // set accordingly to the cause
+        mem_req_o.w.data        = msi_data_x_i[intv_q];
+        /* verilator lint_on WIDTH */
         mem_req_o.w.strb        = '1;
         mem_req_o.w.last        = 1'b0;
         mem_req_o.w.user        = '0;
@@ -135,9 +146,8 @@ module iommu_msi_ig #(
 
         state_n         = state_q;
         wr_state_n      = wr_state_q;
-        is_cq_int_n     = is_cq_int_q;
-        edged_cip_n     = edged_cip_q;
-        edged_fip_n     = edged_fip_q;
+        intv_n          = intv_q;
+        edged_n         = edged_q;
         pending_n       = pending_q;
 
         case (state_q)
@@ -145,68 +155,149 @@ module iommu_msi_ig #(
             // Monitor interrupt-pending bits. Select corresponding vector (addr, data and mask).
             IDLE: begin
 
-                // If the IOMMU does not support or use MSI as IG mechanism, do nothing
+                // If MSI IG is not enabled, do nothing
                 if (msi_ig_enabled_i) begin
+                    
+                    /* verilator lint_off WIDTH */
 
-                    // Send CQ pending messages if the mask was cleared
-                    if (pending_q[civ_i] && !msi_vec_masked_x_i[civ_i]) begin
-                            is_cq_int_n         = 1'b1;
-                            pending_n[civ_i]    = 1'b0;
-                            state_n             = WRITE;
+                    for (int unsigned i = 0; i < N_INT_SRCS; i++) begin
+
+                        //# Prioritize pending messages
+                        if (pending_q[intv_i[i]] && !msi_vec_masked_x_i[intv_i[i]]) begin
+                            intv_n                  = intv_i[i];
+                            pending_n[intv_i[i]]    = 1'b0;
+                            state_n                 = WRITE;
+                            break;  // Use break to set priority
+                        end
+
+                        //# Incoming interrupt
+                        else if (intp_i[i] && !edged_q[i]) begin
+                            
+                            // We do not attribute IP value directly to avoid missing 
+                            // any IP bit transition while sending another interrupt.
+                            edged_n[i] = 1'b1;
+
+                            // IP bit was set in the last cycle, send MSI if vector is not masked
+                            if (!msi_vec_masked_x_i[intv_i[i]]) begin
+                                intv_n      = intv_i[i];
+                                state_n     = WRITE;
+                            end
+
+                            // if vector is masked, then save request
+                            else begin
+                                pending_n[intv_i[i]]    = 1'b1;
+                            end
+
+                            break;  // Use break to set priority
+                        end 
                     end
 
-                    // Send FQ pending messages if the mask was cleared
-                    else if (pending_q[fiv_i] && !msi_vec_masked_x_i[fiv_i]) begin
-                            is_cq_int_n         = 1'b0;
-                            pending_n[fiv_i]    = 1'b0;
-                            state_n             = WRITE;
-                    end
-
-                    // CQ Interrupt
-                    else if (cip_i && !edged_cip_q) begin
+                    for (int unsigned j = 0; j < N_INT_SRCS; j++) begin
                         
-                        // We do not attribute cip_i directly to avoid missing 
-                        // any IP bit transition while sending another interrupt.
-                        edged_cip_n = 1'b1;
-
-                        // cip bit was set in the last cycle, send MSI if vector is not masked
-                        if (!msi_vec_masked_x_i[civ_i]) begin
-                            is_cq_int_n = 1'b1;
-                            state_n     = WRITE;
-                        end
-
-                        // if vector is masked, then save request
-                        else begin
-                            pending_n[civ_i]    = 1'b1;
+                        // Clear edged IP bits when input is clear
+                        if (!intp_i[j] && edged_q[j]) begin
+                            edged_n[j] = 1'b0;
                         end
                     end
 
-                    // FQ Interrupt
-                    else if (fip_i && !edged_fip_q) begin
+                    // priority case (1'b1)
 
-                        // We do not attribute fip_i directly to avoid missing 
-                        // any IP bit transition while sending another interrupt.
-                        edged_fip_n = 1'b1;
+                    //     //# Prioritize pending messages
 
-                        // fip bit was set in the last cycle, send MSI if vector is not masked
-                        if (!msi_vec_masked_x_i[fiv_i]) begin
-                            is_cq_int_n = 1'b0;
-                            state_n     = WRITE;
-                        end
+                    //     // CQ
+                    //     (pending_q[intv_i[CQ]] && !msi_vec_masked_x_i[intv_i[CQ]]): begin
+                    //         intv_n                  = intv_i[CQ];
+                    //         pending_n[intv_i[CQ]]   = 1'b0;
+                    //         state_n                 = WRITE;
+                    //     end
 
-                        // if vector is masked, then save request for FQ
-                        else begin
-                            pending_n[fiv_i]    = 1'b1;
-                        end
-                    end
+                    //     // FQ
+                    //     (pending_q[intv_i[FQ]] && !msi_vec_masked_x_i[intv_i[FQ]]): begin
+                    //         intv_n                  = intv_i[FQ];
+                    //         pending_n[intv_i[FQ]]   = 1'b0;
+                    //         state_n                 = WRITE;
+                    //     end
 
-                    // Clear edged IP bits when input is clear
-                    if (!cip_i && edged_cip_q) begin
-                        edged_cip_n = 1'b0;
-                    end
-                    if (!fip_i && edged_fip_q) begin
-                        edged_fip_n = 1'b0;
-                    end
+                    //     // HPM
+                    //     (pending_q[intv_i[HPM]] && !msi_vec_masked_x_i[intv_i[HPM]]): begin
+                    //         intv_n                  = intv_i[HPM];
+                    //         pending_n[intv_i[HPM]]  = 1'b0;
+                    //         state_n                 = WRITE;
+                    //     end
+
+                    //     //# Incoming interrupt
+                        
+                    //     // CQ
+                    //     (intp_i[CQ] && !edged_q[CQ]): begin
+                            
+                    //         // We do not attribute cip_i directly to avoid missing 
+                    //         // any IP bit transition while sending another interrupt.
+                    //         edged_n[CQ] = 1'b1;
+
+                    //         // cip bit was set in the last cycle, send MSI if vector is not masked
+                    //         if (!msi_vec_masked_x_i[intv_i[CQ]]) begin
+                    //             intv_n      = intv_i[CQ];
+                    //             state_n     = WRITE;
+                    //         end
+
+                    //         // if vector is masked, then save request
+                    //         else begin
+                    //             pending_n[intv_i[CQ]]   = 1'b1;
+                    //         end
+                    //     end
+
+                    //     // FQ
+                    //     (intp_i[FQ] && !edged_q[FQ]): begin
+                            
+                    //         // We do not attribute fip_i directly to avoid missing 
+                    //         // any IP bit transition while sending another interrupt.
+                    //         edged_n[FQ] = 1'b1;
+
+                    //         // fip bit was set in the last cycle, send MSI if vector is not masked
+                    //         if (!msi_vec_masked_x_i[intv_i[FQ]]) begin
+                    //             intv_n      = intv_i[FQ];
+                    //             state_n     = WRITE;
+                    //         end
+
+                    //         // if vector is masked, then save request for FQ
+                    //         else begin
+                    //             pending_n[intv_i[FQ]]    = 1'b1;
+                    //         end
+                    //     end
+
+                    //     // HPM
+                    //     (intp_i[HPM] && !edged_q[HPM]): begin
+                            
+                    //         // We do not attribute pmip_i directly to avoid missing 
+                    //         // any IP bit transition while sending another interrupt.
+                    //         edged_n[HPM] = 1'b1;
+
+                    //         // pmip bit was set in the last cycle, send MSI if vector is not masked
+                    //         if (!msi_vec_masked_x_i[intv_i[HPM]]) begin
+                    //             intv_n      = intv_i[HPM];
+                    //             state_n     = WRITE;
+                    //         end
+
+                    //         // if vector is masked, then save request for HPM
+                    //         else begin
+                    //             pending_n[intv_i[HPM]]    = 1'b1;
+                    //         end
+                    //     end
+
+                    // endcase
+
+                    /* verilator lint_on WIDTH */
+
+                    // // Clear edged IP bits when input is clear
+                    // if (!intp_i[CQ] && edged_q[CQ]) begin
+                    //     edged_n[CQ] = 1'b0;
+                    // end
+                    // if (!fip_i && edged_fip_q) begin
+                    //     edged_fip_n = 1'b0;
+                    // end
+                    // if (!pmip_i && edged_pmip_q) begin
+                    //     edged_pmip_n = 1'b0;
+                    // end
                 end
             end 
 
@@ -270,18 +361,16 @@ module iommu_msi_ig #(
             // Reset values
             state_q         <= IDLE;
             wr_state_q      <= AW_REQ;
-            is_cq_int_q     <= 1'b0;
-            edged_cip_q     <= 1'b0;
-            edged_fip_q     <= 1'b0;
+            intv_q          <= '0;
+            edged_q         <= '0;
             pending_q       <= '0;
         end
 
         else begin
             state_q         <= state_n;
             wr_state_q      <= wr_state_n;
-            is_cq_int_q     <= is_cq_int_n;
-            edged_cip_q     <= edged_cip_n;
-            edged_fip_q     <= edged_fip_n;
+            intv_q          <= intv_n;
+            edged_q         <= edged_n;
             pending_q       <= pending_n;
         end
     end

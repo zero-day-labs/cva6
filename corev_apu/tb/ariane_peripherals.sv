@@ -878,14 +878,11 @@ module ariane_peripherals #(
 			.IOTLB_ENTRIES		(  4						),
 			.DDTC_ENTRIES	    (  4						),
 			.PDTC_ENTRIES	    (  4						),
-			.DEVICE_ID_WIDTH    ( 24						),	// Fixed to 24 bits, even if ddtp.mode = 1LVL
-			.PSCID_WIDTH        ( 20						),
-			.GSCID_WIDTH        ( 16						),
 
 			.InclPID            ( 1'b0						),
-			.InclWSI_IG         ( 1'b1						),
-			.InclMSI_IG         ( 1'b1						),
+			.IGS                ( rv_iommu::BOTH            ),
             .N_INT_VEC          ( ariane_soc::IOMMUNumWires ),
+            .N_IOHPMCTR         ( 8                         ),
 
 			.ADDR_WIDTH			( AxiAddrWidth				),
 			.DATA_WIDTH			( AxiDataWidth				),
