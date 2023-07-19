@@ -861,11 +861,18 @@ module ariane_peripherals #(
         //# Interconnect for DMA-capable devices and IOMMU
         // -----------------------------------------------
 
-        localparam logic [3:0] device_ids [ariane_soc::NrDmaMasters] = '{
+        localparam logic [3:0] ar_device_ids [ariane_soc::NrDmaMasters] = '{
             4'd1,
             4'd2,
             4'd3,
             4'd4
+        };
+
+        localparam logic [3:0] aw_device_ids [ariane_soc::NrDmaMasters] = '{
+            4'd9,
+            4'd10,
+            4'd11,
+            4'd12
         };
 
         // Connections between DMA Masters and DMA XBAR
@@ -878,10 +885,10 @@ module ariane_peripherals #(
 
         // Connection between DMA XBAR and IOMMU TR IF
         AXI_BUS #(
-            .AXI_ADDR_WIDTH ( AxiAddrWidth                  ),
-            .AXI_DATA_WIDTH ( AxiDataWidth                  ),
-            .AXI_ID_WIDTH   ( ariane_soc::IdWidthSlave      ),
-            .AXI_USER_WIDTH ( AxiUserWidth                  )
+            .AXI_ADDR_WIDTH ( AxiAddrWidth          ),
+            .AXI_DATA_WIDTH ( AxiDataWidth          ),
+            .AXI_ID_WIDTH   ( ariane_soc::IdWidth   ),
+            .AXI_USER_WIDTH ( AxiUserWidth          )
         ) dma_xbar_master ();
 
         dma_xbar_intf #(
@@ -910,7 +917,8 @@ module ariane_peripherals #(
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .device_id          ( device_ids[3]             )   // 4
+            .ar_device_id       ( ar_device_ids[3]          ),  // 4
+            .aw_device_id       ( aw_device_ids[3]          )   // 12
         ) i_idma_0 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -928,7 +936,8 @@ module ariane_peripherals #(
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .device_id          ( device_ids[2]             )   // 3
+            .ar_device_id       ( ar_device_ids[2]          ),  // 3
+            .aw_device_id       ( aw_device_ids[2]          )   // 11
         ) i_idma_1 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -946,7 +955,8 @@ module ariane_peripherals #(
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .device_id          ( device_ids[1]             )   // 2
+            .ar_device_id       ( ar_device_ids[1]          ),  // 2
+            .aw_device_id       ( aw_device_ids[1]          )   // 10
         ) i_idma_2 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -964,7 +974,8 @@ module ariane_peripherals #(
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .device_id          ( device_ids[0]             )   // 1
+            .ar_device_id       ( ar_device_ids[0]          ),  // 1
+            .aw_device_id       ( aw_device_ids[0]          )   // 9
         ) i_idma_3 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -974,7 +985,7 @@ module ariane_peripherals #(
             // master port
             .axi_master 			( dma_xbar_slave[0])
         );
-
+        
         `AXI_ASSIGN_TO_REQ(axi_iommu_tr_req, dma_xbar_master)
         `AXI_ASSIGN_FROM_RESP(dma_xbar_master, axi_iommu_tr_rsp)
     end
@@ -1088,17 +1099,14 @@ module ariane_peripherals #(
 		`REG_BUS_TYPEDEF_ALL(iommu_reg, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
   
         riscv_iommu #(
-			.IOTLB_ENTRIES		(  4						),
-			.DDTC_ENTRIES	    (  4						),
+			.IOTLB_ENTRIES		(  8						),
+			.DDTC_ENTRIES	    (  2						),
 			.PDTC_ENTRIES	    (  4						),
-			.DEVICE_ID_WIDTH    ( 24						),	// Fixed to 24 bits, even if ddtp.mode = 1LVL
-			.PSCID_WIDTH        ( 20						),
-			.GSCID_WIDTH        ( 16						),
 
 			.InclPID            ( 1'b0						),
-			.InclWSI_IG         ( 1'b1						),
-			.InclMSI_IG         ( 1'b1						),
+			.IGS                ( rv_iommu::BOTH            ),
             .N_INT_VEC          ( ariane_soc::IOMMUNumWires ),
+            .N_IOHPMCTR         ( 8                         ),
 
 			.ADDR_WIDTH			( AxiAddrWidth				),
 			.DATA_WIDTH			( AxiDataWidth				),

@@ -27,7 +27,9 @@ module dma_core_wrap #(
   parameter int unsigned AXI_ID_WIDTH       = -1,
   parameter int unsigned AXI_SLV_ID_WIDTH   = -1,
 
-  parameter logic [3:0] device_id           = 4'd1
+  parameter logic [3:0] ar_device_id           = 4'd1,
+  parameter logic [3:0] aw_device_id           = 4'd1
+
 ) (
   input  logic        clk_i,
   input  logic        rst_ni,
@@ -100,8 +102,7 @@ module dma_core_wrap #(
   idma_reg64_frontend #(
     .dma_regs_req_t  ( dma_regs_req_t ),
     .dma_regs_rsp_t  ( dma_regs_rsp_t ),
-    .burst_req_t     ( idma_req_t     ),
-    .device_id       ( device_id      )
+    .burst_req_t     ( idma_req_t     )
   ) i_dma_frontend (
     .clk_i,
     .rst_ni,
@@ -137,7 +138,9 @@ module dma_core_wrap #(
     .protocol_req_t      ( axi_mst_req_t               ),
     .protocol_rsp_t      ( axi_mst_resp_t              ),
     .aw_chan_t           ( axi_mst_aw_chan_t           ),
-    .ar_chan_t           ( axi_mst_ar_chan_t           )
+    .ar_chan_t           ( axi_mst_ar_chan_t           ),
+    .ar_device_id        ( ar_device_id                ),
+    .aw_device_id        ( aw_device_id                )
   ) i_idma_backend (
     .clk_i,
     .rst_ni,

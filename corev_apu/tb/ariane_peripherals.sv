@@ -639,6 +639,12 @@ module ariane_peripherals #(
     ariane_axi_soc::req_t  axi_iommu_tr_req;
     ariane_axi_soc::resp_t axi_iommu_tr_rsp;
 
+    // AXI Bus between System Interconnect (Mst) and IOMMU Programming IF (Slv)
+    ariane_axi_soc::req_slv_t  axi_iommu_cfg_req;
+    ariane_axi_soc::resp_slv_t axi_iommu_cfg_rsp;
+    `AXI_ASSIGN_TO_REQ(axi_iommu_cfg_req, iommu_cfg)
+    `AXI_ASSIGN_FROM_RESP(iommu_cfg, axi_iommu_cfg_rsp)
+
     // -----------
     //# DMA Engine
     // -----------
@@ -648,11 +654,18 @@ module ariane_peripherals #(
         //# Interconnect for DMA-capable devices and IOMMU
         // -----------------------------------------------
 
-        localparam logic [3:0] device_ids [ariane_soc::NrDmaMasters] = '{
+        localparam logic [3:0] ar_device_ids [ariane_soc::NrDmaMasters] = '{
             4'd1,
             4'd2,
             4'd3,
             4'd4
+        };
+
+        localparam logic [3:0] aw_device_ids [ariane_soc::NrDmaMasters] = '{
+            4'd9,
+            4'd10,
+            4'd11,
+            4'd12
         };
 
         // Connections between DMA Masters and DMA XBAR
@@ -665,10 +678,10 @@ module ariane_peripherals #(
 
         // Connection between DMA XBAR and IOMMU TR IF
         AXI_BUS #(
-            .AXI_ADDR_WIDTH ( AxiAddrWidth                  ),
-            .AXI_DATA_WIDTH ( AxiDataWidth                  ),
-            .AXI_ID_WIDTH   ( ariane_soc::IdWidthSlave      ),
-            .AXI_USER_WIDTH ( AxiUserWidth                  )
+            .AXI_ADDR_WIDTH ( AxiAddrWidth          ),
+            .AXI_DATA_WIDTH ( AxiDataWidth          ),
+            .AXI_ID_WIDTH   ( ariane_soc::IdWidth   ),
+            .AXI_USER_WIDTH ( AxiUserWidth          )
         ) dma_xbar_master ();
 
         dma_xbar_intf #(
@@ -697,7 +710,8 @@ module ariane_peripherals #(
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .device_id          ( device_ids[3]             )   // 4
+            .ar_device_id       ( ar_device_ids[3]          ),  // 4
+            .aw_device_id       ( aw_device_ids[3]          )   // 12
         ) i_idma_0 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -715,7 +729,8 @@ module ariane_peripherals #(
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .device_id          ( device_ids[2]             )   // 3
+            .ar_device_id       ( ar_device_ids[2]          ),  // 3
+            .aw_device_id       ( aw_device_ids[2]          )   // 11
         ) i_idma_1 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -733,7 +748,8 @@ module ariane_peripherals #(
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .device_id          ( device_ids[1]             )   // 2
+            .ar_device_id       ( ar_device_ids[1]          ),  // 2
+            .aw_device_id       ( aw_device_ids[1]          )   // 10
         ) i_idma_2 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -751,7 +767,8 @@ module ariane_peripherals #(
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .device_id          ( device_ids[0]             )   // 1
+            .ar_device_id       ( ar_device_ids[0]          ),  // 1
+            .aw_device_id       ( aw_device_ids[0]          )   // 9
         ) i_idma_3 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -864,19 +881,13 @@ module ariane_peripherals #(
 		`AXI_ASSIGN_FROM_REQ(iommu_comp, axi_iommu_comp_req)
 		`AXI_ASSIGN_TO_RESP(axi_iommu_comp_rsp, iommu_comp)
 
-		// AXI Bus between System Interconnect (Mst) and IOMMU Programming IF (Slv)
-		ariane_axi_soc::req_slv_t  axi_iommu_cfg_req;
-		ariane_axi_soc::resp_slv_t axi_iommu_cfg_rsp;
-		`AXI_ASSIGN_TO_REQ(axi_iommu_cfg_req, iommu_cfg)
-		`AXI_ASSIGN_FROM_RESP(iommu_cfg, axi_iommu_cfg_rsp)
-
 		// Memory-mapped Register IF types
 		// name, addr_t, data_t, strb_t
 		`REG_BUS_TYPEDEF_ALL(iommu_reg, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
   
         riscv_iommu #(
-			.IOTLB_ENTRIES		(  4						),
-			.DDTC_ENTRIES	    (  4						),
+			.IOTLB_ENTRIES		(  8						),
+			.DDTC_ENTRIES	    (  2						),
 			.PDTC_ENTRIES	    (  4						),
 
 			.InclPID            ( 1'b0						),
@@ -933,12 +944,6 @@ module ariane_peripherals #(
 	// All memory IF request xVALID/xREADY wires are set to zero.
     end else begin : gen_iommu_disabled
 
-		// AXI Bus between System Interconnect (Mst) and IOMMU Programming IF (Slv)
-		ariane_axi_soc::req_slv_t  axi_iommu_cfg_req;
-		ariane_axi_soc::resp_slv_t axi_iommu_cfg_rsp;
-		`AXI_ASSIGN_TO_REQ(axi_iommu_cfg_req, iommu_cfg)
-		`AXI_ASSIGN_FROM_RESP(iommu_cfg, axi_iommu_cfg_rsp)
-
         axi_err_slv #(
             .AxiIdWidth ( ariane_soc::IdWidthSlave   ),
             .req_t      ( ariane_axi_soc::req_slv_t  ),
@@ -951,7 +956,7 @@ module ariane_peripherals #(
             .slv_resp_o ( axi_iommu_cfg_rsp )
         );
   
-        // Connect directly the device to the System Interconnect
+        // Connect directly the DMA XBAR's master port to the System Interconnect
         // TR IF req => Comp IF req
         `AXI_ASSIGN_FROM_REQ(iommu_comp, axi_iommu_tr_req)
 

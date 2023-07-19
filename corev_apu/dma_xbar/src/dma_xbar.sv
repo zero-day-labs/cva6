@@ -145,8 +145,8 @@ module dma_xbar #(
     // While writing data to W Channel, another AW transaction may be accepted, so we need to queue the AWIDs
     fifo_v3 #(
       .DATA_WIDTH ( 4 ),
-      // we can have a maximum of (Nr_DMAs) oustanding transactions
-      .DEPTH      ( Nr_DMAs )
+      // we can have a maximum of (NrDMAs) oustanding transactions
+      .DEPTH      ( NrDMAs )
     ) i_fifo_w_channel (
       .clk_i      ( clk_i           ),
       .rst_ni     ( rst_ni          ),
@@ -155,7 +155,7 @@ module dma_xbar #(
       .full_o     (                 ),
       .empty_o    (                 ),
       .usage_o    (                 ),
-      .data_i     ( mst_req_o.aw.id - 1),
+      .data_i     ( mst_req_o.aw.id[2:0] - 1),
       .push_i     ( mst_req_o.aw_valid & mst_resp_i.aw_ready ),                 // a new AW transaction was requested and granted
       .data_o     ( w_select_fifo   ),                                          // WID to select the W MUX
       .pop_i      ( mst_req_o.w_valid & mst_resp_i.w_ready & mst_req_o.w.last ) // W transaction has finished
@@ -182,7 +182,7 @@ module dma_xbar #(
     ) i_stream_demux_r (
         .inp_valid_i ( mst_resp_i.r_valid ),
         .inp_ready_o ( mst_req_o.r_ready  ),
-        .oup_sel_i   ( mst_resp_i.r.id - 1),
+        .oup_sel_i   ( mst_resp_i.r.id[2:0] - 1),
         .oup_valid_o ( r_valid_group ),
         .oup_ready_i ( r_ready_group )
     );
@@ -193,7 +193,7 @@ module dma_xbar #(
     ) i_stream_demux_b (
         .inp_valid_i ( mst_resp_i.b_valid ),
         .inp_ready_o ( mst_req_o.b_ready  ),
-        .oup_sel_i   ( mst_resp_i.b.id - 1),
+        .oup_sel_i   ( mst_resp_i.b.id[2:0] - 1),
         .oup_valid_o ( b_valid_group ),
         .oup_ready_i ( b_ready_group )
     );
