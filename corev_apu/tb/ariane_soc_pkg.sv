@@ -14,14 +14,10 @@ package ariane_soc;
   // M-Mode Hart, S-Mode Hart
   localparam int unsigned NumTargets = 2;
   // Uart, SPI, Ethernet, reserved
-  localparam int unsigned NumSources = 30;
+  localparam int unsigned NumSources = 32;
   localparam int unsigned MaxPriority = 7;
 
-  `ifdef MSI_MODE
-  localparam NrSlaves = 3; // actually masters, but slaves on the crossbar
-  `else
   localparam NrSlaves = 2; // actually masters, but slaves on the crossbar
-  `endif
 
   // 4 is recommended by AXI standard, so lets stick to it, do not change
   localparam IdWidth   = 4;
