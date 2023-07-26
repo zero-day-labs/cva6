@@ -2831,8 +2831,8 @@ module iommu_regmap_wrapper #(
 
         for (int unsigned i = 0; i < N_INT_VEC; i++) begin
           if (addr_hit[i+194]) begin
-            reg_rdata_next[32] = msi_vec_ctl_qs[i];
-            reg_rdata_next[31:0] = '0;
+            reg_rdata_next[0] = msi_vec_ctl_qs[i];
+            reg_rdata_next[31:1] = '0;
           end
         end
       end
