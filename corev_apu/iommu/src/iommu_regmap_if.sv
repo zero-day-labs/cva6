@@ -19,7 +19,7 @@
                     register interface protocol and AXI4.
 */
 
-// `include "packages/iommu_reg_pkg.sv"
+`include "register_interface/assign.svh"
 
 module iommu_regmap_if #(
     /// The width of the address.
@@ -30,10 +30,6 @@ module iommu_regmap_if #(
     parameter int               ID_WIDTH  = -1,
     /// AXI user width
     parameter int               USER_WIDTH  = 1,
-
-    /// Whether the AXI-Lite W channel should be decoupled with a register. This
-    /// can help break long paths at the expense of registers.
-    parameter bit               DECOUPLE_W = 1,
 
     // Interrupt Generation Support
     parameter rv_iommu::igs_t   IGS = rv_iommu::WSI_ONLY,
@@ -59,7 +55,7 @@ module iommu_regmap_if #(
     input  axi_req_t prog_req_i,
     output axi_rsp_t prog_resp_o,
 
-    // To HW
+    // Register interface
     output iommu_reg_pkg::iommu_reg2hw_t    reg2hw_o,
     input  iommu_reg_pkg::iommu_hw2reg_t    hw2reg_i
 );
@@ -146,14 +142,14 @@ module iommu_regmap_if #(
         .RVALID_o  ( prog_resp_o.r_valid  ),
         .RREADY_i  ( prog_req_i.r_ready   ),
         // APB IF
-        .PENABLE   ( penable   ),
-        .PWRITE    ( pwrite    ),
-        .PADDR     ( paddr     ),
-        .PSEL      ( psel      ),
-        .PWDATA    ( pwdata    ),
-        .PRDATA    ( prdata    ),
-        .PREADY    ( pready    ),
-        .PSLVERR   ( pslverr   )
+        .PENABLE   ( penable              ),
+        .PWRITE    ( pwrite               ),
+        .PADDR     ( paddr                ),
+        .PSEL      ( psel                 ),
+        .PWDATA    ( pwdata               ),
+        .PRDATA    ( prdata               ),
+        .PREADY    ( pready               ),
+        .PSLVERR   ( pslverr              )
     );
 
     apb_to_reg i_apb_to_reg (
@@ -171,12 +167,10 @@ module iommu_regmap_if #(
     );
 
     // assign REG_BUS.out to (req_t, rsp_t) pair
-    `REG_BUS_ASSIGN_TO_REQ(cfg_req, reg_bus)
-    `REG_BUS_ASSIGN_FROM_RSP(reg_bus, cfg_resp)
+    `REG_BUS_ASSIGN_TO_REQ(cfg_req, iommu_reg_bus)
+    `REG_BUS_ASSIGN_FROM_RSP(iommu_reg_bus, cfg_resp)
 
-    //
     // Register map wrapper module
-    //
     iommu_regmap_wrapper #(
         .ADDR_WIDTH (32         ),
         .DATA_WIDTH (32         ),
