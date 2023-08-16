@@ -1,4 +1,4 @@
-// Copyright © 2023 Universidade do Minho & Zero-Day Labs, Lda.
+// Copyright © 2023 Manuel Rodríguez & Zero-Day Labs, Lda.
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -9,13 +9,12 @@
 // any work distributed under the License is distributed on an “AS IS” BASIS, 
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
-
-/*
-    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
-    Date: 19/01/2023
-
-    Description: RISC-V IOMMU Hardware Context Directory Walker (CDW) module.
-*/
+//
+// Author: Manuel Rodríguez <manuel.cederog@gmail.com>
+// Date: 19/01/2023
+//
+// Description: RISC-V IOMMU Hardware Context Directory Walker (CDW). Walks memory to locate 
+//              Device Contexts and Process Contexts on context cache misses.
 
 //# Disabled verilator_lint_off WIDTH
 

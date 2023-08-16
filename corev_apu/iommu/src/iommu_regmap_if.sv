@@ -1,4 +1,4 @@
-// Copyright © 2023 Universidade do Minho & Zero-Day Labs, Lda.
+// Copyright © 2023 Manuel Rodríguez & Zero-Day Labs, Lda.
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -9,15 +9,14 @@
 // any work distributed under the License is distributed on an “AS IS” BASIS, 
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
-
-/*
-    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
-    Date:   02/02/2023
-
-    Description:    Wrapper module for the RISC-V IOMMU register programming interface:
-                    Instantiates the IOMMU register map and performs conversion between 
-                    register interface protocol and AXI4.
-*/
+//
+// Author: Manuel Rodríguez <manuel.cederog@gmail.com>
+// Date:   02/02/2023
+//
+// Description: Wrapper module for the RISC-V IOMMU register programming interface.
+//              Instantiates the IOMMU register map and performs conversion between 
+//              register interface protocol and AXI4.
+//
 
 `include "register_interface/assign.svh"
 
@@ -79,7 +78,7 @@ module iommu_regmap_if #(
     logic         pready;
     logic         pslverr;
 
-    // AXI4 to 
+    // AXI4 to APB IF
     axi2apb_64_32 #(
         .AXI4_ADDRESS_WIDTH ( ADDR_WIDTH  ),
         .AXI4_RDATA_WIDTH   ( DATA_WIDTH  ),
@@ -88,7 +87,7 @@ module iommu_regmap_if #(
         .AXI4_USER_WIDTH    ( USER_WIDTH  ),
         .BUFF_DEPTH_SLAVE   ( 2           ),
         .APB_ADDR_WIDTH     ( 32          )
-    ) i_axi2apb_64_32_plic (
+    ) i_axi2apb_64_32_iommu (
         .ACLK      ( clk_i          ),
         .ARESETn   ( rst_ni         ),
         .test_en_i ( 1'b0           ),
@@ -152,6 +151,7 @@ module iommu_regmap_if #(
         .PSLVERR   ( pslverr              )
     );
 
+    // APB to REG IF
     apb_to_reg i_apb_to_reg (
         .clk_i     ( clk_i          ),
         .rst_ni    ( rst_ni         ),

@@ -1,4 +1,4 @@
-// Copyright © 2023 Universidade do Minho & Zero-Day Labs, Lda.
+// Copyright © 2023 Manuel Rodríguez & Zero-Day Labs, Lda.
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -9,15 +9,15 @@
 // any work distributed under the License is distributed on an “AS IS” BASIS, 
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
-
-/*
-    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
-    Date:    04/11/2022
-
-    Description:    Sv39x4 IO Translation Lookaside Buffer (IOTLB) for RISC-V IOMMU.
-                    This module is an adaptation of the CVA6 Sv39 TLB developed by 
-                    Bruno Sá, University of Minho.
-*/
+//
+// Author: Manuel Rodríguez <manuel.cederog@gmail.com>
+// Date:    04/11/2022
+//
+// Description: IO Translation Lookaside Buffer (IOTLB) for RISC-V IOMMU.
+//              Compliant with the Sv39x4 virtual memory scheme, as defined
+//              in the RISC-V Privileged Specification 1.12
+//              This module is an adaptation of the Sv39 TLB developed
+//              by Florian Zaruba and David Schaffenrath to the Sv39x4 standard.
 
 module iommu_iotlb_sv39x4 import ariane_pkg::*; #(
     parameter int unsigned IOTLB_ENTRIES = 4

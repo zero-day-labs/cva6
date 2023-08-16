@@ -1,4 +1,4 @@
-// Copyright © 2023 Universidade do Minho & Zero-Day Labs, Lda.
+// Copyright © 2023 Manuel Rodríguez & Zero-Day Labs, Lda.
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -9,15 +9,14 @@
 // any work distributed under the License is distributed on an “AS IS” BASIS, 
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
-
-/*
-    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
-    Date: 16/01/2023
-
-    Description:    RISC-V IOMMU Hardware PTW (Page Table Walker). Sv39/Sv39x4. 
-                    This module is an adaptation of the CVA6 Sv39x4 MMU PTW developed by
-                    Bruno Sá, University of Minho, PT.
-*/
+//
+// Author: Manuel Rodríguez <manuel.cederog@gmail.com>
+// Date: 16/01/2023
+//
+// Description: RISC-V IOMMU Hardware Page Table Walker (PTW). Translation scheme Sv39x4.
+//              This module is an adaptation of the CVA6 Sv39 MMU developed by 
+//              David Schaffenrath and Florian Zaruba; and the CVA6 Sv39x4 TLB 
+//              developed by Bruno Sá.
 
 /* verilator lint_off WIDTH */
 

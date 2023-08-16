@@ -1,4 +1,4 @@
-// Copyright © 2023 Universidade do Minho & Zero-Day Labs, Lda.
+// Copyright © 2023 Manuel Rodríguez & Zero-Day Labs, Lda.
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -9,15 +9,12 @@
 // any work distributed under the License is distributed on an “AS IS” BASIS, 
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
-
-/*
-    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
-    Date:    10/11/2022
-
-    Description:    RISC-V IOMMU Device Directory Table Cache.
-                    Cache to store context info for DMA-capable attached devices.
-                    This version utilizes the DC extended format.
-*/
+//
+// Author: Manuel Rodríguez <manuel.cederog@gmail.com>
+// Date:    10/11/2022
+//
+// Description: RISC-V IOMMU Device Directory Table Cache (DDTC).
+//              Fully-associative cache to store Device Contexts in extended format.
 
 module iommu_ddtc import ariane_pkg::*; #(
     parameter int unsigned DDTC_ENTRIES = 4

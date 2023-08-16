@@ -1,4 +1,4 @@
-// Copyright © 2023 Universidade do Minho & Zero-Day Labs, Lda.
+// Copyright © 2023 Manuel Rodríguez & Zero-Day Labs, Lda.
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -9,13 +9,11 @@
 // any work distributed under the License is distributed on an “AS IS” BASIS, 
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
-
-/*
-    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
-    Date: 08/03/2023
-
-    Description: RISC-V IOMMU MSI Interrupt Generation Module.
-*/
+//
+// Author: Manuel Rodríguez <manuel.cederog@gmail.com>
+// Date: 08/03/2023
+//
+// Description: RISC-V IOMMU MSI Interrupt Generation Module.
 
 //! NOTES:
 /*
@@ -199,105 +197,6 @@ module iommu_msi_ig #(
                             edged_n[j] = 1'b0;
                         end
                     end
-
-                    // priority case (1'b1)
-
-                    //     //# Prioritize pending messages
-
-                    //     // CQ
-                    //     (pending_q[intv_i[CQ]] && !msi_vec_masked_x_i[intv_i[CQ]]): begin
-                    //         intv_n                  = intv_i[CQ];
-                    //         pending_n[intv_i[CQ]]   = 1'b0;
-                    //         state_n                 = WRITE;
-                    //     end
-
-                    //     // FQ
-                    //     (pending_q[intv_i[FQ]] && !msi_vec_masked_x_i[intv_i[FQ]]): begin
-                    //         intv_n                  = intv_i[FQ];
-                    //         pending_n[intv_i[FQ]]   = 1'b0;
-                    //         state_n                 = WRITE;
-                    //     end
-
-                    //     // HPM
-                    //     (pending_q[intv_i[HPM]] && !msi_vec_masked_x_i[intv_i[HPM]]): begin
-                    //         intv_n                  = intv_i[HPM];
-                    //         pending_n[intv_i[HPM]]  = 1'b0;
-                    //         state_n                 = WRITE;
-                    //     end
-
-                    //     //# Incoming interrupt
-                        
-                    //     // CQ
-                    //     (intp_i[CQ] && !edged_q[CQ]): begin
-                            
-                    //         // We do not attribute cip_i directly to avoid missing 
-                    //         // any IP bit transition while sending another interrupt.
-                    //         edged_n[CQ] = 1'b1;
-
-                    //         // cip bit was set in the last cycle, send MSI if vector is not masked
-                    //         if (!msi_vec_masked_x_i[intv_i[CQ]]) begin
-                    //             intv_n      = intv_i[CQ];
-                    //             state_n     = WRITE;
-                    //         end
-
-                    //         // if vector is masked, then save request
-                    //         else begin
-                    //             pending_n[intv_i[CQ]]   = 1'b1;
-                    //         end
-                    //     end
-
-                    //     // FQ
-                    //     (intp_i[FQ] && !edged_q[FQ]): begin
-                            
-                    //         // We do not attribute fip_i directly to avoid missing 
-                    //         // any IP bit transition while sending another interrupt.
-                    //         edged_n[FQ] = 1'b1;
-
-                    //         // fip bit was set in the last cycle, send MSI if vector is not masked
-                    //         if (!msi_vec_masked_x_i[intv_i[FQ]]) begin
-                    //             intv_n      = intv_i[FQ];
-                    //             state_n     = WRITE;
-                    //         end
-
-                    //         // if vector is masked, then save request for FQ
-                    //         else begin
-                    //             pending_n[intv_i[FQ]]    = 1'b1;
-                    //         end
-                    //     end
-
-                    //     // HPM
-                    //     (intp_i[HPM] && !edged_q[HPM]): begin
-                            
-                    //         // We do not attribute pmip_i directly to avoid missing 
-                    //         // any IP bit transition while sending another interrupt.
-                    //         edged_n[HPM] = 1'b1;
-
-                    //         // pmip bit was set in the last cycle, send MSI if vector is not masked
-                    //         if (!msi_vec_masked_x_i[intv_i[HPM]]) begin
-                    //             intv_n      = intv_i[HPM];
-                    //             state_n     = WRITE;
-                    //         end
-
-                    //         // if vector is masked, then save request for HPM
-                    //         else begin
-                    //             pending_n[intv_i[HPM]]    = 1'b1;
-                    //         end
-                    //     end
-
-                    // endcase
-
-                    /* verilator lint_on WIDTH */
-
-                    // // Clear edged IP bits when input is clear
-                    // if (!intp_i[CQ] && edged_q[CQ]) begin
-                    //     edged_n[CQ] = 1'b0;
-                    // end
-                    // if (!fip_i && edged_fip_q) begin
-                    //     edged_fip_n = 1'b0;
-                    // end
-                    // if (!pmip_i && edged_pmip_q) begin
-                    //     edged_pmip_n = 1'b0;
-                    // end
                 end
             end 
 

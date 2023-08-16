@@ -1,6 +1,0 @@
-<testsuites name="results">
-  <testsuite name="all" package="all">
-    <property name="random_seed" value="1673275531" />
-    <testcase name="AXI_WRTest" classname="iommu_reg_test" file="/home/manuale97/Documents/University/Dissertation/iommu/src/reg_file/test/iommu_reg_test.py" lineno="528" time="0.03560233116149902" sim_time_ns="29.001" ratio_time="814.5814909828765" />
-  </testsuite>
-</testsuites>

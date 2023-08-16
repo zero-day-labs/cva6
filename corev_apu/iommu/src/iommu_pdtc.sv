@@ -1,4 +1,4 @@
-// Copyright © 2023 Universidade do Minho & Zero-Day Labs, Lda.
+// Copyright © 2023 Manuel Rodríguez & Zero-Day Labs, Lda.
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -9,14 +9,13 @@
 // any work distributed under the License is distributed on an “AS IS” BASIS, 
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
+//
+// Author: Manuel Rodríguez <manuel.cederog@gmail.com>
+// Date:    10/11/2022
+//
+// Description: RISC-V IOMMU Process Directory Table Cache (PDTC).
+//              Fully-associative cache to store Process Contexts.
 
-/*
-    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
-    Date:    10/11/2022
-
-    Description:    RISC-V IOMMU Process Directory Table Cache.
-                    Cache to store context info for processes within DMA-capable attached devices.
-*/
 
 module iommu_pdtc #(
     parameter int unsigned PDTC_ENTRIES = 4
