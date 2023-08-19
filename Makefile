@@ -162,6 +162,10 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         $(wildcard corev_apu/register_interface/vendor/lowrisc_opentitan/src/*.sv)   \
         $(wildcard corev_apu/iommu/packages/*.sv)                                    \
         $(wildcard corev_apu/iommu/src/*.sv)                                         \
+		$(wildcard corev_apu/iommu/src/cdw/*.sv)                                     \
+		$(wildcard corev_apu/iommu/src/ptw/*.sv)                                     \
+		$(wildcard corev_apu/iommu/src/iotlb/*.sv)                                   \
+		$(wildcard corev_apu/iommu/src/translation_wrapper/*.sv)                     \
         corev_apu/rv_plic/rtl/rv_plic_target.sv                                      \
         corev_apu/rv_plic/rtl/rv_plic_gateway.sv                                     \
         corev_apu/rv_plic/rtl/plic_regmap.sv                                         \
