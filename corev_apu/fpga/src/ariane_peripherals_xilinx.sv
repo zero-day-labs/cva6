@@ -1099,11 +1099,14 @@ module ariane_peripherals #(
 		`REG_BUS_TYPEDEF_ALL(iommu_reg, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
   
         riscv_iommu #(
-			.IOTLB_ENTRIES		(  8						),
+			.IOTLB_ENTRIES		(  4						),
 			.DDTC_ENTRIES	    (  2						),
 			.PDTC_ENTRIES	    (  4						),
 
 			.InclPID            ( 1'b0						),
+            .InclMSITrans       ( 1'b0                      ),
+            .InclBC             ( 1'b0                      ),
+
 			.IGS                ( rv_iommu::BOTH            ),
             .N_INT_VEC          ( ariane_soc::IOMMUNumWires ),
             .N_IOHPMCTR         ( 8                         ),

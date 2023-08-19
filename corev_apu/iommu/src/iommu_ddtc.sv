@@ -1,4 +1,4 @@
-// Copyright © 2023 University of Minho
+// Copyright © 2023 Manuel Rodríguez & Zero-Day Labs, Lda.
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
 // Licensed under the Solderpad Hardware License v 2.1 (the “License”); 
@@ -9,37 +9,35 @@
 // any work distributed under the License is distributed on an “AS IS” BASIS, 
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and limitations under the License.
+//
+// Author: Manuel Rodríguez <manuel.cederog@gmail.com>
+// Date:    10/11/2022
+//
+// Description: RISC-V IOMMU Device Directory Table Cache (DDTC).
+//              Fully-associative cache to store Device Contexts.
 
-/*
-    Author: Manuel Rodríguez, University of Minho <manuel.cederog@gmail.com>
-    Date:    10/11/2022
-
-    Description:    RISC-V IOMMU Device Directory Table Cache.
-                    Cache to store context info for DMA-capable attached devices.
-                    This version utilizes the DC extended format.
-*/
-
-module iommu_ddtc import ariane_pkg::*; #(
-    parameter int unsigned DDTC_ENTRIES = 4
+module iommu_ddtc #(
+    parameter int unsigned  DDTC_ENTRIES    = 4,
+    parameter type dc_t                     = logic
 )(
-    input  logic                    clk_i,            // Clock
-    input  logic                    rst_ni,           // Asynchronous reset active low
+    input  logic            clk_i,          // Clock
+    input  logic            rst_ni,         // Asynchronous reset active low
 
     // Flush signals
-    input  logic                        flush_i,        // IODIR.INVAL_DDT
-    input  logic                        flush_dv_i,     // device_id valid
-    input  logic [23:0]                 flush_did_i,    // device_id to be flushed
+    input  logic            flush_i,        // IODIR.INVAL_DDT
+    input  logic            flush_dv_i,     // device_id valid
+    input  logic [23:0]     flush_did_i,    // device_id to be flushed
 
     // Update signals
-    input  logic                        update_i,       // update flag
-    input  logic [23:0]                 up_did_i,       // device ID to be inserted
-    input rv_iommu::dc_ext_t            up_content_i,   // DC to be inserted
+    input  logic            update_i,       // update flag
+    input  logic [23:0]     up_did_i,       // device ID to be inserted
+    input  dc_t             up_content_i,   // DC to be inserted
 
     // Lookup signals
-    input  logic                        lookup_i,       // lookup flag
-    input  logic [23:0]                 lu_did_i,       // device_id to look for 
-    output rv_iommu::dc_ext_t           lu_content_o,   // DC
-    output logic                        lu_hit_o        // hit flag
+    input  logic            lookup_i,       // lookup flag
+    input  logic [23:0]     lu_did_i,       // device_id to look for 
+    output dc_t             lu_content_o,   // DC
+    output logic            lu_hit_o        // hit flag
 );
 
     //* Tags to identify DDTC entries
@@ -51,7 +49,7 @@ module iommu_ddtc import ariane_pkg::*; #(
 
     //* DDTC entries: Device Contexts
     struct packed {
-        rv_iommu::dc_ext_t dc;
+        dc_t dc;
     } [DDTC_ENTRIES-1:0] content_q, content_n;
 
     logic [DDTC_ENTRIES-1:0] lu_hit;     // to replacement logic
