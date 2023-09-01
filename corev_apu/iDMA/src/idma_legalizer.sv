@@ -33,9 +33,9 @@ module idma_legalizer #(
     /// Mutable options type
     parameter type idma_mut_tf_opt_t = logic,
     /// AR channel ID
-    parameter logic [3:0] ar_device_id           = 4'd1,
+    parameter logic [3:0] ar_device_id  = 4'd1,
     /// AW channel ID
-    parameter logic [3:0] aw_device_id           = 4'd1
+    parameter logic [3:0] aw_device_id  = 4'd1
 )(
     /// Clock
     input  logic clk_i,

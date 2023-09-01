@@ -29,13 +29,14 @@ module dma_core_wrap #(
 
   parameter logic [3:0] ar_device_id           = 4'd1,
   parameter logic [3:0] aw_device_id           = 4'd1
-
 ) (
   input  logic        clk_i,
   input  logic        rst_ni,
   input  logic        testmode_i,
   AXI_BUS.Master      axi_master,
-  AXI_BUS.Slave       axi_slave
+  AXI_BUS.Slave       axi_slave,
+
+  output logic [1:0]  irq_o
 );
   localparam int unsigned DmaRegisterWidth = 64;
 
@@ -114,7 +115,12 @@ module dma_core_wrap #(
     .valid_o          ( be_valid          ),
     .ready_i          ( be_ready          ),
     .backend_idle_i   ( ~|idma_busy       ),
-    .trans_complete_i ( be_trans_complete )
+    .trans_complete_i ( be_trans_complete ),
+    .r_done_i         ( axi_mst_resp.r_valid & axi_mst_resp.r.last ),
+    .w_done_i         ( axi_mst_req.w_valid & axi_mst_req.w.last   ),
+
+    // IRQ
+    .irq_o            ( irq_o             )
   );
 
   idma_backend #(

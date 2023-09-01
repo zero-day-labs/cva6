@@ -24,7 +24,11 @@ module idma_reg64_frontend #(
     output logic          valid_o,
     input  logic          ready_i,
     input  logic          backend_idle_i,
-    input  logic          trans_complete_i
+    input  logic          trans_complete_i,
+    input  logic          r_done_i,
+    input  logic          w_done_i,
+
+    output logic [1:0]    irq_o
 );
 
     localparam int unsigned DmaRegisterWidth = 64;
@@ -93,6 +97,7 @@ module idma_reg64_frontend #(
         burst_req_o.dst_addr            = dma_reg2hw.dst_addr.q;
 
             // Current backend only supports one ID
+        // burst_req_o.opt.axi_id             = '0;
         burst_req_o.opt.axi_id             = '0;
             // DMA only supports incremental burst
         burst_req_o.opt.src.burst          = axi_pkg::BURST_INCR;
@@ -134,6 +139,17 @@ module idma_reg64_frontend #(
 
     // only increment issue counter if we have a valid transfer
     assign issue = ready_i && valid_o;
+
+    // Set IP bits upon read/write completion
+    // TODO: Should be set when RVALID & RLAST are set by the IOMMU. Check
+    assign dma_hw2reg.ipsr.rip.de   = r_done_i;
+    assign dma_hw2reg.ipsr.rip.d    = r_done_i;
+    assign irq_o[0]                 = dma_reg2hw.ipsr.rip.q;
+
+    // TODO: Should be set when WVALID & WLAST are set by the iDMA module. Check
+    assign dma_hw2reg.ipsr.wip.de   = w_done_i;
+    assign dma_hw2reg.ipsr.wip.d    = w_done_i;
+    assign irq_o[1]                 = dma_reg2hw.ipsr.wip.q;
 
     // transfer id generator
     idma_transfer_id_gen #(

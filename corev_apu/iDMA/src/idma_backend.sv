@@ -61,9 +61,9 @@ module idma_backend #(
     /// Address Read Channel type
     parameter type ar_chan_t = logic,
     /// AR channel ID
-    parameter logic [3:0] ar_device_id           = 4'd1,
+    parameter logic [3:0] ar_device_id  = 4'd1,
     /// AW channel ID
-    parameter logic [3:0] aw_device_id           = 4'd1,
+    parameter logic [3:0] aw_device_id  = 4'd1,
     /// Strobe Width (do not override!)
     parameter int unsigned StrbWidth = DataWidth / 8,
     /// Offset Width (do not override!)
@@ -374,7 +374,7 @@ module idma_backend #(
             // assemble AR request
             assign r_req.ar_req = '{
                 // id:     idma_req_i.opt.axi_id,
-                id:     ar_device_id,
+                id: ar_device_id,
                 addr:   { idma_req_i.src_addr[AddrWidth-1:OffsetWidth], {{OffsetWidth}{1'b0}} },
                 len:    len,
                 size:   axi_pkg::size_t'(OffsetWidth),
@@ -390,7 +390,7 @@ module idma_backend #(
             // assemble AW request
             assign w_req.aw_req = '{
                 // id:     idma_req_i.opt.axi_id,
-                id:     aw_device_id,
+                id: aw_device_id,
                 addr:   { idma_req_i.dst_addr[AddrWidth-1:OffsetWidth], {{OffsetWidth}{1'b0}} },
                 len:    len,
                 size:   axi_pkg::size_t'(OffsetWidth),

@@ -74,7 +74,7 @@ module iommu_ptw_sv39x4 (
     // PTW states
     enum logic[2:0] {
       IDLE,             // 000
-      WAIT_GRANT,       // 001
+      MEM_ACCESS,       // 001
       PTE_LOOKUP,       // 010
       PROPAGATE_ERROR   // 011
     } state_q, state_n;
@@ -302,7 +302,7 @@ module iommu_ptw_sv39x4 (
                         iotlb_update_pscid_n   = pscid_i;
                         iotlb_update_gscid_n   = gscid_i;
                         iova_n = req_iova_i;
-                        state_n                = WAIT_GRANT;
+                        state_n                = MEM_ACCESS;
                     end
 
                     // If no stage is enabled,
@@ -312,7 +312,7 @@ module iommu_ptw_sv39x4 (
             end
 
             // Perform memory access with address hold in ptw_pptr_q
-            WAIT_GRANT: begin
+            MEM_ACCESS: begin
                 // send request to AXI Bus
                 mem_req_o.ar_valid = 1'b1;
                 
@@ -367,7 +367,7 @@ module iommu_ptw_sv39x4 (
 
                                     // If second-stage translation is enabled
                                     if (en_2S_i) begin
-                                        state_n = WAIT_GRANT;
+                                        state_n = MEM_ACCESS;
                                         
                                         // Save first-stage level where leaf PTE was found
                                         s1_lvl_n = main_lvl_q;
@@ -387,7 +387,7 @@ module iommu_ptw_sv39x4 (
                                 // result of any S2-L1 for 1G superpages, S2-L2 for 2M superpages and S2-L3 for 4K pages,
                                 // but the last
                                 STAGE_2_INTERMED: begin
-                                    state_n = WAIT_GRANT;
+                                    state_n = MEM_ACCESS;
                                     ptw_stage_n = STAGE_1;
 
                                     // Restore first-stage walk level
@@ -525,7 +525,7 @@ module iommu_ptw_sv39x4 (
                                 endcase
                             end
 
-                            state_n = WAIT_GRANT;
+                            state_n = MEM_ACCESS;
 
                             // "For non-leaf PTEs, the D, A, and U bits are reserved for future standard use."
                             // "Until their use is defined by a standard extension, they MUST be cleared by software for forward compatibility."

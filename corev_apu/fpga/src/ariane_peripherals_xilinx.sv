@@ -869,10 +869,14 @@ module ariane_peripherals #(
         };
 
         localparam logic [3:0] aw_device_ids [ariane_soc::NrDmaMasters] = '{
-            4'd9,
-            4'd10,
-            4'd11,
-            4'd12
+            // 4'd9,
+            // 4'd10,
+            // 4'd11,
+            // 4'd12
+            4'd1,
+            4'd2,
+            4'd3,
+            4'd4
         };
 
         // Connections between DMA Masters and DMA XBAR
@@ -926,7 +930,9 @@ module ariane_peripherals #(
             // slave port
             .axi_slave  			( dma_cfg_0        ),
             // master port
-            .axi_master 			( dma_xbar_slave[3])
+            .axi_master 			( dma_xbar_slave[3]),
+
+            .irq_o                  ( irq_sources[8:7] )
         );
 
         // iDMA at 0x5000_2000
@@ -945,7 +951,9 @@ module ariane_peripherals #(
             // slave port
             .axi_slave  			( dma_cfg_1        ),
             // master port
-            .axi_master 			( dma_xbar_slave[2])
+            .axi_master 			( dma_xbar_slave[2]),
+
+            .irq_o                  ( irq_sources[10:9] )
         );
 
         // iDMA at 0x5000_1000
@@ -964,7 +972,9 @@ module ariane_peripherals #(
             // slave port
             .axi_slave  			( dma_cfg_2        ),
             // master port
-            .axi_master 			( dma_xbar_slave[1])
+            .axi_master 			( dma_xbar_slave[1]),
+
+            .irq_o                  ( irq_sources[12:11])
         );
 
         // iDMA at 0x5000_0000
@@ -983,7 +993,9 @@ module ariane_peripherals #(
             // slave port
             .axi_slave  			( dma_cfg_3        ),
             // master port
-            .axi_master 			( dma_xbar_slave[0])
+            .axi_master 			( dma_xbar_slave[0]),
+
+            .irq_o                  ( irq_sources[14:13])
         );
         
         `AXI_ASSIGN_TO_REQ(axi_iommu_tr_req, dma_xbar_master)
@@ -1099,8 +1111,8 @@ module ariane_peripherals #(
 		`REG_BUS_TYPEDEF_ALL(iommu_reg, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
   
         riscv_iommu #(
-			.IOTLB_ENTRIES		(  16						),
-			.DDTC_ENTRIES	    (  8						),
+			.IOTLB_ENTRIES		(  4						),
+			.DDTC_ENTRIES	    (  4						),
 			.PDTC_ENTRIES	    (  4						),
 
 			.InclPID            ( 1'b0						),
@@ -1148,7 +1160,7 @@ module ariane_peripherals #(
 			.prog_req_i			( axi_iommu_cfg_req		),
 			.prog_resp_o		( axi_iommu_cfg_rsp		),
 
-			.wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+7:7] )
+			.wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+15:15] )
 		);
   
 	//-----------
