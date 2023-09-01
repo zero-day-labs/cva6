@@ -13,14 +13,13 @@
 // Author: Manuel Rodríguez <manuel.cederog@gmail.com>
 // Date: 19/01/2023
 //
-// Description: RISC-V IOMMU Hardware Context Directory Walker (CDW). Walks memory to locate 
-//              Device Contexts and Process Contexts on context cache misses.
+// Description: RISC-V IOMMU Hardware Context Directory Walker (CDW) for IOMMU implementations 
+//              WITHOUT Process Context and WITH MSI translation support.
+//              This module walks memory to locate Device Contexts in extended format, and updates the external DDTC.
 
 //# Disabled verilator_lint_off WIDTH
 
-module iommu_cdw #(
-    parameter bit   InclPID = 0
-) (
+module iommu_cdw_ext (
     input  logic                    clk_i,                  // Clock
     input  logic                    rst_ni,                 // Asynchronous reset active low
     
@@ -40,60 +39,29 @@ module iommu_cdw #(
     input  logic        caps_amo_hwad_i,
     input  logic        caps_end_i, fctl_be_i,
 
-    // PC checks
-    input  logic        dc_sxl_i,
-
     // CDW memory interface
     input  ariane_axi_soc::resp_t   mem_resp_i,
     output ariane_axi_soc::req_t    mem_req_o,
 
     // Update logic
-    output  logic                           update_dc_o,
-    output  logic [23:0]                    up_did_o,
-    output  rv_iommu::dc_ext_t              up_dc_content_o,
-
-    output logic                            update_pc_o,
-    output logic [19:0]                     up_pid_o,
-    output rv_iommu::pc_t                   up_pc_content_o,
+    output  logic                   update_dc_o,
+    output  logic [23:0]            up_did_o,
+    output  rv_iommu::dc_ext_t      up_dc_content_o,
 
     // CDC tags
-    input  logic [23:0]                     req_did_i,    // device_id associated with request
-    input  logic [19:0]                     req_pid_i,    // process_id associated with request
+    input  logic [23:0]             req_did_i,    // device_id associated with request
 
-    // from DDTC / PDTC, to monitor misses
-    input  logic                        ddtc_access_i,
-    input  logic                        ddtc_hit_i,
-
-    input  logic                        pdtc_access_i,
-    input  logic                        pdtc_hit_i,
+    // from DDTC, to monitor misses
+    input  logic                    ddtc_access_i,
+    input  logic                    ddtc_hit_i,
 
     // from regmap
     input  logic [riscv::PPNW-1:0]  ddtp_ppn_i,     // PPN from ddtp register
-    input  logic [3:0]              ddtp_mode_i,    // DDT levels and IOMMU mode
-
-    // from DC (for PC walks)
-    input  logic                    en_stage2_i,    // Second-stage translation is enabled
-    input  logic [riscv::PPNW-1:0]  pdtp_ppn_i,     // PPN from DC.fsc.PPN
-    input  logic [3:0]              pdtp_mode_i,    // PDT levels from DC.fsc.MODE
-
-    // CDW implicit translations (Second-stage only)
-    input  logic                        ptw_done_i,
-    input  logic                        flush_i,
-    input  logic [riscv::PPNW-1:0]      pdt_ppn_i,
-    output logic                        cdw_implicit_access_o,
-    output logic                        is_ddt_walk_o,
-    output logic [(riscv::GPPNW-1):0]   pdt_gppn_o,
-    output logic [riscv::PPNW-1:0]      iohgatp_ppn_fw_o  // to forward iohgatp.PPN to PTW when translating pdtp.PPN
-
-    // TODO: include HPM
-    // // Performance counters
-    // output logic                    itlb_miss_o,
-    // output logic                    dtlb_miss_o,
+    input  logic [3:0]              ddtp_mode_i    // DDT levels and IOMMU mode
 );
 
     // DC/PC Update register
     rv_iommu::dc_ext_t dc_q, dc_n;
-    rv_iommu::pc_t pc_q, pc_n;
 
     // Cast read port to corresponding data structure
     rv_iommu::nl_entry_t nl;
@@ -104,8 +72,6 @@ module iommu_cdw #(
     rv_iommu::msiptp_t dc_msiptp;
     rv_iommu::msi_addr_mask_t dc_msi_addr_mask;
     rv_iommu::msi_addr_pattern_t dc_msi_addr_patt;
-    rv_iommu::pc_ta_t pc_ta;
-    rv_iommu::fsc_t pc_fsc;
 
     assign dc_tc = rv_iommu::tc_t'(mem_resp_i.r.data);
     assign dc_iohgatp = rv_iommu::iohgatp_t'(mem_resp_i.r.data);
@@ -114,8 +80,6 @@ module iommu_cdw #(
     assign dc_msiptp = rv_iommu::msiptp_t'(mem_resp_i.r.data);
     assign dc_msi_addr_mask = rv_iommu::msi_addr_mask_t'(mem_resp_i.r.data);
     assign dc_msi_addr_patt = rv_iommu::msi_addr_pattern_t'(mem_resp_i.r.data);
-    assign pc_ta = rv_iommu::pc_ta_t'(mem_resp_i.r.data);
-    assign pc_fsc = rv_iommu::fsc_t'(mem_resp_i.r.data);
 
     assign nl = rv_iommu::nl_entry_t'(mem_resp_i.r.data);
 
@@ -125,25 +89,20 @@ module iommu_cdw #(
       MEM_ACCESS,               // 001
       NON_LEAF,                 // 010
       LEAF,                     // 011
-      GUEST_TR,                 // 100
-      ERROR                     // 101
+      ERROR                     // 100
     } state_t;
     
     state_t state_q, state_n;
 
-    // IOMMU mode and DDT/PDT levels
+    // IOMMU mode and DDT levels
     typedef enum logic [2:0] {
         OFF, BARE, LVL1, LVL2, LVL3
     } level_t;
     
     level_t cdw_lvl_q, cdw_lvl_n;
 
-    // Propagate miss source to update later
-    logic is_ddt_walk_q, is_ddt_walk_n;
-
     // Save and propagate the input device_id/process id to walk multiple levels
     logic [23:0] device_id_q, device_id_n;
-    logic [19:0] process_id_q, process_id_n;
 
     // Physical pointer to access memory bus
     logic [riscv::PLEN-1:0] cdw_pptr_q, cdw_pptr_n;
@@ -151,38 +110,29 @@ module iommu_cdw #(
     // Last DDT/PDT level
     logic is_last_cdw_lvl;
 
-    // Propagate done signal from PTW
-    logic ptw_done_q;
-
-    // It's not possible to load the entire DC/PC in one request.
+    // It's not possible to load the entire DC in one request.
     // Aux counter to know how many DWs we have loaded
-    // 3-bit wide since we are not counting the reserved DW of the DC
     logic [2:0] entry_cnt_q, entry_cnt_n;
-    logic dc_fully_loaded, pc_fully_loaded;
+    logic dc_fully_loaded;
 
     // Cause propagation
     logic [(rv_iommu::CAUSE_LEN-1):0] cause_q, cause_n;
 
-    // To know whether we have to wait for the AXI transaction to complete
+    // To know whether we have to wait for the AXI transaction to complete on errors
     logic wait_rlast_q, wait_rlast_n;
 
-    // PTW walking
+    // CDW walking
     assign cdw_active_o    = (state_q != IDLE);
     // Last CDW level
     assign is_last_cdw_lvl = (cdw_lvl_q == LVL1);
     // Determine whether we have loaded the entire DC/PC
-    assign dc_fully_loaded = (entry_cnt_q == 3'b111);  // extended format w/out reserved DW (64-8 = 56 bytes)
-    assign pc_fully_loaded = (entry_cnt_q == 3'b010);  // always 16-bytes
-    // PTW needs to know walk type to identify pdtp.PPN translations and select correct iohgatp source
-    assign is_ddt_walk_o = is_ddt_walk_q;
+    assign dc_fully_loaded = (entry_cnt_q == 3'b111);  // extended format excluding last DW (56 bytes)
 
     // -------------------
-    //# DDTC / PDTC Update
+    //# DDTC Update
     // -------------------
     assign up_did_o = device_id_q;
     assign up_dc_content_o = dc_q;
-    assign up_pid_o = process_id_q;
-    assign up_pc_content_o = pc_q;
 
     //# Context Directory Walker
     always_comb begin : cdw
@@ -219,8 +169,8 @@ module iommu_cdw #(
         // AR
         mem_req_o.ar.id                     = 4'b0001;                         
         mem_req_o.ar.addr[riscv::PLEN-1:0]  = cdw_pptr_q;                       // Physical address to access
-        // Number of beats per burst (1 for non-leaf entries, 2 for PC, 7 for DC)
-        mem_req_o.ar.len                    = (is_last_cdw_lvl) ? ((is_ddt_walk_q) ? (8'd6) : (8'd1)) : (8'd0);
+        // Number of beats per burst (1 for non-leaf entries, 7 for DC)
+        mem_req_o.ar.len                    = (is_last_cdw_lvl) ? (8'd6) : (8'd0);
         mem_req_o.ar.size                   = 3'b011;                           // 64 bits (8 bytes) per beat
         mem_req_o.ar.burst                  = axi_pkg::BURST_INCR;              // Incremental start address
         mem_req_o.ar.lock                   = '0;
@@ -238,44 +188,30 @@ module iommu_cdw #(
         cdw_error_o             = 1'b0;
         cause_code_o            = '0;
         update_dc_o             = 1'b0;
-        update_pc_o             = 1'b0;
-        pdt_gppn_o              = '0;
-        cdw_implicit_access_o   = 1'b0;
-        iohgatp_ppn_fw_o        = '0;
 
         cdw_lvl_n               = cdw_lvl_q;
         cdw_pptr_n              = cdw_pptr_q;
         state_n                 = state_q;
-        is_ddt_walk_n           = is_ddt_walk_q;
         entry_cnt_n             = entry_cnt_q;
         cause_n                 = cause_q;
         wait_rlast_n            = wait_rlast_q;
         device_id_n             = device_id_q;
-        process_id_n            = process_id_q;
         dc_n                    = dc_q;
-        pc_n                    = pc_q;
-
-        // itlb_miss_o           = 1'b0;
-        // dtlb_miss_o           = 1'b0;
 
         case (state_q)
 
-            // check for possible misses in Context Directory Caches
+            // check for possible misses in DDTC
             IDLE: begin
                 // start with the level indicated by ddtp.MODE
                 cdw_lvl_n       = level_t'(ddtp_mode_i);
-                is_ddt_walk_n   = 1'b0;
                 device_id_n     = req_did_i;
                 entry_cnt_n     = '0;
                 wait_rlast_n    = 1'b0;
 
                 // check for DDTC misses
-                // External logic guarantees that DDTC is looked up before PDTC
                 if (ddtc_access_i && ~ddtc_hit_i) begin
                     
-                    is_ddt_walk_n = 1'b1;
                     state_n = MEM_ACCESS;
-                    // ddtc_miss_o        = 1'b1;     // to HPM
 
                     // load pptr according to ddtp.MODE
                     // 3LVL
@@ -287,29 +223,6 @@ module iommu_cdw #(
                     // 1LVL
                     else if (ddtp_mode_i == 4'b0010)
                         cdw_pptr_n = {ddtp_ppn_i, req_did_i[5:0], 6'b0};
-                end
-
-                // check for PDTC misses
-                else if (InclPID) begin
-                
-                    if (pdtc_access_i && ~pdtc_hit_i) begin
-                    
-                        process_id_n    = req_pid_i;
-                        state_n         = MEM_ACCESS;
-                        cdw_lvl_n       = level_t'(pdtp_mode_i + 4'd1);    // level enconding is different for PDT
-                        // pdtc_miss_o        = 1'b1;     // to HPM
-
-                        // load pptr according to pdtp.MODE
-                        // PD20
-                        if (pdtp_mode_i == 4'b0011)
-                            cdw_pptr_n = {pdtp_ppn_i, 6'b0, req_pid_i[19:17], 3'b0};    // ... aaaa 0000 00bb b000
-                        // PD17
-                        else if (pdtp_mode_i == 4'b0010)
-                            cdw_pptr_n = {pdtp_ppn_i, req_pid_i[16:8], 3'b0};           // ... aaaa bbbb bbbb b000
-                        // PD8
-                        else if (pdtp_mode_i == 4'b0001)
-                            cdw_pptr_n = {pdtp_ppn_i, req_pid_i[7:0], 4'b0};             // ... aaaa bbbb bbbb 0000
-                    end
                 end
             end
 
@@ -324,116 +237,74 @@ module iommu_cdw #(
                     // decode next state
                     /*
                         Control signals:
-                        - Is a DDT lookup?
-                        - Is Stage-2 enabled?
-                        - Is the last level of the DDT/PDT?
+                        - Is the last level of the DDT?
                     */
-                    case ({en_stage2_i, is_ddt_walk_q, is_last_cdw_lvl})
-                        // rdata will hold the PPN of a non-leaf PDT/DDT entry
-                        // Stage-2 is don't care for DC walks since iohgatp always provides a PPN
-                        3'b000, 3'b010, 3'b110: begin
-                            state_n = NON_LEAF;
-                        end
+                    if (is_last_cdw_lvl) 
 
-                        // rdata will hold one of the doublewords of the PC/DC
-                        // If stage-2 is enabled, only after loading all DC/PC DWs we have to translate pdtp.PPN if needed
-                        3'b001, 3'b101, 3'b011, 3'b111: begin 
-                            state_n = LEAF;
-                        end
+                        // rdata will hold the PPN of a non-leaf DDT entry
+                        state_n = LEAF;
 
-                        // rdata will hold the GPPN of a non-leaf PDT entry
-                        // Must be first translated with second-stage translation
-                        3'b100: begin
-                            state_n = GUEST_TR;
-                        end
-
-                        default: begin
-                            state_n = IDLE;
-                        end
-                    endcase
+                    else
+                        // rdata will hold one of the doublewords of the DC
+                        state_n = NON_LEAF;
                 end
             end
 
-            // Set pptr with the ppn of a non-leaf entry and the corresponding dev/proc ID segment
+            // Set pptr with the ppn of a non-leaf entry and the corresponding dev ID segment
             // Always triggers a CDW memory access
             NON_LEAF: begin
                 // we wait for the valid signal when coming from MEM_ACCESS
-                // (DDT non-leaf entries or PDT entries when Stage-2 is disabled)
-                // When coming from GUEST_TR, we wait for the translation to be completed or a fault to be raised
-                if (mem_resp_i.r_valid || (ptw_done_i || flush_i)) begin
+                // (DDT non-leaf entries)
+                if (mem_resp_i.r_valid) begin
 
-                    if (mem_resp_i.r_valid) mem_req_o.r_ready = 1'b1;
+                    mem_req_o.r_ready = 1'b1;
 
-                    // "If ddte/pdte.V == 0, stop and report "DDT entry not valid" (cause = 258/266)"
-                    if (!nl.v && mem_resp_i.r_valid) begin
+                    // "If ddte.V == 0, stop and report "DDT entry not valid" (cause = 258)"
+                    if (!nl.v) begin
                         state_n = ERROR;
-                        if (is_ddt_walk_q) cause_n = rv_iommu::DDT_ENTRY_INVALID;
-                        else cause_n = rv_iommu::PDT_ENTRY_INVALID;
+                        cause_n = rv_iommu::DDT_ENTRY_INVALID;
                     end
 
                     //# Valid non-leaf entry
                     else begin
                         // Set pptr and next level
-                        // Different configs for DC and PC
-                        // PDT PPN may come from second-stage translation (GUEST-TR)
                         case (cdw_lvl_q)
                             LVL3: begin
                                 cdw_lvl_n = LVL2;
-                                if (is_ddt_walk_q) cdw_pptr_n = {nl.ppn, device_id_q[14:6], 3'b0};
-                                else begin 
-                                    if (!en_stage2_i)   cdw_pptr_n = {nl.ppn, process_id_q[16:8], 3'b0};
-                                    else                cdw_pptr_n = {pdt_ppn_i, process_id_q[16:8], 3'b0};
-                                end
+                                cdw_pptr_n = {nl.ppn, device_id_q[14:6], 3'b0};
                             end
 
                             LVL2: begin
                                 cdw_lvl_n = LVL1;
-                                if (is_ddt_walk_q) cdw_pptr_n = {nl.ppn, device_id_q[5:0], 6'b0};
-                                else begin 
-                                    if (!en_stage2_i)   cdw_pptr_n = {nl.ppn, process_id_q[7:0], 4'b0};
-                                    else                cdw_pptr_n = {pdt_ppn_i, process_id_q[7:0], 4'b0};
-                                end
+                                cdw_pptr_n = {nl.ppn, device_id_q[5:0], 6'b0};
                             end
 
                             default:;
                         endcase
 
                         state_n = MEM_ACCESS;
-                    end
 
-                    // "If any bits or encoding that are reserved for future standard use are set within ddte,"
-                    // "stop and report "DDT entry misconfigured" (cause = 259)"
-                    if (mem_resp_i.r_valid && ((|nl.reserved_1) || (|nl.reserved_2))) begin
-                        state_n = ERROR;
-                        cause_n = rv_iommu::DDT_ENTRY_MISCONFIGURED;
+                        // "If any bits or encoding that are reserved for future standard use are set within ddte,"
+                        // "stop and report "DDT entry misconfigured" (cause = 259)"
+                        if ((|nl.reserved_1) || (|nl.reserved_2)) begin
+                            state_n = ERROR;
+                            cause_n = rv_iommu::DDT_ENTRY_MISCONFIGURED;
+                        end
                     end
-
-                    // Abort walk and go to IDLE if PTW raised a second-stage translation error
-                    // Error is signaled by PTW
-                    if (flush_i)
-                        state_n = IDLE;
                 end
             end
 
-            // rdata holds one of the doublewords of the DC/PC.
-            // Here we check whether DC/PC has been fully loaded, if not, go back to MEM_ACCESS.
-            // After having the DC/PC ready, check if second-stage translation is enabled to determine next state
+            // rdata holds one of the doublewords of the DC.
+            // Here we check whether DC has been fully loaded, if not, go back to MEM_ACCESS.
             LEAF: begin
 
-                // Comming from GUEST_TR, pdtp.PPN has been translated by the PTW. Must be first stored in DC reg.
-                if (ptw_done_i) begin
-                    dc_n.fsc.ppn = pdt_ppn_i;
-                end
-
-                // Last DW (When stage-2 is enabled we must verify if the DC has been updated with the translated pdtp.PPN)
-                if ((is_ddt_walk_q && dc_fully_loaded && (ptw_done_q || !en_stage2_i || !dc_q.tc.pdtv)) || 
-                    (!is_ddt_walk_q && pc_fully_loaded)) begin
+                // Last DW
+                if (dc_fully_loaded) begin
 
                     state_n = IDLE;
-                    // At this point we MUST have the entire DC/PC stored
-                    // Update DDTC/PDTC
-                    if (is_ddt_walk_q)  update_dc_o = 1'b1;
-                    else                update_pc_o = 1'b1;
+                    // At this point we MUST have the entire DC stored
+                    // Update DDTC
+                    update_dc_o = 1'b1;
                 end
 
                 // Not last DW. Update counter, save DW
@@ -443,47 +314,10 @@ module iommu_cdw #(
                     entry_cnt_n         = entry_cnt_q + 1;
                     // Address is automatically incremented by AXI Bus
 
-                    case ({is_ddt_walk_q, entry_cnt_q})
-
-                        //PC.ta
-                        4'b0000: begin
-                            pc_n.ta = pc_ta;
-
-                            // "If pdte.V == 0, stop and report "PDT entry not valid" (cause = 266)"
-                            if (!pc_ta.v) begin
-                                state_n         = ERROR;
-                                cause_n         = rv_iommu::PDT_ENTRY_INVALID;
-                                wait_rlast_n    = 1'b1;
-                            end
-
-                            // Config checks
-                            if ((|pc_ta.reserved_1) || (|pc_ta.reserved_2)) begin
-                                state_n         = ERROR;
-                                cause_n         = rv_iommu::PDT_ENTRY_MISCONFIGURED;
-                                wait_rlast_n    = 1'b1;
-                            end
-                        end
-
-                        //PC.fsc (last DW)
-                        4'b0001: begin
-                            pc_n.fsc = pc_fsc;
-
-                            // Config checks
-                            if ((|pc_fsc.reserved) ||
-                                (!(pc_fsc.mode inside {4'd0, 4'd8, 4'd9, 4'd10})) ||
-                                (!dc_sxl_i && ((!caps_sv39_i && pc_fsc.mode == 4'd8) ||
-                                                 (!caps_sv48_i && pc_fsc.mode == 4'd9) ||
-                                                 (!caps_sv57_i && pc_fsc.mode == 4'd10))) ||
-                                (dc_sxl_i && (!caps_sv32_i && pc_fsc.mode == 4'd8))) begin
-                                state_n = ERROR;
-                                cause_n = rv_iommu::PDT_ENTRY_MISCONFIGURED;
-                            end
-                        end
-
-                        /*---------------------------------------------------------------*/
+                    case (entry_cnt_q)
 
                         //DC.tc
-                        4'b1000: begin
+                        3'b000: begin
                             dc_n.tc = dc_tc;
 
                             // "If ddte.V == 0, stop and report "DDT entry not valid" (cause = 258)"
@@ -495,11 +329,12 @@ module iommu_cdw #(
 
                             // Config checks
                             if ((|dc_tc.reserved_1) || (|dc_tc.reserved_2) || 
+                                (!caps_ats_i && (dc_tc.en_ats || dc_tc.en_pri || dc_tc.prpr)) ||
                                 (!dc_tc.en_ats && (dc_tc.t2gpa || dc_tc.en_pri || dc_tc.prpr)) ||
                                 (!caps_t2gpa_i && dc_tc.t2gpa) ||
                                 (!dc_tc.pdtv && dc_tc.dpe) ||
                                 (!caps_amo_hwad_i && (dc_tc.sade || dc_tc.gade)) ||
-                                (fctl_be_i != dc_tc.sbe) ||
+                                (!caps_end_i && (fctl_be_i != dc_tc.sbe)) ||
                                 (dc_tc.sxl != fctl_gxl_i)) begin
                                 state_n = ERROR;
                                 cause_n = rv_iommu::DDT_ENTRY_MISCONFIGURED;
@@ -508,7 +343,7 @@ module iommu_cdw #(
                         end
 
                         //DC.iohgatp
-                        4'b1001: begin
+                        3'b001: begin
                             dc_n.iohgatp = dc_iohgatp;
 
                             // Config checks
@@ -526,7 +361,7 @@ module iommu_cdw #(
                         end
 
                         //DC.ta
-                        4'b1010: begin
+                        3'b010: begin
                             dc_n.ta = dc_ta;
 
                             // Config checks
@@ -538,7 +373,7 @@ module iommu_cdw #(
                         end
 
                         //DC.fsc
-                        4'b1011: begin
+                        3'b011: begin
                             dc_n.fsc = dc_fsc;
 
                             // Config checks
@@ -558,7 +393,7 @@ module iommu_cdw #(
                         end
 
                         //DC.msiptp
-                        4'b1100: begin
+                        3'b100: begin
                             dc_n.msiptp = dc_msiptp;
 
                             // Config checks
@@ -571,7 +406,7 @@ module iommu_cdw #(
                         end
 
                         //DC.msi_addr_mask
-                        4'b1101: begin
+                        3'b101: begin
                             dc_n.msi_addr_mask = dc_msi_addr_mask;
 
                             // Config checks
@@ -583,11 +418,8 @@ module iommu_cdw #(
                         end
 
                         //DC.msi_addr_pattern (last DW)
-                        4'b1110: begin
+                        3'b110: begin
                             dc_n.msi_addr_pattern = dc_msi_addr_patt;
-                            // only if DC have an associated PC and Stage-2 is enabled, pdtp.PPN must be translated before being stored
-                            // otherwise, fsc.PPN holds iosatp field, which must be saved as a GPA
-                            if (en_stage2_i && dc_q.tc.pdtv) state_n = GUEST_TR;
 
                             // Config checks
                             if ((|dc_msi_addr_patt.reserved)) begin
@@ -598,56 +430,6 @@ module iommu_cdw #(
                         
                         default:;
                     endcase
-                end
-
-                // If an error occur in implicit second-stage translation, we abort the transaction and go back to idle
-                if (flush_i)    state_n = IDLE;
-            end
-
-            // If Stage-2 is enabled, this state triggers the PTW to perform second-stage translation for pdtp.PPN or a non-leaf PDT GPPN
-            // In the former case, we go to LEAF to update the corresponding CDTC entry
-            // In the latter case, we go to NON-LEAF to set the CDW pptr with the non-leaf PPN.
-            GUEST_TR: begin
-
-                // We come from MEM_ACCESS (translate non-leaf PDT GPPN)
-                if (!is_ddt_walk_q) begin
-
-                    if(mem_resp_i.r_valid) begin
-
-                        mem_req_o.r_ready   = 1'b1;
-
-                        // When coming from MEM_ACCESS, the ppn to be translated is located in nl.ppn
-                        // "If pdte.V == 0, stop and report "PDT entry not valid" (cause = 258/266)"
-                        if (!nl.v) begin
-                            state_n = ERROR;
-                            cause_n = rv_iommu::PDT_ENTRY_INVALID;
-                        end
-
-                        // "If if any bits or encoding that are reserved for future standard use are set within ddte,"
-                        // "stop and report "DDT entry misconfigured" (cause = 259)"
-                        else if ((|nl.reserved_1) || (|nl.reserved_2)) begin
-                            state_n = ERROR;
-                            cause_n = rv_iommu::PDT_ENTRY_MISCONFIGURED;
-                        end
-
-                        // Set pdt_ppn with nl.ppn and trigger PTW
-                        // NON_LEAF waits for the translation to be completed
-                        else begin
-                            pdt_gppn_o = nl.ppn[(riscv::GPPNW-1):0];
-                            cdw_implicit_access_o = 1'b1;
-                            state_n = NON_LEAF;
-                        end
-                    end
-                end
-
-                // We come from LEAF (pdtp.ppn)
-                else begin
-
-                    // Set pdt_ppn with DC.fsc.PPN (pdtp.ppn) and trigger PTW
-                    pdt_gppn_o = dc_q.fsc.ppn[(riscv::GPPNW-1):0];
-                    iohgatp_ppn_fw_o = dc_q.iohgatp.ppn;
-                    cdw_implicit_access_o = 1'b1;
-                    state_n = LEAF;
                 end
             end
 
@@ -673,12 +455,10 @@ module iommu_cdw #(
         // Check for AXI transmission errors
         if (mem_resp_i.r_valid && mem_resp_i.r.resp != axi_pkg::RESP_OKAY) begin
             update_dc_o     = 1'b0;
-            update_pc_o     = 1'b0;
             wait_rlast_n    = ~mem_resp_i.r.last;
 
             // set cause code
-            if (is_ddt_walk_q) cause_n = rv_iommu::DDT_DATA_CORRUPTION;
-            else cause_n = rv_iommu::PDT_DATA_CORRUPTION;
+            cause_n = rv_iommu::DDT_DATA_CORRUPTION;
 
             // return faulting address in bad_addr
             cdw_pptr_n = cdw_pptr_q;
@@ -702,12 +482,8 @@ module iommu_cdw #(
             cdw_pptr_q              <= '0;
             entry_cnt_q             <= '0;
             device_id_q             <= '0;
-            process_id_q            <= '0;
             cause_q                 <= '0;
-            is_ddt_walk_q           <= 1'b0;
             dc_q                    <= '0;
-            pc_q                    <= '0;
-            ptw_done_q              <= 1'b0;
             wait_rlast_q            <= 1'b0;
 
         end else begin
@@ -716,12 +492,8 @@ module iommu_cdw #(
             cdw_lvl_q               <= cdw_lvl_n;
             entry_cnt_q             <= entry_cnt_n;
             device_id_q             <= device_id_n;
-            process_id_q            <= process_id_n;
             cause_q                 <= cause_n;
-            is_ddt_walk_q           <= is_ddt_walk_n;
             dc_q                    <= dc_n;
-            pc_q                    <= pc_n;
-            ptw_done_q              <= ptw_done_i;
             wait_rlast_q            <= wait_rlast_n;
         end
     end

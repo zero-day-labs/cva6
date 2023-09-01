@@ -15,7 +15,9 @@
 //
 // Description: RISC-V IOMMU Translation Logic Wrapper.
 //              Encompasses all modules involved in the address translation 
-//              process and report of translation faults
+//              process and report of translation faults.
+//              Process Context support: YES
+//              MSI Translation support: NO
 
 //! NOTES:
 /*
@@ -24,19 +26,17 @@
       a stronger implementation (+ HW cost).
 */
 
-module iommu_translation_wrapper #(
+module iommu_wrapper_sv39x4_pc #(
 
     parameter int unsigned  IOTLB_ENTRIES       = 4,
     parameter int unsigned  DDTC_ENTRIES        = 4,
     parameter int unsigned  PDTC_ENTRIES        = 4,
 
     parameter int unsigned      N_INT_VEC       = 16,
-
-    parameter bit               InclPID         = 0,
     parameter rv_iommu::igs_t   IGS             = rv_iommu::WSI_ONLY,
 
     // DO NOT MODIFY
-    parameter int unsigned LOG2_INTVEC = $clog2(N_INT_VEC)
+    parameter int unsigned LOG2_INTVEC  = $clog2(N_INT_VEC)
 ) (
     input  logic    clk_i,
     input  logic    rst_ni,
@@ -116,7 +116,6 @@ module iommu_translation_wrapper #(
 
     // Request status and output data
     output logic                        trans_valid_o,      // Translation completed
-    output logic                        is_msi_o,           // Indicate whether the translated address is an MSI address
     output logic [riscv::PLEN-1:0]      translated_addr_o,  // Translated address
     output logic                        trans_error_o,
 
@@ -134,7 +133,7 @@ module iommu_translation_wrapper #(
 
     // DDTC
     logic                       ddtc_access;
-    rv_iommu::dc_ext_t          ddtc_lu_content;
+    rv_iommu::dc_base_t         ddtc_lu_content;
     logic                       ddtc_lu_hit;
 
     // PDTC
@@ -151,7 +150,6 @@ module iommu_translation_wrapper #(
     logic                       iotlb_lu_1S_1G;
     logic                       iotlb_lu_2S_2M;
     logic                       iotlb_lu_2S_1G;
-    logic                       iotlb_lu_is_msi;
     logic                       iotlb_lu_hit;
 
     // Bare translation signaled by PTW
@@ -194,10 +192,6 @@ module iommu_translation_wrapper #(
     assign pid_wider_than_supported = ((ddtc_lu_content.fsc.mode == 4'b0001 && |process_id[19:8]) ||
                                        (ddtc_lu_content.fsc.mode == 4'b0010 && |process_id[19:17]));
 
-    // To determine if current DC enables MSI translation
-    logic msi_enabled;
-    assign msi_enabled = (ddtc_lu_content.msiptp.mode != 4'b0000);
-
     // To determine if request is translated or untranslated
     logic is_translated;
     assign is_translated = (!trans_type_i[3] && trans_type_i[2]);
@@ -230,7 +224,7 @@ module iommu_translation_wrapper #(
     // Set for faults occurred before DDTC lookup
     logic   report_always;
     // Error/fault signaling according to the spec
-    logic                               trans_error;
+    logic                              trans_error;
     logic [(rv_iommu::CAUSE_LEN-1):0]  cause_code;       // Fault code as defined by IOMMU and Priv Spec
     // To indicate whether the occurring fault has to be reported according to DC.tc.DTF and the fault source
     // If DC.tc.DTF=1, only faults occurred before finding the corresponding DC should be reported
@@ -250,7 +244,7 @@ module iommu_translation_wrapper #(
 
     // To indicate if the IOMMU supports and uses MSI as interrupt generation mechanism
     logic   msi_ig_en;
-    assign  msi_ig_en = (!fctl_i.wsi.q);
+    assign  msi_ig_en = ((capabilities_i.igs.q inside {2'b00, 2'b10}) & (!fctl_i.wsi.q));
 
     // HPM event indicators
     logic cdw_active, ptw_active;
@@ -266,7 +260,7 @@ module iommu_translation_wrapper #(
     // Update wires
     logic                       ddtc_update;
     logic [23:0]                ddtc_up_did;
-    rv_iommu::dc_ext_t          ddtc_up_content;
+    rv_iommu::dc_base_t         ddtc_up_content;
 
     logic                       pdtc_update;
     logic [19:0]                pdtc_up_pid;
@@ -277,7 +271,6 @@ module iommu_translation_wrapper #(
     logic                       iotlb_up_1S_1G;
     logic                       iotlb_up_2S_2M;
     logic                       iotlb_up_2S_1G;
-    logic                       iotlb_up_is_msi;
     logic [riscv::GPPNW-1:0]    iotlb_up_vpn;
     logic [19:0]                iotlb_up_pscid;
     logic [15:0]                iotlb_up_gscid;
@@ -358,7 +351,8 @@ module iommu_translation_wrapper #(
 
     //# Device Directory Table Cache
     iommu_ddtc #(
-        .DDTC_ENTRIES       (DDTC_ENTRIES)
+        .DDTC_ENTRIES       (DDTC_ENTRIES),
+        .dc_t               (rv_iommu::dc_base_t)
     ) i_iommu_ddtc (
         .clk_i              (clk_i          ),  // Clock
         .rst_ni             (rst_ni         ),  // Asynchronous reset active low
@@ -378,43 +372,35 @@ module iommu_translation_wrapper #(
         .lu_content_o       (ddtc_lu_content),  // DC found in DDTC
         .lu_hit_o           (ddtc_lu_hit    )   // hit flag
     );
+    
 
     //# Process Directory Table Cache
-    generate
-    if (InclPID) begin : gen_pid_support
-        iommu_pdtc #(
-            .PDTC_ENTRIES       (PDTC_ENTRIES)
-        ) i_iommu_pdtc (
-            .clk_i              (clk_i          ),  // Clock
-            .rst_ni             (rst_ni         ),  // Asynchronous reset active low
+    iommu_pdtc #(
+        .PDTC_ENTRIES       (PDTC_ENTRIES)
+    ) i_iommu_pdtc (
+        .clk_i              (clk_i          ),  // Clock
+        .rst_ni             (rst_ni         ),  // Asynchronous reset active low
 
-            // Flush signals
-            .flush_i            (flush_pdtc     ),  // IODIR.INVAL_DDT or IODIR.INVAL_PDT
-            .flush_dv_i         (flush_dv       ),  // flush everything or only entries associated to DID (IODIR.INVAL_DDT)
-            .flush_pv_i         (flush_pv       ),  // flush entries tagged with DID and PID only (IODIR.INVAL_PDT)
-            .flush_did_i        (flush_did      ),  // device_id to be flushed
-            .flush_pid_i        (flush_pid      ),  // process_id to be flushed (if flush_pv_i = 1)
+        // Flush signals
+        .flush_i            (flush_pdtc     ),  // IODIR.INVAL_DDT or IODIR.INVAL_PDT
+        .flush_dv_i         (flush_dv       ),  // flush everything or only entries associated to DID (IODIR.INVAL_DDT)
+        .flush_pv_i         (flush_pv       ),  // flush entries tagged with DID and PID only (IODIR.INVAL_PDT)
+        .flush_did_i        (flush_did      ),  // device_id to be flushed
+        .flush_pid_i        (flush_pid      ),  // process_id to be flushed (if flush_pv_i = 1)
 
-            // Update signals
-            .update_i           (pdtc_update    ),  // update flag
-            .up_did_i           (ddtc_up_did    ),  // device ID to be inserted
-            .up_pid_i           (pdtc_up_pid    ),  // process ID to be inserted
-            .up_content_i       (pdtc_up_content),  // PC to be inserted
+        // Update signals
+        .update_i           (pdtc_update    ),  // update flag
+        .up_did_i           (ddtc_up_did    ),  // device ID to be inserted
+        .up_pid_i           (pdtc_up_pid    ),  // process ID to be inserted
+        .up_content_i       (pdtc_up_content),  // PC to be inserted
 
-            // Lookup signals
-            .lookup_i           (pdtc_access    ),  // lookup flag
-            .lu_did_i           (device_id_i    ),  // device_id to tag PDTC
-            .lu_pid_i           (process_id     ),  // process_id to tag PDTC
-            .lu_content_o       (pdtc_lu_content),  // PC found in PDTC
-            .lu_hit_o           (pdtc_lu_hit    )   // hit flag
-        );
-    end
-    // No PC support
-    else begin : gen_pid_support_disabled
-        assign pdtc_lu_content  = '0;
-        assign pdtc_lu_hit      = 1'b0;
-    end : gen_pid_support_disabled
-    endgenerate
+        // Lookup signals
+        .lookup_i           (pdtc_access    ),  // lookup flag
+        .lu_did_i           (device_id_i    ),  // device_id to tag PDTC
+        .lu_pid_i           (process_id     ),  // process_id to tag PDTC
+        .lu_content_o       (pdtc_lu_content),  // PC found in PDTC
+        .lu_hit_o           (pdtc_lu_hit    )   // hit flag
+    );
 
 
     //# IOTLB: Address Translation Cache
@@ -440,7 +426,6 @@ module iommu_translation_wrapper #(
         .up_1S_1G_i         (iotlb_up_1S_1G     ),
         .up_2S_2M_i         (iotlb_up_2S_2M     ),
         .up_2S_1G_i         (iotlb_up_2S_1G     ),
-        .up_is_msi_i        (iotlb_up_is_msi    ),
         .up_vpn_i           (iotlb_up_vpn       ),
         .up_pscid_i         (iotlb_up_pscid     ),
         .up_gscid_i         (iotlb_up_gscid     ),
@@ -459,14 +444,13 @@ module iommu_translation_wrapper #(
         .lu_1S_1G_o         (iotlb_lu_1S_1G     ),
         .lu_2S_2M_o         (iotlb_lu_2S_2M     ),
         .lu_2S_1G_o         (iotlb_lu_2S_1G     ),
-        .lu_is_msi_o        (iotlb_lu_is_msi    ),  // IOTLB entry contains a GPA associated with a guest vIMSIC
         .en_1S_i            (en_1S              ),  // first-stage enabled
         .en_2S_i            (en_2S              ),  // second-stage enabled
         .lu_hit_o           (iotlb_lu_hit       )   // hit flag
     );
 
     //# Page Table Walker
-    iommu_ptw_sv39x4 i_iommu_ptw_sv39x4 (
+    iommu_ptw_sv39x4_pc i_iommu_ptw_sv39x4_pc (
         .clk_i                  (clk_i              ),  // Clock
         .rst_ni                 (rst_ni             ),  // Asynchronous reset active low
         
@@ -492,7 +476,6 @@ module iommu_translation_wrapper #(
         .up_1S_1G_o             (iotlb_up_1S_1G     ),
         .up_2S_2M_o             (iotlb_up_2S_2M     ),
         .up_2S_1G_o             (iotlb_up_2S_1G     ),
-        .up_is_msi_o            (iotlb_up_is_msi    ),
         .up_vpn_o               (iotlb_up_vpn       ),
         .up_pscid_o             (iotlb_up_pscid     ),
         .up_gscid_o             (iotlb_up_gscid     ),
@@ -504,12 +487,7 @@ module iommu_translation_wrapper #(
         .pscid_i                (pscid              ),
         .gscid_i                (gscid              ),
 
-        // MSI translation
-        .msi_en_i               (msi_enabled                                ),
-        .msiptp_ppn_i           (ddtc_lu_content.msiptp.ppn                 ),
-        .msi_addr_mask_i        (ddtc_lu_content.msi_addr_mask.mask         ),
-        .msi_addr_pattern_i     (ddtc_lu_content.msi_addr_pattern.pattern   ),
-        .bare_translation_o     (is_bare_translation                        ),     // both stages are in bare mode and address is not MSI
+        .bare_translation_o     (is_bare_translation),     // both stages are in bare mode
 
         // CDW implicit translations (Second-stage only)
         .cdw_implicit_access_i  (cdw_implicit_access),
@@ -529,9 +507,7 @@ module iommu_translation_wrapper #(
     );
 
     //# Context Directory Walker
-    iommu_cdw #(
-        .InclPID                (InclPID)
-    ) i_iommu_cdw (
+    iommu_cdw_base_pc i_iommu_cdw_base_pc (
         .clk_i                  (clk_i              ),  // Clock
         .rst_ni                 (rst_ni             ),  // Asynchronous reset active low
         
@@ -555,7 +531,6 @@ module iommu_translation_wrapper #(
         .caps_sv39x4_i          (capabilities_i.sv39x4.q    ),
         .caps_sv48x4_i          (capabilities_i.sv48x4.q    ),
         .caps_sv57x4_i          (capabilities_i.sv57x4.q    ),
-        .caps_msi_flat_i        (capabilities_i.msi_flat.q  ),
         .caps_amo_hwad_i        (capabilities_i.amo_hwad.q  ),
         .caps_end_i             (capabilities_i.endi.q      ),
         .fctl_be_i              (fctl_i.be.q                ),
@@ -716,38 +691,40 @@ module iommu_translation_wrapper #(
     /* verilator lint_on WIDTH */
 
     //# MSI Interrupt Generation
-    if ((IGS == rv_iommu::MSI_ONLY) || (IGS == rv_iommu::BOTH)) begin : gen_msi_ig_support
+    generate
+        if ((IGS == rv_iommu::MSI_ONLY) || (IGS == rv_iommu::BOTH)) begin : gen_msi_ig_support
 
-        iommu_msi_ig #(
-            .N_INT_VEC          (N_INT_VEC  ),
-            .N_INT_SRCS         (3          )
-        ) i_iommu_msi_ig (
-            .clk_i              (clk_i      ),
-            .rst_ni             (rst_ni     ),
+            iommu_msi_ig #(
+                .N_INT_VEC          (N_INT_VEC  ),
+                .N_INT_SRCS         (3          )
+            ) i_iommu_msi_ig (
+                .clk_i              (clk_i      ),
+                .rst_ni             (rst_ni     ),
 
-            .msi_ig_enabled_i   (msi_ig_en  ),
+                .msi_ig_enabled_i   (msi_ig_en  ),
 
-            // Indexes in IV and IP vectors must be consistent!
-            // 2: HPM; 1: FQ; 0: CQ
-            .intp_i             ({hpm_ip_i,fq_ip_i,cq_ip_i}),
-            .intv_i             (intv       ),
+                // Indexes in IV and IP vectors must be consistent!
+                // 2: HPM; 1: FQ; 0: CQ
+                .intp_i             ({hpm_ip_i,fq_ip_i,cq_ip_i}),
+                .intv_i             (intv       ),
 
-            .msi_addr_x_i       (msi_addr_x_i       ),
-            .msi_data_x_i       (msi_data_x_i       ),
-            .msi_vec_masked_x_i (msi_vec_masked_x_i ),
+                .msi_addr_x_i       (msi_addr_x_i       ),
+                .msi_data_x_i       (msi_data_x_i       ),
+                .msi_vec_masked_x_i (msi_vec_masked_x_i ),
 
-            .msi_write_error_o  (msi_write_error    ),
+                .msi_write_error_o  (msi_write_error    ),
 
-            .mem_resp_i         (ig_axi_resp        ),
-            .mem_req_o          (ig_axi_req         )
-        );
-    end
+                .mem_resp_i         (ig_axi_resp        ),
+                .mem_req_o          (ig_axi_req         )
+            );
+        end
 
-    // Hardwire outputs to zero
-    else begin
-        assign  msi_write_error = 1'b0;
-        assign  ig_axi_req      = '0;
-    end
+        // Hardwire outputs to zero
+        else begin
+            assign  msi_write_error = 1'b0;
+            assign  ig_axi_req      = '0;
+        end
+    endgenerate
 
 
     //# Translation logic
@@ -765,7 +742,6 @@ module iommu_translation_wrapper #(
         iotlb_access        = 1'b0;
         cause_code          = '0;
         trans_error         = 1'b0;
-        is_msi_o            = 1'b0;
         trans_valid_o       = 1'b0;
         translated_addr_o   = '0;
         report_always       = 1'b0;
@@ -797,8 +773,6 @@ module iommu_translation_wrapper #(
                     translated_addr_o   = iova_i[riscv::PLEN-1:0];
                 end
             end
-
-            // This implementation will support MSI address translation, so DC always is presented in extended format
 
             // "If the device_id is wider than supported by the IOMMU, then stop and report "Transaction type disallowed" (cause = 260)."
             else if ((ddtp_i.iommu_mode.q == 4'b0011 && (|device_id_i[23:15])) || (ddtp_i.iommu_mode.q == 4'b0010 && (|device_id_i[23:6]))) begin
@@ -864,7 +838,7 @@ module iommu_translation_wrapper #(
                     end
 
                     // Process Context associated
-                    else if (InclPID) begin
+                    else begin
                         
                         // "If DPE is 0 and there is no process_id associated with the transaction, or if pdtp.MODE = Bare"
                         // "perform first-stage translation in Bare mode"
@@ -884,24 +858,22 @@ module iommu_translation_wrapper #(
             end
 
             //# PDTC Lookup
-            if (InclPID) begin
-                if (pdtc_lu_hit) begin
-                    
-                    // "Hold and stop if the transaction requests supervisor privilege but PC.ta.ENS is not set"
-                    if (is_s_priv && !pdtc_lu_content.ta.ens) begin
-                        cause_code    = rv_iommu::TRANS_TYPE_DISALLOWED;
-                        trans_error   = 1'b1;
-                    end
+            if (pdtc_lu_hit) begin
+                
+                // "Hold and stop if the transaction requests supervisor privilege but PC.ta.ENS is not set"
+                if (is_s_priv && !pdtc_lu_content.ta.ens) begin
+                    cause_code    = rv_iommu::TRANS_TYPE_DISALLOWED;
+                    trans_error   = 1'b1;
+                end
 
-                    else begin
-                        en_1S           = ~first_stage_is_bare;
-                        en_2S           = ~second_stage_is_bare;
-                        gscid           = ddtc_lu_content.iohgatp.gscid;
-                        pscid           = pdtc_lu_content.ta.pscid;
-                        iohgatp_ppn     = ddtc_lu_content.iohgatp.ppn;
-                        iosatp_ppn      = pdtc_lu_content.fsc.ppn;
-                        iotlb_access    = 1'b1;
-                    end
+                else begin
+                    en_1S           = ~first_stage_is_bare;
+                    en_2S           = ~second_stage_is_bare;
+                    gscid           = ddtc_lu_content.iohgatp.gscid;
+                    pscid           = pdtc_lu_content.ta.pscid;
+                    iohgatp_ppn     = ddtc_lu_content.iohgatp.ppn;
+                    iosatp_ppn      = pdtc_lu_content.fsc.ppn;
+                    iotlb_access    = 1'b1;
                 end
             end
 
@@ -910,16 +882,9 @@ module iommu_translation_wrapper #(
                 
                 trans_valid_o       = 1'b1;
 
-                //# MSI addr entry
-                if (iotlb_lu_is_msi && msi_enabled) begin
-                    is_msi_o            = 1'b1;
-                    // MSI PTEs contain the PPN in the same position as normal PTEs
-                    translated_addr_o   = {iotlb_lu_2S_content.ppn, iova_i[11:0]};
-                end
-
                 //# Normal entry
-                // INFO: IOTLB should not have entries with both stages disabled and MSI flag clear. However, we double-check
-                else if (en_1S || en_2S) begin
+                // INFO: IOTLB should not have entries with both stages disabled
+                if (en_1S || en_2S) begin
                     /*
                     A fault is generated if:
                         - A bit is not set (checked in PTW);

@@ -17,10 +17,12 @@
 //              This module is an adaptation of the CVA6 Sv39 MMU developed by 
 //              David Schaffenrath and Florian Zaruba; and the CVA6 Sv39x4 TLB 
 //              developed by Bruno Sá.
+//              Includes MSI translation support.
+//              Includes support for CDW implicit translations when walking the PDT.
 
 /* verilator lint_off WIDTH */
 
-module iommu_ptw_sv39x4 (
+module iommu_ptw_sv39x4_msi_pc (
     input  logic                    clk_i,                  // Clock
     input  logic                    rst_ni,                 // Asynchronous reset active low
     
@@ -84,7 +86,7 @@ module iommu_ptw_sv39x4 (
     // PTW states
     enum logic[2:0] {
       IDLE,             // 000
-      WAIT_GRANT,       // 001
+      MEM_ACCESS,       // 001
       PTE_LOOKUP,       // 010
       PROPAGATE_ERROR   // 011
     } state_q, state_n;
@@ -364,7 +366,7 @@ module iommu_ptw_sv39x4 (
                         iotlb_update_gscid_n   = gscid_i;
                         iova_n = (cdw_implicit_access_i) ? ({pdt_gppn_i, 12'b0}) : (req_iova_i);
                         cdw_implicit_access_n  = cdw_implicit_access_i;
-                        state_n                = WAIT_GRANT;
+                        state_n                = MEM_ACCESS;
                     end
 
                     // If no stage is enabled and the input address is not associated with an IMSIC,
@@ -374,7 +376,7 @@ module iommu_ptw_sv39x4 (
             end
 
             // Perform memory access with address hold in ptw_pptr_q
-            WAIT_GRANT: begin
+            MEM_ACCESS: begin
                 // send request to AXI Bus
                 mem_req_o.ar_valid = 1'b1;
                 
@@ -410,7 +412,7 @@ module iommu_ptw_sv39x4 (
 
                         // "If any bits or encoding that are reserved for future standard use are set within msipte," 
                         // "stop and report "MSI PTE misconfigured" (cause = 263)."
-                        if ((|msi_pte.reserved_1) || (|msi_pte.reserved_2))begin
+                        if ((|msi_pte.reserved_1) || (|msi_pte.reserved_2)) begin
                             update_o = 1'b0;
                             cause_n = rv_iommu::MSI_PTE_MISCONFIGURED;
                             state_n = PROPAGATE_ERROR;
@@ -473,7 +475,7 @@ module iommu_ptw_sv39x4 (
 
                                         // If second-stage translation is enabled
                                         if (en_2S_i) begin
-                                            state_n = WAIT_GRANT;
+                                            state_n = MEM_ACCESS;
                                             
                                             // Save first-stage level where leaf PTE was found
                                             s1_lvl_n = main_lvl_q;
@@ -491,7 +493,7 @@ module iommu_ptw_sv39x4 (
 
                                         // GPA is an IMSIC address (even if Stage 2 is disabled)
                                         if (gpaddr_is_imsic_addr) begin
-                                            state_n = WAIT_GRANT;
+                                            state_n = MEM_ACCESS;
                                             ptw_pptr_n = {msiptp_ppn_i, 12'b0} | {rv_iommu::extract_imsic_num(pte.ppn[riscv::GPPNW-1:0], msi_addr_mask_i), 4'b0};
                                             msi_translation_n = 1'b1;
                                             main_lvl_n = LVL3;
@@ -502,7 +504,7 @@ module iommu_ptw_sv39x4 (
                                     // result of any S2-L1 for 1G superpages, S2-L2 for 2M superpages and S2-L3 for 4K pages,
                                     // but the last
                                     STAGE_2_INTERMED: begin
-                                        state_n = WAIT_GRANT;
+                                        state_n = MEM_ACCESS;
                                         ptw_stage_n = STAGE_1;
 
                                         // Restore first-stage walk level
@@ -645,7 +647,7 @@ module iommu_ptw_sv39x4 (
                                     endcase
                                 end
 
-                                state_n = WAIT_GRANT;
+                                state_n = MEM_ACCESS;
 
                                 // "For non-leaf PTEs, the D, A, and U bits are reserved for future standard use."
                                 // "Until their use is defined by a standard extension, they MUST be cleared by software for forward compatibility."
