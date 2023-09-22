@@ -38,8 +38,6 @@ module iommu_wsi_ig #(
     output logic [(N_INT_VEC-1):0]      wsi_wires_o
 );
 
-    logic [(N_INT_VEC-1):0]      aux;
-
     always_comb begin : wsi_support
             
         /* verilator lint_off WIDTH */

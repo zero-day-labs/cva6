@@ -257,51 +257,6 @@ module cq_handler (
                 end
             end
 
-            // Write DATA (32-bit) to ADDR[63:2] * 4
-            WRITE: begin
-                
-                case (wr_state_q)
-
-                    // Send request to AW Channel
-                    AW_REQ: begin
-                        mem_req_o.aw_valid  = 1'b1;
-
-                        if (mem_resp_i.aw_ready) begin
-                            wr_state_n  = W_DATA;
-                        end
-                    end
-
-                    // Send data through W channel
-                    W_DATA: begin
-                        mem_req_o.w_valid   = 1'b1;
-
-                        if(mem_resp_i.w_ready) begin
-                            wr_state_n  = B_RESP;
-                        end
-                    end
-
-                    // Check response code
-                    // Here we can also receive IOPMP faults. However, these are considered as AXI errors.
-                    B_RESP: begin
-                        if (mem_resp_i.b_valid) begin
-                            
-                            mem_req_o.b_ready   = 1'b1;
-                            if (mem_resp_i.b.resp != axi_pkg::RESP_OKAY) begin
-                                // AXI error
-                                state_n         = ERROR;
-                                cq_mf_o         = 1'b1;
-                                error_wen_o     = 1'b1;
-                            end
-
-                            // After writing DATA to ADDR[63:2]*4 there is nothing else to do for IOFENCE.C
-                            else state_n = IDLE;
-                        end
-                    end
-
-                    default: state_n = IDLE;
-                endcase
-            end
-
             REGISTER: begin
                 // wait for RVALID
                 if (mem_resp_i.r_valid) begin
@@ -449,7 +404,10 @@ module cq_handler (
                     end
 
                     rv_iommu::ATS: begin
-                        // TODO: Future Work
+                        // TODO: Future Work. Considered illegal in this implementation
+                        cmd_ill_o   = 1'b1;
+                        error_wen_o = 1'b1;
+                        state_n     = ERROR;
                     end
 
                     default: begin
@@ -459,6 +417,51 @@ module cq_handler (
                         state_n     = ERROR;
                     end
                     
+                endcase
+            end
+
+            // Write DATA (32-bit) to ADDR[63:2] * 4
+            WRITE: begin
+                
+                case (wr_state_q)
+
+                    // Send request to AW Channel
+                    AW_REQ: begin
+                        mem_req_o.aw_valid  = 1'b1;
+
+                        if (mem_resp_i.aw_ready) begin
+                            wr_state_n  = W_DATA;
+                        end
+                    end
+
+                    // Send data through W channel
+                    W_DATA: begin
+                        mem_req_o.w_valid   = 1'b1;
+
+                        if(mem_resp_i.w_ready) begin
+                            wr_state_n  = B_RESP;
+                        end
+                    end
+
+                    // Check response code
+                    // Here we can also receive IOPMP faults. However, these are considered as AXI errors.
+                    B_RESP: begin
+                        if (mem_resp_i.b_valid) begin
+                            
+                            mem_req_o.b_ready   = 1'b1;
+                            if (mem_resp_i.b.resp != axi_pkg::RESP_OKAY) begin
+                                // AXI error
+                                state_n         = ERROR;
+                                cq_mf_o         = 1'b1;
+                                error_wen_o     = 1'b1;
+                            end
+
+                            // After writing DATA to ADDR[63:2]*4 there is nothing else to do for IOFENCE.C
+                            else state_n = IDLE;
+                        end
+                    end
+
+                    default: state_n = IDLE;
                 endcase
             end
 
