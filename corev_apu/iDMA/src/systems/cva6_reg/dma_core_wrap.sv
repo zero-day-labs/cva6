@@ -27,12 +27,16 @@ module dma_core_wrap #(
   parameter int unsigned AXI_ID_WIDTH       = -1,
   parameter int unsigned AXI_SLV_ID_WIDTH   = -1,
 
-  parameter logic [3:0] device_id           = 4'd1
+  // AXI master bus format
+  parameter type axi_req_t = logic,
+  parameter type axi_rsp_t = logic,
+
+  parameter logic [23:0] DEVICE_ID          = 24'd1
 ) (
   input  logic        clk_i,
   input  logic        rst_ni,
   input  logic        testmode_i,
-  AXI_BUS.Master      axi_master,
+  AXI_BUS_MMU.Master  axi_master,
   AXI_BUS.Slave       axi_slave
 );
   localparam int unsigned DmaRegisterWidth = 64;
@@ -50,6 +54,16 @@ module dma_core_wrap #(
   axi_mst_resp_t axi_mst_resp;
   `AXI_ASSIGN_FROM_REQ(axi_master, axi_mst_req)
   `AXI_ASSIGN_TO_RESP(axi_mst_resp, axi_master)
+
+  // Manually assign IOMMU-specific signals
+  // AW
+  assign axi_master.aw_stream_id     = DEVICE_ID;
+  assign axi_master.aw_ss_id_valid   = 1'b0;
+  assign axi_master.aw_substream_id  = 20'd0;
+  // AR
+  assign axi_master.ar_stream_id     = DEVICE_ID;
+  assign axi_master.ar_ss_id_valid   = 1'b0;
+  assign axi_master.ar_substream_id  = 20'd0;
 
   `AXI_TYPEDEF_ALL(axi_slv, addr_t, axi_slv_id_t, data_t, strb_t, user_t)
   axi_slv_req_t axi_slv_req;
@@ -100,8 +114,7 @@ module dma_core_wrap #(
   idma_reg64_frontend #(
     .dma_regs_req_t  ( dma_regs_req_t ),
     .dma_regs_rsp_t  ( dma_regs_rsp_t ),
-    .burst_req_t     ( idma_req_t     ),
-    .device_id       ( device_id      )
+    .burst_req_t     ( idma_req_t     )
   ) i_dma_frontend (
     .clk_i,
     .rst_ni,
