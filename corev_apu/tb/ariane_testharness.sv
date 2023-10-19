@@ -612,7 +612,7 @@ module ariane_testharness #(
     .dma_cfg_1  ( master[ariane_soc::DMA_CFG_1] ),
     .dma_cfg_0  ( master[ariane_soc::DMA_CFG_0] ),
     .iommu_comp ( slave[ariane_soc::IOMMU_COMP] ),   
-    .iommu_mem  ( slave[ariane_soc::IOMMU_MEM]  ),   
+    .iommu_ds   ( slave[ariane_soc::IOMMU_MEM]  ),   
     .iommu_cfg  ( master[ariane_soc::IOMMU_CFG] ),
     .irq_o      ( irqs                          ),
     .rx_i       ( rx                            ),

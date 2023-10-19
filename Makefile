@@ -93,21 +93,15 @@ endif
 
 # Sources
 # Package files -> compile first
-# corev_apu/iommu/packages/iommu_pkg.sv                  \
-# corev_apu/iommu/packages/iommu_reg_pkg.sv              \
-# corev_apu/iommu/packages/iommu_field_pkg.sv            \
-# corev_apu/iDMA/src/frontends/desc64/iDMA_desc64_synth_pkg.sv \
-# corev_apu/iDMA/src/frontends/desc64/iDMA_desc64_reg_pkg.sv \
-# corev_apu/iDMA/src/frontends/register_64bit/iDMA_reg64_frontend_reg_pkg.sv \
-# corev_apu/iDMA/src/frontends/register_64bit/iDMA_reg64_frontend_reg_top.sv \
-# corev_apu/iDMA/src/frontends/register_64bit/iDMA_reg64_frontend.sv \
-# corev_apu/iDMA/src/iDMA_pkg.sv
 ariane_pkg := \
-              corev_apu/register_interface/src/reg_intf.sv           \
-              corev_apu/tb/rvfi_pkg.sv                               \
-              corev_apu/tb/ariane_soc_pkg.sv                         \
-              corev_apu/riscv-dbg/src/dm_pkg.sv                      \
-              corev_apu/tb/ariane_axi_soc_pkg.sv
+              corev_apu/register_interface/src/reg_intf.sv               \
+              corev_apu/tb/rvfi_pkg.sv                                   \
+              corev_apu/tb/ariane_soc_pkg.sv                             \
+              corev_apu/riscv-dbg/src/dm_pkg.sv                          \
+              corev_apu/tb/ariane_axi_soc_pkg.sv                         \
+			  corev_apu/rv_iommu/packages/rv_iommu/rv_iommu_pkg.sv       \
+			  corev_apu/rv_iommu/packages/rv_iommu/rv_iommu_field_pkg.sv \
+			  corev_apu/rv_iommu/packages/rv_iommu/rv_iommu_reg_pkg.sv   \
               
 ariane_pkg := $(addprefix $(root-dir), $(ariane_pkg))
 
@@ -160,12 +154,16 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         $(wildcard corev_apu/iDMA/src/*.sv)                                          \
         $(wildcard corev_apu/iDMA/src/frontends/register_64bit/*.sv)                 \
         $(wildcard corev_apu/register_interface/vendor/lowrisc_opentitan/src/*.sv)   \
-        $(wildcard corev_apu/iommu/packages/*.sv)                                    \
-        $(wildcard corev_apu/iommu/src/*.sv)                                         \
-		$(wildcard corev_apu/iommu/src/cdw/*.sv)                                     \
-		$(wildcard corev_apu/iommu/src/ptw/*.sv)                                     \
-		$(wildcard corev_apu/iommu/src/iotlb/*.sv)                                   \
-		$(wildcard corev_apu/iommu/src/translation_wrapper/*.sv)                     \
+        $(wildcard corev_apu/rv_iommu/rtl/*.sv)                                      \
+		$(wildcard corev_apu/rv_iommu/rtl/ext_interfaces/*.sv)                       \
+		$(wildcard corev_apu/rv_iommu/rtl/software_interface/*.sv)                   \
+		$(wildcard corev_apu/rv_iommu/rtl/software_interface/regmap/*.sv)            \
+		$(wildcard corev_apu/rv_iommu/rtl/software_interface/wrapper/*.sv)           \
+		$(wildcard corev_apu/rv_iommu/rtl/translation_logic/*.sv)                    \
+		$(wildcard corev_apu/rv_iommu/rtl/translation_logic/cdw/*.sv)                \
+		$(wildcard corev_apu/rv_iommu/rtl/translation_logic/ptw/*.sv)                \
+		$(wildcard corev_apu/rv_iommu/rtl/translation_logic/iotlb/*.sv)              \
+		$(wildcard corev_apu/rv_iommu/rtl/translation_logic/wrapper/*.sv)            \
         corev_apu/rv_plic/rtl/rv_plic_target.sv                                      \
         corev_apu/rv_plic/rtl/rv_plic_gateway.sv                                     \
         corev_apu/rv_plic/rtl/plic_regmap.sv                                         \
@@ -219,8 +217,8 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         corev_apu/tb/common/uart.sv                                                  \
         corev_apu/tb/common/SimDTM.sv                                                \
         corev_apu/tb/common/SimJTAG.sv                                               \
-        corev_apu/iommu/src/riscv_iommu.sv                                           \
-		corev_apu/dma_xbar/src/dma_xbar.sv                                           \
+        corev_apu/rv_iommu/rtl/riscv_iommu.sv                                        \
+		corev_apu/dma_arb/src/dma_arb.sv                                             \
         corev_apu/iDMA/src/systems/cva6_reg/dma_core_wrap.sv                         \
         corev_apu/iDMA/src/frontends/idma_transfer_id_gen.sv                         \
         corev_apu/register_interface/src/axi_to_reg.sv                               \
@@ -267,7 +265,11 @@ riscv-fp-tests            := $(shell xargs printf '\n%s' < $(riscv-fp-tests-list
 riscv-benchmarks          := $(shell xargs printf '\n%s' < $(riscv-benchmarks-list) | cut -b 1-)
 
 # Search here for include files (e.g.: non-standalone components)
-incdir := vendor/pulp-platform/common_cells/include/ vendor/pulp-platform/axi/include/ corev_apu/register_interface/include/
+incdir := \
+           vendor/pulp-platform/common_cells/include/ \
+		   vendor/pulp-platform/axi/include/ \
+		   corev_apu/register_interface/include/ \
+		   corev_apu/iDMA/src/include/
 
 # Compile and sim flags
 compile_flag     += +cover=bcfst+/dut -incr -64 -nologo -quiet -suppress 13262 -permissive +define+$(defines)
