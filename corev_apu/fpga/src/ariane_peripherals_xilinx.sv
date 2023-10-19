@@ -849,7 +849,7 @@ module ariane_peripherals #(
     // ------------------------------------
 
     // AXI Bus between DMA-device (Mst) and IOMMU TR IF (Slv)
-    ariane_axi_soc::req_t  axi_iommu_tr_req;
+    ariane_axi_soc::req_mmu_t  axi_iommu_tr_req;
     ariane_axi_soc::resp_t axi_iommu_tr_rsp;
 
     // -----------
@@ -858,7 +858,7 @@ module ariane_peripherals #(
     if (InclDMA) begin : gen_dma
 
         // -----------------------------------------------
-        //# Interconnect for DMA-capable devices and IOMMU
+        //# DMA arbiter
         // -----------------------------------------------
 
         localparam logic [3:0] ar_device_ids [ariane_soc::NrDmaMasters] = '{
@@ -869,48 +869,44 @@ module ariane_peripherals #(
         };
 
         localparam logic [3:0] aw_device_ids [ariane_soc::NrDmaMasters] = '{
-            // 4'd9,
-            // 4'd10,
-            // 4'd11,
-            // 4'd12
             4'd1,
             4'd2,
             4'd3,
             4'd4
         };
 
-        // Connections between DMA Masters and DMA XBAR
-        AXI_BUS #(
+        // Connections between DMA Masters and DMA arbiter
+        AXI_BUS_MMU #(
             .AXI_ADDR_WIDTH ( AxiAddrWidth          ),
             .AXI_DATA_WIDTH ( AxiDataWidth          ),
             .AXI_ID_WIDTH   ( ariane_soc::IdWidth   ),
             .AXI_USER_WIDTH ( AxiUserWidth          )
-        ) dma_xbar_slave[ariane_soc::NrDmaMasters-1:0]();
+        ) dma_arb_slave[ariane_soc::NrDmaMasters-1:0]();
 
-        // Connection between DMA XBAR and IOMMU TR IF
-        AXI_BUS #(
+        // Connection between DMA arbiter and IOMMU TR IF
+        AXI_BUS_MMU #(
             .AXI_ADDR_WIDTH ( AxiAddrWidth          ),
             .AXI_DATA_WIDTH ( AxiDataWidth          ),
             .AXI_ID_WIDTH   ( ariane_soc::IdWidth   ),
             .AXI_USER_WIDTH ( AxiUserWidth          )
-        ) dma_xbar_master ();
+        ) dma_arb_master ();
 
-        dma_xbar_intf #(
-            .aw_chan_t  (ariane_axi_soc::aw_chan_t),
+        dma_arb_intf #(
+            .aw_chan_t  (ariane_axi_soc::aw_chan_mmu_t),
             .w_chan_t   (ariane_axi_soc::w_chan_t),
             .b_chan_t   (ariane_axi_soc::b_chan_t),
-            .ar_chan_t  (ariane_axi_soc::ar_chan_t),
+            .ar_chan_t  (ariane_axi_soc::ar_chan_mmu_t),
             .r_chan_t   (ariane_axi_soc::r_chan_t),
-            .axi_req_t  (ariane_axi_soc::req_t),
+            .axi_req_t  (ariane_axi_soc::req_mmu_t),
             .axi_rsp_t  (ariane_axi_soc::resp_t),
 
             .NrDMAs     (ariane_soc::NrDmaMasters)
-        ) i_dma_xbar_intf (
+        ) i_dma_arb_intf (
             .clk_i      (clk_i),
             .rst_ni     (rst_ni),
 
-            .slv_ports  (dma_xbar_slave),
-            .mst_port   (dma_xbar_master)
+            .slv_ports  (dma_arb_slave),
+            .mst_port   (dma_arb_master)
         );
 
         // Generate iDMA modules
@@ -930,7 +926,7 @@ module ariane_peripherals #(
             // slave port
             .axi_slave  			( dma_cfg_0        ),
             // master port
-            .axi_master 			( dma_xbar_slave[3]),
+            .axi_master 			( dma_arb_slave[3]),
 
             .irq_o                  ( irq_sources[8:7] )
         );
@@ -951,7 +947,7 @@ module ariane_peripherals #(
             // slave port
             .axi_slave  			( dma_cfg_1        ),
             // master port
-            .axi_master 			( dma_xbar_slave[2]),
+            .axi_master 			( dma_arb_slave[2]),
 
             .irq_o                  ( irq_sources[10:9] )
         );
@@ -972,7 +968,7 @@ module ariane_peripherals #(
             // slave port
             .axi_slave  			( dma_cfg_2        ),
             // master port
-            .axi_master 			( dma_xbar_slave[1]),
+            .axi_master 			( dma_arb_slave[1]),
 
             .irq_o                  ( irq_sources[12:11])
         );
@@ -993,13 +989,23 @@ module ariane_peripherals #(
             // slave port
             .axi_slave  			( dma_cfg_3        ),
             // master port
-            .axi_master 			( dma_xbar_slave[0]),
+            .axi_master 			( dma_arb_slave[0]),
 
             .irq_o                  ( irq_sources[14:13])
         );
         
-        `AXI_ASSIGN_TO_REQ(axi_iommu_tr_req, dma_xbar_master)
-        `AXI_ASSIGN_FROM_RESP(dma_xbar_master, axi_iommu_tr_rsp)
+        `AXI_ASSIGN_TO_REQ(axi_iommu_tr_req, dma_arb_master)
+        `AXI_ASSIGN_FROM_RESP(dma_arb_master, axi_iommu_tr_rsp)
+
+        // Manually assign IOMMU-specific signals
+        // AW
+        assign axi_iommu_tr_req.aw.stream_id    = idma_axi_master.aw_stream_id;
+        assign axi_iommu_tr_req.aw.ss_id_valid  = idma_axi_master.aw_ss_id_valid;
+        assign axi_iommu_tr_req.aw.substream_id = idma_axi_master.aw_substream_id;
+        // AR
+        assign axi_iommu_tr_req.ar.stream_id    = idma_axi_master.ar_stream_id;
+        assign axi_iommu_tr_req.ar.ss_id_valid  = idma_axi_master.ar_ss_id_valid;
+        assign axi_iommu_tr_req.ar.substream_id = idma_axi_master.ar_substream_id;
     end
 
 	// --------------

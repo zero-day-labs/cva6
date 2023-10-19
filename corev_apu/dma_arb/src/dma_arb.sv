@@ -26,7 +26,7 @@
     !       a device is connected to MUST match with the ID of the device - 1
 */
 
-module dma_xbar #(
+module dma_arb #(
     
     /// AXI AW Channel struct type
     parameter type aw_chan_t        = logic,
@@ -155,7 +155,7 @@ module dma_xbar #(
       .full_o     (                 ),
       .empty_o    (                 ),
       .usage_o    (                 ),
-      .data_i     ( mst_req_o.aw.id[2:0] - 1),
+      .data_i     ( mst_req_o.aw.stream_id[2:0] - 1),
       .push_i     ( mst_req_o.aw_valid & mst_resp_i.aw_ready ),                 // a new AW transaction was requested and granted
       .data_o     ( w_select_fifo   ),                                          // WID to select the W MUX
       .pop_i      ( mst_req_o.w_valid & mst_resp_i.w_ready & mst_req_o.w.last ) // W transaction has finished
@@ -182,7 +182,7 @@ module dma_xbar #(
     ) i_stream_demux_r (
         .inp_valid_i ( mst_resp_i.r_valid ),
         .inp_ready_o ( mst_req_o.r_ready  ),
-        .oup_sel_i   ( mst_resp_i.r.id[2:0] - 1),
+        .oup_sel_i   ( mst_resp_i.r.stream_id[2:0] - 1),
         .oup_valid_o ( r_valid_group ),
         .oup_ready_i ( r_ready_group )
     );
@@ -193,7 +193,7 @@ module dma_xbar #(
     ) i_stream_demux_b (
         .inp_valid_i ( mst_resp_i.b_valid ),
         .inp_ready_o ( mst_req_o.b_ready  ),
-        .oup_sel_i   ( mst_resp_i.b.id[2:0] - 1),
+        .oup_sel_i   ( mst_resp_i.b.stream_id[2:0] - 1),
         .oup_valid_o ( b_valid_group ),
         .oup_ready_i ( b_ready_group )
     );
@@ -203,7 +203,7 @@ endmodule
 `include "axi/assign.svh"
 `include "axi/typedef.svh"
 
-module dma_xbar_intf #(
+module dma_arb_intf #(
 
     /// AXI AW Channel struct type
     parameter type aw_chan_t        = logic,
@@ -226,8 +226,8 @@ module dma_xbar_intf #(
     input  logic                                                    clk_i,
     input  logic                                                    rst_ni,
 
-    AXI_BUS.Slave                                                   slv_ports [NrDMAs-1:0],
-    AXI_BUS.Master                                                  mst_port
+    AXI_BUS_MMU.Slave                                               slv_ports [NrDMAs-1:0],
+    AXI_BUS_MMU.Master                                              mst_port
 );
 
     axi_req_t               mst_req;
@@ -238,12 +238,32 @@ module dma_xbar_intf #(
     for (genvar i = 0; i < NrDMAs; i++) begin : gen_assign_dmas
         `AXI_ASSIGN_TO_REQ(slv_reqs[i], slv_ports[i])
         `AXI_ASSIGN_FROM_RESP(slv_ports[i], slv_resps[i])
+
+        // Manually assign IOMMU-specific signals
+        // AW
+        assign slv_reqs.aw.stream_id    = slv_ports[i].aw_stream_id;
+        assign slv_reqs.aw.ss_id_valid  = slv_ports[i].aw_ss_id_valid;
+        assign slv_reqs.aw.substream_id = slv_ports[i].aw_substream_id;
+        // AR
+        assign slv_reqs.ar.stream_id    = slv_ports[i].ar_stream_id;
+        assign slv_reqs.ar.ss_id_valid  = slv_ports[i].ar_ss_id_valid;
+        assign slv_reqs.ar.substream_id = slv_ports[i].ar_substream_id;
     end
 
     `AXI_ASSIGN_FROM_REQ(mst_port, mst_req)
     `AXI_ASSIGN_TO_RESP(mst_resp, mst_port)
 
-    dma_xbar #(
+    // Manually assign IOMMU-specific signals
+    // AW
+    assign mst_port.aw_stream_id     = mst_req.aw.stream_id;
+    assign mst_port.aw_ss_id_valid   = mst_req.aw.ss_id_valid;
+    assign mst_port.aw_substream_id  = mst_req.aw.substream_id;
+    // AR
+    assign mst_port.ar_stream_id     = mst_req.ar.stream_id;
+    assign mst_port.ar_ss_id_valid   = mst_req.ar.ss_id_valid;
+    assign mst_port.ar_substream_id  = mst_req.ar.substream_id;    
+
+    dma_arb #(
         .aw_chan_t  (aw_chan_t),
         .w_chan_t   (w_chan_t),
         .b_chan_t   (b_chan_t),
@@ -253,14 +273,14 @@ module dma_xbar_intf #(
         .axi_rsp_t  (axi_rsp_t),
 
         .NrDMAs     (NrDMAs)
-    ) i_dma_xbar (
-        .clk_i              (clk_i),
-        .rst_ni             (rst_ni),
+    ) i_dma_arb (
+        .clk_i              (clk_i      ),
+        .rst_ni             (rst_ni     ),
 
-        .slv_reqs_i         (slv_reqs),
-        .slv_resps_o        (slv_resps),
-        .mst_req_o          (mst_req),
-        .mst_resp_i         (mst_resp)
+        .slv_reqs_i         (slv_reqs   ),
+        .slv_resps_o        (slv_resps  ),
+        .mst_req_o          (mst_req    ),
+        .mst_resp_i         (mst_resp   )
     );
 
   endmodule
