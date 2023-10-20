@@ -35,7 +35,7 @@ module ariane_peripherals #(
     AXI_BUS.Slave      timer           ,
     AXI_BUS.Slave      dma_cfg         , // DMA Engine configuration IF     (XBAR   => DMA  )
     AXI_BUS.Master     iommu_comp      , // IOMMU Completion IF             (IOMMU  => XBAR )
-    AXI_BUS.Master     iommu_mem       , // IOMMU Memory IF                 (IOMMU  => XBAR )
+    AXI_BUS.Master     iommu_ds       , // IOMMU Memory IF                 (IOMMU  => XBAR )
     AXI_BUS.Slave      iommu_cfg       , // IOMMU Programming IF            (XBAR   => IOMMU)
     output logic [1:0] irq_o           ,
     // UART
@@ -681,7 +681,8 @@ module ariane_peripherals #(
 			.AXI_USER_WIDTH		( AxiUserWidth           	),
 			.AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
 
-            .DEVICE_ID          ( 24'd10                    )
+            .AR_DEVICE_ID       ( 24'd10                    ),
+            .AW_DEVICE_ID       ( 24'd10                    )   
 		) i_dma (
 			.clk_i      		( clk_i            ),
 			.rst_ni     		( rst_ni           ),
@@ -689,7 +690,10 @@ module ariane_peripherals #(
 			// slave port
 			.axi_slave  		( dma_cfg          ),
 			// master port
-			.axi_master 		( idma_axi_master  )
+			.axi_master 		( idma_axi_master  ),
+
+            // IRQ
+            .irq_o              ( irq_sources[7]   )
 		);
     end
 
@@ -735,8 +739,8 @@ module ariane_peripherals #(
         // AXI Bus between IOMMU Memory IF (Mst) and System Interconnect (Slv)
         ariane_axi_soc::req_t  axi_iommu_ds_req;
         ariane_axi_soc::resp_t axi_iommu_ds_rsp;
-        `AXI_ASSIGN_FROM_REQ(iommu_mem, axi_iommu_ds_req)
-        `AXI_ASSIGN_TO_RESP(axi_iommu_ds_rsp, iommu_mem)
+        `AXI_ASSIGN_FROM_REQ(iommu_ds, axi_iommu_ds_req)
+        `AXI_ASSIGN_TO_RESP(axi_iommu_ds_rsp, iommu_ds)
 
         // AXI Bus between IOMMU Completion IF (Mst) and System Interconnect (Slv)
         ariane_axi_soc::req_t  axi_iommu_comp_req;
@@ -799,7 +803,7 @@ module ariane_peripherals #(
             .prog_req_i			( axi_iommu_cfg_req		    ),
             .prog_resp_o		( axi_iommu_cfg_rsp		    ),
 
-            .wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+7:7] )
+            .wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+8:8] )
         );
 
     //-----------
@@ -831,13 +835,13 @@ module ariane_peripherals #(
 		`AXI_ASSIGN_TO_RESP(axi_iommu_tr_rsp, iommu_comp)
 
 		// Set memory IF request xVALID/xREADY wires to a known state
-        assign iommu_mem.aw_valid  = 1'b0;
-        assign iommu_mem.w_valid   = 1'b0;
-        assign iommu_mem.b_ready   = 1'b0;
-        assign iommu_mem.ar_valid  = 1'b0;
-        assign iommu_mem.r_ready   = 1'b0;
+        assign iommu_ds.aw_valid  = 1'b0;
+        assign iommu_ds.w_valid   = 1'b0;
+        assign iommu_ds.b_ready   = 1'b0;
+        assign iommu_ds.ar_valid  = 1'b0;
+        assign iommu_ds.r_ready   = 1'b0;
 
-        assign irq_sources[(ariane_soc::IOMMUNumWires-1)+7:7] = '0;
+        assign irq_sources[(ariane_soc::IOMMUNumWires-1)+8:8] = '0;
 
     end 
 endmodule

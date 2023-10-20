@@ -94,11 +94,14 @@ endif
 # Sources
 # Package files -> compile first
 ariane_pkg := \
-              corev_apu/register_interface/src/reg_intf.sv           \
-              corev_apu/tb/rvfi_pkg.sv                               \
-              corev_apu/tb/ariane_soc_pkg.sv                         \
-              corev_apu/riscv-dbg/src/dm_pkg.sv                      \
-              corev_apu/tb/ariane_axi_soc_pkg.sv
+              corev_apu/register_interface/src/reg_intf.sv               \
+              corev_apu/tb/rvfi_pkg.sv                                   \
+              corev_apu/tb/ariane_soc_pkg.sv                             \
+              corev_apu/riscv-dbg/src/dm_pkg.sv                          \
+              corev_apu/tb/ariane_axi_soc_pkg.sv                         \
+			  corev_apu/rv_iommu/packages/rv_iommu/rv_iommu_pkg.sv       \
+			  corev_apu/rv_iommu/packages/rv_iommu/rv_iommu_field_pkg.sv \
+			  corev_apu/rv_iommu/packages/rv_iommu/rv_iommu_reg_pkg.sv
               
 ariane_pkg := $(addprefix $(root-dir), $(ariane_pkg))
 
@@ -262,7 +265,11 @@ riscv-fp-tests            := $(shell xargs printf '\n%s' < $(riscv-fp-tests-list
 riscv-benchmarks          := $(shell xargs printf '\n%s' < $(riscv-benchmarks-list) | cut -b 1-)
 
 # Search here for include files (e.g.: non-standalone components)
-incdir := vendor/pulp-platform/common_cells/include/ vendor/pulp-platform/axi/include/ corev_apu/register_interface/include/
+incdir := \
+           vendor/pulp-platform/common_cells/include/ \
+		   vendor/pulp-platform/axi/include/ \
+		   corev_apu/register_interface/include/ \
+		   corev_apu/iDMA/src/include/
 
 # Compile and sim flags
 compile_flag     += +cover=bcfst+/dut -incr -64 -nologo -quiet -suppress 13262 -permissive +define+$(defines)

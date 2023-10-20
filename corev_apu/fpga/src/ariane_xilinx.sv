@@ -831,7 +831,7 @@ ariane_peripherals #(
     .timer        ( master[ariane_soc::Timer]    ),
     .dma_cfg      ( master[ariane_soc::DMA_CFG]  ),   
     .iommu_comp   ( slave[ariane_soc::IOMMU_COMP]),   
-    .iommu_mem    ( slave[ariane_soc::IOMMU_MEM] ),   
+    .iommu_ds     ( slave[ariane_soc::IOMMU_MEM] ),   
     .iommu_cfg    ( master[ariane_soc::IOMMU_CFG]),
     .irq_o        ( irq                          ),
     .rx_i         ( rx                           ),
