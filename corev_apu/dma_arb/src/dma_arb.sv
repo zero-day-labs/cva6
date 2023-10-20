@@ -155,7 +155,7 @@ module dma_arb #(
       .full_o     (                 ),
       .empty_o    (                 ),
       .usage_o    (                 ),
-      .data_i     ( mst_req_o.aw.stream_id[2:0] - 1),
+      .data_i     ( mst_req_o.aw.id[2:0] - 1),
       .push_i     ( mst_req_o.aw_valid & mst_resp_i.aw_ready ),                 // a new AW transaction was requested and granted
       .data_o     ( w_select_fifo   ),                                          // WID to select the W MUX
       .pop_i      ( mst_req_o.w_valid & mst_resp_i.w_ready & mst_req_o.w.last ) // W transaction has finished
@@ -182,7 +182,7 @@ module dma_arb #(
     ) i_stream_demux_r (
         .inp_valid_i ( mst_resp_i.r_valid ),
         .inp_ready_o ( mst_req_o.r_ready  ),
-        .oup_sel_i   ( mst_resp_i.r.stream_id[2:0] - 1),
+        .oup_sel_i   ( mst_resp_i.r.id[2:0] - 1),
         .oup_valid_o ( r_valid_group ),
         .oup_ready_i ( r_ready_group )
     );
@@ -193,7 +193,7 @@ module dma_arb #(
     ) i_stream_demux_b (
         .inp_valid_i ( mst_resp_i.b_valid ),
         .inp_ready_o ( mst_req_o.b_ready  ),
-        .oup_sel_i   ( mst_resp_i.b.stream_id[2:0] - 1),
+        .oup_sel_i   ( mst_resp_i.b.id[2:0] - 1),
         .oup_valid_o ( b_valid_group ),
         .oup_ready_i ( b_ready_group )
     );
@@ -241,13 +241,13 @@ module dma_arb_intf #(
 
         // Manually assign IOMMU-specific signals
         // AW
-        assign slv_reqs.aw.stream_id    = slv_ports[i].aw_stream_id;
-        assign slv_reqs.aw.ss_id_valid  = slv_ports[i].aw_ss_id_valid;
-        assign slv_reqs.aw.substream_id = slv_ports[i].aw_substream_id;
+        assign slv_reqs[i].aw.stream_id    = slv_ports[i].aw_stream_id;
+        assign slv_reqs[i].aw.ss_id_valid  = slv_ports[i].aw_ss_id_valid;
+        assign slv_reqs[i].aw.substream_id = slv_ports[i].aw_substream_id;
         // AR
-        assign slv_reqs.ar.stream_id    = slv_ports[i].ar_stream_id;
-        assign slv_reqs.ar.ss_id_valid  = slv_ports[i].ar_ss_id_valid;
-        assign slv_reqs.ar.substream_id = slv_ports[i].ar_substream_id;
+        assign slv_reqs[i].ar.stream_id    = slv_ports[i].ar_stream_id;
+        assign slv_reqs[i].ar.ss_id_valid  = slv_ports[i].ar_ss_id_valid;
+        assign slv_reqs[i].ar.substream_id = slv_ports[i].ar_substream_id;
     end
 
     `AXI_ASSIGN_FROM_REQ(mst_port, mst_req)

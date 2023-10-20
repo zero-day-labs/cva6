@@ -101,7 +101,7 @@ ariane_pkg := \
               corev_apu/tb/ariane_axi_soc_pkg.sv                         \
 			  corev_apu/rv_iommu/packages/rv_iommu/rv_iommu_pkg.sv       \
 			  corev_apu/rv_iommu/packages/rv_iommu/rv_iommu_field_pkg.sv \
-			  corev_apu/rv_iommu/packages/rv_iommu/rv_iommu_reg_pkg.sv   \
+			  corev_apu/rv_iommu/packages/rv_iommu/rv_iommu_reg_pkg.sv
               
 ariane_pkg := $(addprefix $(root-dir), $(ariane_pkg))
 

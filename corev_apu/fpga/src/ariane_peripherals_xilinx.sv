@@ -42,7 +42,7 @@ module ariane_peripherals #(
     AXI_BUS.Slave      dma_cfg_1       ,
     AXI_BUS.Slave      dma_cfg_0       ,
     AXI_BUS.Master     iommu_comp      ,                        // IOMMU Completion IF             (IOMMU  => XBAR )
-    AXI_BUS.Master     iommu_mem       ,                        // IOMMU Memory IF                 (IOMMU  => XBAR )
+    AXI_BUS.Master     iommu_ds        ,                        // IOMMU Memory IF                 (IOMMU  => XBAR )
     AXI_BUS.Slave      iommu_cfg       ,                        // IOMMU Programming IF            (XBAR   => IOMMU)
     output logic [1:0] irq_o           ,
     // UART
@@ -911,16 +911,14 @@ module ariane_peripherals #(
 
         // Generate iDMA modules
         // iDMA at 0x5000_3000
-        dma_core_wrap_intf #(
+        dma_core_wrap #(
             .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
             .AXI_DATA_WIDTH		( AxiDataWidth           	),
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .axi_mst_req_t      ( ariane_axi_soc::req_mmu_t ),
-            .axi_mst_resp_t     ( ariane_axi_soc::resp_t    ),
             .AR_DEVICE_ID       ( ar_device_ids[3]          ),  // 4
-            .AW_DEVICE_ID       ( aw_device_ids[3]          )   // 12
+            .AW_DEVICE_ID       ( aw_device_ids[3]          )   
         ) i_idma_0 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -934,16 +932,14 @@ module ariane_peripherals #(
         );
 
         // iDMA at 0x5000_2000
-        dma_core_wrap_intf #(
+        dma_core_wrap #(
             .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
             .AXI_DATA_WIDTH		( AxiDataWidth           	),
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .axi_mst_req_t      ( ariane_axi_soc::req_mmu_t ),
-            .axi_mst_resp_t     ( ariane_axi_soc::resp_t    ),
             .AR_DEVICE_ID       ( ar_device_ids[2]          ),  // 3
-            .AW_DEVICE_ID       ( aw_device_ids[2]          )   // 11
+            .AW_DEVICE_ID       ( aw_device_ids[2]          )   
         ) i_idma_1 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -957,16 +953,14 @@ module ariane_peripherals #(
         );
 
         // iDMA at 0x5000_1000
-        dma_core_wrap_intf #(
+        dma_core_wrap #(
             .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
             .AXI_DATA_WIDTH		( AxiDataWidth           	),
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .axi_mst_req_t      ( ariane_axi_soc::req_mmu_t ),
-            .axi_mst_resp_t     ( ariane_axi_soc::resp_t    ),
             .AR_DEVICE_ID       ( ar_device_ids[1]          ),  // 2
-            .AW_DEVICE_ID       ( aw_device_ids[1]          )   // 10
+            .AW_DEVICE_ID       ( aw_device_ids[1]          )   
         ) i_idma_2 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -980,16 +974,14 @@ module ariane_peripherals #(
         );
 
         // iDMA at 0x5000_0000
-        dma_core_wrap_intf #(
+        dma_core_wrap #(
             .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
             .AXI_DATA_WIDTH		( AxiDataWidth           	),
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .axi_mst_req_t      ( ariane_axi_soc::req_mmu_t ),
-            .axi_mst_resp_t     ( ariane_axi_soc::resp_t    ),
             .AR_DEVICE_ID       ( ar_device_ids[0]          ),  // 1
-            .AW_DEVICE_ID       ( aw_device_ids[0]          )   // 9
+            .AW_DEVICE_ID       ( aw_device_ids[0]          )
         ) i_idma_3 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -1007,13 +999,13 @@ module ariane_peripherals #(
 
         // Manually assign IOMMU-specific signals
         // AW
-        assign axi_iommu_tr_req.aw.stream_id    = idma_axi_master.aw_stream_id;
-        assign axi_iommu_tr_req.aw.ss_id_valid  = idma_axi_master.aw_ss_id_valid;
-        assign axi_iommu_tr_req.aw.substream_id = idma_axi_master.aw_substream_id;
+        assign axi_iommu_tr_req.aw.stream_id    = dma_arb_master.aw_stream_id;
+        assign axi_iommu_tr_req.aw.ss_id_valid  = dma_arb_master.aw_ss_id_valid;
+        assign axi_iommu_tr_req.aw.substream_id = dma_arb_master.aw_substream_id;
         // AR
-        assign axi_iommu_tr_req.ar.stream_id    = idma_axi_master.ar_stream_id;
-        assign axi_iommu_tr_req.ar.ss_id_valid  = idma_axi_master.ar_ss_id_valid;
-        assign axi_iommu_tr_req.ar.substream_id = idma_axi_master.ar_substream_id;
+        assign axi_iommu_tr_req.ar.stream_id    = dma_arb_master.ar_stream_id;
+        assign axi_iommu_tr_req.ar.ss_id_valid  = dma_arb_master.ar_ss_id_valid;
+        assign axi_iommu_tr_req.ar.substream_id = dma_arb_master.ar_substream_id;
     end
 
 	// --------------
@@ -1103,10 +1095,10 @@ module ariane_peripherals #(
     if (InclIOMMU) begin : gen_iommu
 
 		// AXI Bus between IOMMU Memory IF (Mst) and System Interconnect (Slv)
-		ariane_axi_soc::req_t  axi_iommu_mem_req;
-		ariane_axi_soc::resp_t axi_iommu_mem_rsp;
-		`AXI_ASSIGN_FROM_REQ(iommu_mem, axi_iommu_mem_req)
-		`AXI_ASSIGN_TO_RESP(axi_iommu_mem_rsp, iommu_mem)
+		ariane_axi_soc::req_t  axi_iommu_ds_req;
+		ariane_axi_soc::resp_t axi_iommu_ds_rsp;
+		`AXI_ASSIGN_FROM_REQ(iommu_ds, axi_iommu_ds_req)
+		`AXI_ASSIGN_TO_RESP(axi_iommu_ds_rsp, iommu_ds)
 
 		// AXI Bus between IOMMU Completion IF (Mst) and System Interconnect (Slv)
 		ariane_axi_soc::req_t  axi_iommu_comp_req;
@@ -1125,15 +1117,15 @@ module ariane_peripherals #(
 		`REG_BUS_TYPEDEF_ALL(iommu_reg, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
   
         riscv_iommu #(
-			.IOTLB_ENTRIES		(  4						),
-			.DDTC_ENTRIES	    (  4						),
-			.PDTC_ENTRIES	    (  4						),
+			.IOTLB_ENTRIES	    ( 8                 		),
+            .DDTC_ENTRIES		( 4							),
+            .PDTC_ENTRIES		( 4							),
 
-			.InclPID            ( 1'b0						),
+            .InclPC             ( 1'b0						),
             .InclMSITrans       ( 1'b1                      ),
-            .InclBC             ( 1'b0                      ),
-
-			.IGS                ( rv_iommu::BOTH            ),
+            .InclBC             ( 1'b1                      ),
+            
+            .IGS                ( rv_iommu::BOTH            ),
             .N_INT_VEC          ( ariane_soc::IOMMUNumWires ),
             .N_IOHPMCTR         ( 8                         ),
 
@@ -1151,6 +1143,7 @@ module ariane_peripherals #(
 			.axi_rsp_t			( ariane_axi_soc::resp_t	),
 			.axi_req_slv_t		( ariane_axi_soc::req_slv_t	),
 			.axi_rsp_slv_t		( ariane_axi_soc::resp_slv_t),
+            .axi_req_mmu_t      ( ariane_axi_soc::req_mmu_t ),
 			.reg_req_t			( iommu_reg_req_t			),
 			.reg_rsp_t			( iommu_reg_rsp_t			)
 		) i_riscv_iommu (
@@ -1167,8 +1160,8 @@ module ariane_peripherals #(
 			.dev_comp_req_o		( axi_iommu_comp_req	),
 
 			// Implicit Memory Accesses Interface (Master)
-			.mem_resp_i			( axi_iommu_mem_rsp		),
-			.mem_req_o			( axi_iommu_mem_req		),
+			.ds_resp_i			( axi_iommu_ds_rsp		),
+			.ds_req_o			( axi_iommu_ds_req		),
 
 			// Programming Interface (Slave) (AXI4 Full -> AXI4-Lite -> Reg IF)
 			.prog_req_i			( axi_iommu_cfg_req		),
@@ -1212,13 +1205,13 @@ module ariane_peripherals #(
         `AXI_ASSIGN_TO_RESP(axi_iommu_tr_rsp, iommu_comp)
 
 		// Set memory IF request xVALID/xREADY wires to a known state
-        assign iommu_mem.aw_valid  = 1'b0;
-        assign iommu_mem.w_valid   = 1'b0;
-        assign iommu_mem.b_ready   = 1'b0;
-        assign iommu_mem.ar_valid  = 1'b0;
-        assign iommu_mem.r_ready   = 1'b0;
+        assign iommu_ds.aw_valid  = 1'b0;
+        assign iommu_ds.w_valid   = 1'b0;
+        assign iommu_ds.b_ready   = 1'b0;
+        assign iommu_ds.ar_valid  = 1'b0;
+        assign iommu_ds.r_ready   = 1'b0;
 
         assign irq_sources[(ariane_soc::IOMMUNumWires-1)+7:7] = '0;
-    end  
+    end 
 
 endmodule

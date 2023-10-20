@@ -698,16 +698,14 @@ module ariane_peripherals #(
 
         // Generate iDMA modules
         // iDMA at 0x5000_3000
-        dma_core_wrap_intf #(
+        dma_core_wrap #(
             .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
             .AXI_DATA_WIDTH		( AxiDataWidth           	),
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .axi_mst_req_t      ( ariane_axi_soc::req_mmu_t ),
-            .axi_mst_resp_t     ( ariane_axi_soc::resp_t    ),
             .AR_DEVICE_ID       ( ar_device_ids[3]          ),  // 4
-            .AW_DEVICE_ID       ( aw_device_ids[3]          )   // 12
+            .AW_DEVICE_ID       ( aw_device_ids[3]          )   
         ) i_idma_0 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -721,16 +719,14 @@ module ariane_peripherals #(
         );
 
         // iDMA at 0x5000_2000
-        dma_core_wrap_intf #(
+        dma_core_wrap #(
             .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
             .AXI_DATA_WIDTH		( AxiDataWidth           	),
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .axi_mst_req_t      ( ariane_axi_soc::req_mmu_t ),
-            .axi_mst_resp_t     ( ariane_axi_soc::resp_t    ),
             .AR_DEVICE_ID       ( ar_device_ids[2]          ),  // 3
-            .AW_DEVICE_ID       ( aw_device_ids[2]          )   // 11
+            .AW_DEVICE_ID       ( aw_device_ids[2]          )   
         ) i_idma_1 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -744,16 +740,14 @@ module ariane_peripherals #(
         );
 
         // iDMA at 0x5000_1000
-        dma_core_wrap_intf #(
+        dma_core_wrap #(
             .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
             .AXI_DATA_WIDTH		( AxiDataWidth           	),
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .axi_mst_req_t      ( ariane_axi_soc::req_mmu_t ),
-            .axi_mst_resp_t     ( ariane_axi_soc::resp_t    ),
             .AR_DEVICE_ID       ( ar_device_ids[1]          ),  // 2
-            .AW_DEVICE_ID       ( aw_device_ids[1]          )   // 10
+            .AW_DEVICE_ID       ( aw_device_ids[1]          )   
         ) i_idma_2 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -767,16 +761,14 @@ module ariane_peripherals #(
         );
 
         // iDMA at 0x5000_0000
-        dma_core_wrap_intf #(
+        dma_core_wrap #(
             .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
             .AXI_DATA_WIDTH		( AxiDataWidth           	),
             .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
             .AXI_USER_WIDTH		( AxiUserWidth           	),
             .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .axi_mst_req_t      ( ariane_axi_soc::req_mmu_t ),
-            .axi_mst_resp_t     ( ariane_axi_soc::resp_t    ),
             .AR_DEVICE_ID       ( ar_device_ids[0]          ),  // 1
-            .AW_DEVICE_ID       ( aw_device_ids[0]          )   // 9
+            .AW_DEVICE_ID       ( aw_device_ids[0]          )
         ) i_idma_3 (
             .clk_i      			( clk_i            ),
             .rst_ni     			( rst_ni           ),
@@ -794,13 +786,13 @@ module ariane_peripherals #(
 
         // Manually assign IOMMU-specific signals
         // AW
-        assign axi_iommu_tr_req.aw.stream_id    = idma_axi_master.aw_stream_id;
-        assign axi_iommu_tr_req.aw.ss_id_valid  = idma_axi_master.aw_ss_id_valid;
-        assign axi_iommu_tr_req.aw.substream_id = idma_axi_master.aw_substream_id;
+        assign axi_iommu_tr_req.aw.stream_id    = dma_arb_master.aw_stream_id;
+        assign axi_iommu_tr_req.aw.ss_id_valid  = dma_arb_master.aw_ss_id_valid;
+        assign axi_iommu_tr_req.aw.substream_id = dma_arb_master.aw_substream_id;
         // AR
-        assign axi_iommu_tr_req.ar.stream_id    = idma_axi_master.ar_stream_id;
-        assign axi_iommu_tr_req.ar.ss_id_valid  = idma_axi_master.ar_ss_id_valid;
-        assign axi_iommu_tr_req.ar.substream_id = idma_axi_master.ar_substream_id;
+        assign axi_iommu_tr_req.ar.stream_id    = dma_arb_master.ar_stream_id;
+        assign axi_iommu_tr_req.ar.ss_id_valid  = dma_arb_master.ar_ss_id_valid;
+        assign axi_iommu_tr_req.ar.substream_id = dma_arb_master.ar_substream_id;
     end
 
 	// --------------
@@ -962,7 +954,7 @@ module ariane_peripherals #(
 			.prog_req_i			( axi_iommu_cfg_req		),
 			.prog_resp_o		( axi_iommu_cfg_rsp		),
 
-			.wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+7:7] )
+			.wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+15:15] )
 		);
   
 	//-----------
