@@ -693,7 +693,7 @@ module ariane_peripherals #(
 			.axi_master 		( idma_axi_master  ),
 
             // IRQ
-            .irq_o              ( irq_sources[7]   )
+            .irq_o              ( irq_sources[8:7] )
 		);
     end
 
@@ -729,6 +729,8 @@ module ariane_peripherals #(
         assign axi_iommu_tr_req.w_valid  = 1'b0;
         assign axi_iommu_tr_req.b_ready  = 1'b0;
         assign axi_iommu_tr_req.r_ready  = 1'b0;
+
+        assign irq_sources[8:7]             = '0;
     end
 
     // -------------------------------------------
@@ -803,7 +805,7 @@ module ariane_peripherals #(
             .prog_req_i			( axi_iommu_cfg_req		    ),
             .prog_resp_o		( axi_iommu_cfg_rsp		    ),
 
-            .wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+8:8] )
+            .wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+9:9] )
         );
 
     //-----------
@@ -841,7 +843,7 @@ module ariane_peripherals #(
         assign iommu_ds.ar_valid  = 1'b0;
         assign iommu_ds.r_ready   = 1'b0;
 
-        assign irq_sources[(ariane_soc::IOMMUNumWires-1)+8:8] = '0;
+        assign irq_sources[(ariane_soc::IOMMUNumWires-1)+9:9] = '0;
 
     end 
 endmodule
