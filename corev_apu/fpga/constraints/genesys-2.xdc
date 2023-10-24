@@ -1,5 +1,10 @@
 ## Buttons
 set_property -dict {PACKAGE_PIN R19 IOSTANDARD LVCMOS33} [get_ports cpu_resetn]
+set_property -dict {PACKAGE_PIN B19 IOSTANDARD LVCMOS33} [get_ports { btnu_i }]
+set_property -dict {PACKAGE_PIN M19 IOSTANDARD LVCMOS33} [get_ports { btnd_i }]
+set_property -dict {PACKAGE_PIN M20 IOSTANDARD LVCMOS33} [get_ports { btnl_i }]
+set_property -dict {PACKAGE_PIN C19 IOSTANDARD LVCMOS33} [get_ports { btnr_i }]
+set_property -dict {PACKAGE_PIN E18 IOSTANDARD LVCMOS33} [get_ports { btnc_i }]
 
 ## To use FTDI FT2232 JTAG
 set_property -dict { PACKAGE_PIN Y29   IOSTANDARD LVCMOS33 } [get_ports { trst_n }];
@@ -24,12 +29,12 @@ set_property -dict {PACKAGE_PIN W24 IOSTANDARD LVCMOS33} [get_ports {led[6]}]
 set_property -dict {PACKAGE_PIN W23 IOSTANDARD LVCMOS33} [get_ports {led[7]}]
 
 ## Switches
-set_property -dict {PACKAGE_PIN G19 IOSTANDARD LVCMOS12} [get_ports {sw[0]}]
-set_property -dict {PACKAGE_PIN G25 IOSTANDARD LVCMOS12} [get_ports {sw[1]}]
-set_property -dict {PACKAGE_PIN H24 IOSTANDARD LVCMOS12} [get_ports {sw[2]}]
-set_property -dict {PACKAGE_PIN K19 IOSTANDARD LVCMOS12} [get_ports {sw[3]}]
-set_property -dict {PACKAGE_PIN N19 IOSTANDARD LVCMOS12} [get_ports {sw[4]}]
-set_property -dict {PACKAGE_PIN P19 IOSTANDARD LVCMOS12} [get_ports {sw[5]}]
+set_property -dict {PACKAGE_PIN G19 IOSTANDARD LVCMOS33} [get_ports {sw[0]}]
+set_property -dict {PACKAGE_PIN G25 IOSTANDARD LVCMOS33} [get_ports {sw[1]}]
+set_property -dict {PACKAGE_PIN H24 IOSTANDARD LVCMOS33} [get_ports {sw[2]}]
+set_property -dict {PACKAGE_PIN K19 IOSTANDARD LVCMOS33} [get_ports {sw[3]}]
+set_property -dict {PACKAGE_PIN N19 IOSTANDARD LVCMOS33} [get_ports {sw[4]}]
+set_property -dict {PACKAGE_PIN P19 IOSTANDARD LVCMOS33} [get_ports {sw[5]}]
 set_property -dict {PACKAGE_PIN P26 IOSTANDARD LVCMOS33} [get_ports {sw[6]}]
 set_property -dict {PACKAGE_PIN P27 IOSTANDARD LVCMOS33} [get_ports {sw[7]}]
 

@@ -63,6 +63,11 @@ module ariane_peripherals #(
     output logic       spi_mosi        ,
     input  logic       spi_miso        ,
     output logic       spi_ss          ,
+    input  logic       btnu_i          ,
+    input  logic       btnd_i          ,
+    input  logic       btnl_i          ,
+    input  logic       btnr_i          ,
+    input  logic       btnc_i          ,
     // SD Card
     input  logic       sd_clk_i        ,
     output logic [7:0] leds_o          ,
@@ -899,8 +904,8 @@ module ariane_peripherals #(
 			.AXI_USER_WIDTH		( AxiUserWidth           	),
 			.AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
 
-            .AR_DEVICE_ID       ( 24'd10                    ),
-            .AW_DEVICE_ID       ( 24'd10                    )   
+            .AR_DEVICE_ID       ( 24'd1                     ),
+            .AW_DEVICE_ID       ( 24'd1                     )   
 		) i_dma (
 			.clk_i      		( clk_i            ),
 			.rst_ni     		( rst_ni           ),
@@ -910,8 +915,11 @@ module ariane_peripherals #(
 			// master port
 			.axi_master 		( idma_axi_master  ),
 
-            // IRQ
-            .irq_o              ( irq_sources[7]   )
+            .btnu_i             ( btnu_i           ),
+            .btnd_i             ( btnd_i           ),
+            .btnl_i             ( btnl_i           ),
+            .btnr_i             ( btnr_i           ),
+            .btnc_i             ( btnc_i           )
 		);
 
 	// --------------

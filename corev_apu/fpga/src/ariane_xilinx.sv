@@ -45,6 +45,11 @@ module ariane_xilinx (
   input  logic [ 7:0]  sw          ,
   output logic         fan_pwm     ,
   input  logic         trst_n      ,
+  input  logic         btnu_i      ,
+  input  logic         btnd_i      ,
+  input  logic         btnl_i      ,
+  input  logic         btnr_i      ,
+  input  logic         btnc_i      ,
 `elsif KC705
   input  logic         sys_clk_p   ,
   input  logic         sys_clk_n   ,
@@ -851,6 +856,11 @@ ariane_peripherals #(
     .spi_mosi       ( spi_mosi                    ),
     .spi_miso       ( spi_miso                    ),
     .spi_ss         ( spi_ss                      ),
+    .btnu_i         ( btnu_i                      ),
+    .btnd_i         ( btnd_i                      ),
+    .btnl_i         ( btnl_i                      ),
+    .btnr_i         ( btnr_i                      ),
+    .btnc_i         ( btnc_i                      ),
     `ifdef KC705
       .leds_o         ( {led[3:0], unused_led[7:4]}),
       .dip_switches_i ( {sw, unused_switches}     )
