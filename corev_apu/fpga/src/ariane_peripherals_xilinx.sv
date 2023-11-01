@@ -610,6 +610,7 @@ module ariane_peripherals #(
     // 5. GPIO
     assign gpio.b_user = 1'b0;
     assign gpio.r_user = 1'b0;
+    assign leds_o = dip_switches_i;
 
     if (InclGPIO) begin : gen_gpio
 
@@ -742,9 +743,9 @@ module ariane_peripherals #(
             .s_axi_rvalid  ( s_axi_gpio_rvalid      ),
             .s_axi_rready  ( s_axi_gpio_rready      ),
             .gpio_io_i     ( '0                     ),
-            .gpio_io_o     ( leds_o                 ),
+            .gpio_io_o     (                        ),
             .gpio_io_t     (                        ),
-            .gpio2_io_i    ( dip_switches_i         )
+            .gpio2_io_i    ( '0                     )
         );
 
         assign s_axi_gpio_rlast = 1'b1;
@@ -919,7 +920,9 @@ module ariane_peripherals #(
             .btnd_i             ( btnd_i           ),
             .btnl_i             ( btnl_i           ),
             .btnr_i             ( btnr_i           ),
-            .btnc_i             ( btnc_i           )
+            .btnc_i             ( btnc_i           ),
+
+            .switches_i         ( dip_switches_i   )
 		);
 
 	// --------------
