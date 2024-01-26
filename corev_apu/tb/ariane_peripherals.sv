@@ -35,7 +35,7 @@ module ariane_peripherals #(
     AXI_BUS.Slave      timer           ,
     AXI_BUS.Slave      dma_cfg         , // DMA Engine configuration IF     (XBAR   => DMA  )
     AXI_BUS.Master     iommu_comp      , // IOMMU Completion IF             (IOMMU  => XBAR )
-    AXI_BUS.Master     iommu_ds       , // IOMMU Memory IF                 (IOMMU  => XBAR )
+    AXI_BUS.Master     iommu_ds        , // IOMMU Memory IF                 (IOMMU  => XBAR )
     AXI_BUS.Slave      iommu_cfg       , // IOMMU Programming IF            (XBAR   => IOMMU)
     output logic [1:0] irq_o           ,
     // UART
@@ -682,7 +682,7 @@ module ariane_peripherals #(
 			.AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
 
             .AR_DEVICE_ID       ( 24'd10                    ),
-            .AW_DEVICE_ID       ( 24'd10                    )   
+            .AW_DEVICE_ID       ( 24'd10                    )
 		) i_dma (
 			.clk_i      		( clk_i            ),
 			.rst_ni     		( rst_ni           ),
@@ -718,8 +718,8 @@ module ariane_peripherals #(
         ) i_idma_err_slv (
 			.clk_i      ( clk_i    				),
 			.rst_ni     ( rst_ni   				),
-			.slv_req_i  ( axi_dma_cfg_req ),
-			.slv_resp_o ( axi_dma_cfg_rsp ),
+			.slv_req_i  ( axi_dma_cfg_req       ),
+			.slv_resp_o ( axi_dma_cfg_rsp       ),
 			.test_i     ( 1'b0     				)
         );
 
@@ -730,7 +730,7 @@ module ariane_peripherals #(
         assign axi_iommu_tr_req.b_ready  = 1'b0;
         assign axi_iommu_tr_req.r_ready  = 1'b0;
 
-        assign irq_sources[8:7]             = '0;
+        assign irq_sources[8:7]          = '0;
     end
 
     // -------------------------------------------
@@ -758,10 +758,12 @@ module ariane_peripherals #(
             .IOTLB_ENTRIES	    ( 8	    					),
             .DDTC_ENTRIES		( 4							),
             .PDTC_ENTRIES		( 4							),
+            .MRIFC_ENTRIES		( 4							),
 
+            .MSITrans			( rv_iommu::MSI_FLAT_MRIF	),
             .InclPC             ( 1'b0						),
-            .InclMSITrans       ( 1'b1                      ),
             .InclBC             ( 1'b1                      ),
+            .InclDBG			( 1'b1						),
             
             .IGS                ( rv_iommu::BOTH            ),
             .N_INT_VEC          ( ariane_soc::IOMMUNumWires ),
@@ -783,7 +785,9 @@ module ariane_peripherals #(
             .axi_rsp_slv_t		( ariane_axi_soc::resp_slv_t),
             .axi_req_mmu_t      ( ariane_axi_soc::req_mmu_t ),
             .reg_req_t		    ( iommu_reg_req_t			),
-            .reg_rsp_t		    ( iommu_reg_rsp_t			)
+            .reg_rsp_t		    ( iommu_reg_rsp_t			),
+
+            .dc_t				(rv_iommu::dc_ext_t		    )
         ) i_riscv_iommu (
 
             .clk_i				( clk_i						),

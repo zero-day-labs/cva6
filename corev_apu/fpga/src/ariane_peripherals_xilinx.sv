@@ -972,58 +972,62 @@ module ariane_peripherals #(
 		`REG_BUS_TYPEDEF_ALL(iommu_reg, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
   
         riscv_iommu #(
-			.IOTLB_ENTRIES	    ( 8                 		),
+            .IOTLB_ENTRIES	    ( 8	    					),
             .DDTC_ENTRIES		( 4							),
             .PDTC_ENTRIES		( 4							),
+            .MRIFC_ENTRIES		( 4							),
 
+            .MSITrans			( rv_iommu::MSI_FLAT_MRIF	),
             .InclPC             ( 1'b0						),
-            .InclMSITrans       ( 1'b1                      ),
             .InclBC             ( 1'b1                      ),
+            .InclDBG			( 1'b1						),
             
             .IGS                ( rv_iommu::BOTH            ),
             .N_INT_VEC          ( ariane_soc::IOMMUNumWires ),
             .N_IOHPMCTR         ( 8                         ),
 
-			.ADDR_WIDTH			( AxiAddrWidth				),
-			.DATA_WIDTH			( AxiDataWidth				),
-			.ID_WIDTH			( ariane_soc::IdWidth		),
-			.ID_SLV_WIDTH		( ariane_soc::IdWidthSlave	),
-			.USER_WIDTH			( AxiUserWidth				),
-			.aw_chan_t			( ariane_axi_soc::aw_chan_t ),
-			.w_chan_t			( ariane_axi_soc::w_chan_t	),
-			.b_chan_t			( ariane_axi_soc::b_chan_t	),
-			.ar_chan_t			( ariane_axi_soc::ar_chan_t ),
-			.r_chan_t			( ariane_axi_soc::r_chan_t	),
-			.axi_req_t			( ariane_axi_soc::req_t		),
-			.axi_rsp_t			( ariane_axi_soc::resp_t	),
-			.axi_req_slv_t		( ariane_axi_soc::req_slv_t	),
-			.axi_rsp_slv_t		( ariane_axi_soc::resp_slv_t),
+            .ADDR_WIDTH			( AxiAddrWidth				),
+            .DATA_WIDTH			( AxiDataWidth				),
+            .ID_WIDTH			( ariane_soc::IdWidth		),
+            .ID_SLV_WIDTH		( ariane_soc::IdWidthSlave	),
+            .USER_WIDTH			( AxiUserWidth				),
+            .aw_chan_t			( ariane_axi_soc::aw_chan_t ),
+            .w_chan_t			( ariane_axi_soc::w_chan_t	),
+            .b_chan_t			( ariane_axi_soc::b_chan_t	),
+            .ar_chan_t			( ariane_axi_soc::ar_chan_t ),
+            .r_chan_t			( ariane_axi_soc::r_chan_t	),
+            .axi_req_t			( ariane_axi_soc::req_t		),
+            .axi_rsp_t			( ariane_axi_soc::resp_t	),
+            .axi_req_slv_t		( ariane_axi_soc::req_slv_t	),
+            .axi_rsp_slv_t		( ariane_axi_soc::resp_slv_t),
             .axi_req_mmu_t      ( ariane_axi_soc::req_mmu_t ),
-			.reg_req_t			( iommu_reg_req_t			),
-			.reg_rsp_t			( iommu_reg_rsp_t			)
-		) i_riscv_iommu (
+            .reg_req_t		    ( iommu_reg_req_t			),
+            .reg_rsp_t		    ( iommu_reg_rsp_t			),
 
-			.clk_i				( clk_i					),
-			.rst_ni				( rst_ni				),
+            .dc_t				(rv_iommu::dc_ext_t		    )
+        ) i_riscv_iommu (
 
-			// Translation Request Interface (Slave)
-			.dev_tr_req_i		( axi_iommu_tr_req		),
-			.dev_tr_resp_o		( axi_iommu_tr_rsp		),
+            .clk_i				( clk_i						),
+            .rst_ni				( rst_ni					),
 
-			// Translation Completion Interface (Master)
-			.dev_comp_resp_i	( axi_iommu_comp_rsp	),
-			.dev_comp_req_o		( axi_iommu_comp_req	),
+            // Translation Request Interface (Slave)
+            .dev_tr_req_i		( axi_iommu_tr_req		    ),
+            .dev_tr_resp_o		( axi_iommu_tr_rsp		    ),
 
-			// Implicit Memory Accesses Interface (Master)
-			.ds_resp_i			( axi_iommu_ds_rsp		),
-			.ds_req_o			( axi_iommu_ds_req		),
+            // Translation Completion Interface (Master)
+            .dev_comp_resp_i	( axi_iommu_comp_rsp	    ),
+            .dev_comp_req_o		( axi_iommu_comp_req	    ),
 
-			// Programming Interface (Slave) (AXI4 Full -> AXI4-Lite -> Reg IF)
-			.prog_req_i			( axi_iommu_cfg_req		),
-			.prog_resp_o		( axi_iommu_cfg_rsp		),
+            // Implicit Memory Accesses Interface (Master)
+            .ds_resp_i			( axi_iommu_ds_rsp		    ),
+            .ds_req_o			( axi_iommu_ds_req		    ),
 
-			.wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+9:9] )
-		);
+            // Programming Interface (Slave) (AXI4 Full -> AXI4-Lite -> Reg IF)
+            .prog_req_i			( axi_iommu_cfg_req		    ),
+            .prog_resp_o		( axi_iommu_cfg_rsp		    ),
+
+            .wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+9:9] )
+        );
   
 	//-----------
 	//# No IOMMU:
