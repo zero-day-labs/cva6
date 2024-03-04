@@ -872,7 +872,7 @@ module ariane_peripherals #(
 
 		// AXI Bus between iDMA (Mst) and IOMMU TR IF (Slv)
         // Extended with IOMMU-specific signals
-		AXI_BUS_MMU #(
+		AXI_BUS_IOMMU #(
 			.AXI_ADDR_WIDTH ( AxiAddrWidth  ),
 			.AXI_DATA_WIDTH ( AxiDataWidth  ),
 			.AXI_ID_WIDTH   ( AxiIdWidth    ),
@@ -892,15 +892,20 @@ module ariane_peripherals #(
         assign axi_iommu_tr_req.ar.ss_id_valid  = idma_axi_master.ar_ss_id_valid;
         assign axi_iommu_tr_req.ar.substream_id = idma_axi_master.ar_substream_id;
   
-        dma_core_wrap #(
-		    .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
-			.AXI_DATA_WIDTH		( AxiDataWidth           	),
-			.AXI_ID_WIDTH  		( AxiIdWidth             	),
-			.AXI_USER_WIDTH		( AxiUserWidth           	),
-			.AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
+        dma_core_wrap_intf #(
+            .AXI_ADDR_WIDTH     ( AxiAddrWidth               ),
+            .AXI_DATA_WIDTH     ( AxiDataWidth               ),
+            .AXI_USER_WIDTH     ( ariane_soc::IdWidth        ),
+            .AXI_ID_WIDTH       ( AxiUserWidth               ),
+            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave   ),
+            .JOB_FIFO_DEPTH     ( 2                          ),
+            .NUM_AX_IN_FLIGHT   ( 2                          ),
+            .MEM_SYS_DEPTH      ( 0                          ),
+            .RAW_COUPLING_AVAIL ( 1                          ),
+            .IS_TWO_D           ( 0                          ),
 
-            .AR_DEVICE_ID       ( 24'd10                    ),
-            .AW_DEVICE_ID       ( 24'd10                    )   
+            .DEVICE_ID          ( 24'd10           ),
+            .AxID               ( 4'd0             )
 		) i_dma (
 			.clk_i      		( clk_i            ),
 			.rst_ni     		( rst_ni           ),
@@ -908,10 +913,7 @@ module ariane_peripherals #(
 			// slave port
 			.axi_slave  		( dma_cfg          ),
 			// master port
-			.axi_master 		( idma_axi_master  ),
-
-            // IRQ
-            .irq_o              ( irq_sources[8:7] )
+			.axi_master 		( idma_axi_master  )
 		);
 
 	// --------------
