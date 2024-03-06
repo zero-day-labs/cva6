@@ -185,7 +185,7 @@ interface AXI_BUS_ASYNC
 endinterface
 
 /// An AXI4 interface.
-interface AXI_BUS_MMU #(
+interface AXI_BUS_IOMMU #(
   parameter AXI_ADDR_WIDTH = -1,
   parameter AXI_DATA_WIDTH = -1,
   parameter AXI_ID_WIDTH   = -1,
@@ -204,65 +204,65 @@ interface AXI_BUS_MMU #(
   typedef logic [5:0] atop_t;
 
   // AXI DVM extension
-  typedef logic [23:0] mmu_sid_t;
-  typedef logic        mmu_ssidv_t;
-  typedef logic [19:0] mmu_ssid_t;
+  typedef logic [23:0] iommu_sid_t;
+  typedef logic        iommu_ssidv_t;
+  typedef logic [19:0] iommu_ssid_t;
 
-  id_t        aw_id;
-  addr_t      aw_addr;
-  logic [7:0] aw_len;
-  logic [2:0] aw_size;
-  burst_t     aw_burst;
-  logic       aw_lock;
-  cache_t     aw_cache;
-  prot_t      aw_prot;
-  qos_t       aw_qos;
-  atop_t      aw_atop;
-  region_t    aw_region;
-  user_t      aw_user;
-  mmu_sid_t   aw_stream_id;
-  mmu_ssidv_t aw_ss_id_valid;
-  mmu_ssid_t  aw_substream_id;
-  logic       aw_valid;
-  logic       aw_ready;
+  id_t          aw_id;
+  addr_t        aw_addr;
+  logic [7:0]   aw_len;
+  logic [2:0]   aw_size;
+  burst_t       aw_burst;
+  logic         aw_lock;
+  cache_t       aw_cache;
+  prot_t        aw_prot;
+  qos_t         aw_qos;
+  atop_t        aw_atop;
+  region_t      aw_region;
+  user_t        aw_user;
+  iommu_sid_t   aw_stream_id;
+  iommu_ssidv_t aw_ss_id_valid;
+  iommu_ssid_t  aw_substream_id;
+  logic         aw_valid;
+  logic         aw_ready;
 
-  data_t      w_data;
-  strb_t      w_strb;
-  logic       w_last;
-  user_t      w_user;
-  logic       w_valid;
-  logic       w_ready;
+  data_t        w_data;
+  strb_t        w_strb;
+  logic         w_last;
+  user_t        w_user;
+  logic         w_valid;
+  logic         w_ready;
 
-  id_t        b_id;
-  resp_t      b_resp;
-  user_t      b_user;
-  logic       b_valid;
-  logic       b_ready;
+  id_t          b_id;
+  resp_t        b_resp;
+  user_t        b_user;
+  logic         b_valid;
+  logic         b_ready;
 
-  id_t        ar_id;
-  addr_t      ar_addr;
-  logic [7:0] ar_len;
-  logic [2:0] ar_size;
-  burst_t     ar_burst;
-  logic       ar_lock;
-  cache_t     ar_cache;
-  prot_t      ar_prot;
-  qos_t       ar_qos;
-  region_t    ar_region;
-  user_t      ar_user;
-  mmu_sid_t   ar_stream_id;
-  mmu_ssidv_t ar_ss_id_valid;
-  mmu_ssid_t  ar_substream_id;
-  logic       ar_valid;
-  logic       ar_ready;
+  id_t          ar_id;
+  addr_t        ar_addr;
+  logic [7:0]   ar_len;
+  logic [2:0]   ar_size;
+  burst_t       ar_burst;
+  logic         ar_lock;
+  cache_t       ar_cache;
+  prot_t        ar_prot;
+  qos_t         ar_qos;
+  region_t      ar_region;
+  user_t        ar_user;
+  iommu_sid_t   ar_stream_id;
+  iommu_ssidv_t ar_ss_id_valid;
+  iommu_ssid_t  ar_substream_id;
+  logic         ar_valid;
+  logic         ar_ready;
 
-  id_t        r_id;
-  data_t      r_data;
-  resp_t      r_resp;
-  logic       r_last;
-  user_t      r_user;
-  logic       r_valid;
-  logic       r_ready;
+  id_t          r_id;
+  data_t        r_data;
+  resp_t        r_resp;
+  logic         r_last;
+  user_t        r_user;
+  logic         r_valid;
+  logic         r_ready;
 
   modport Master (
     output aw_id, aw_addr, aw_len, aw_size, aw_burst, aw_lock, aw_cache, aw_prot, aw_qos, aw_atop, aw_region, aw_user, aw_stream_id, aw_ss_id_valid, aw_substream_id, aw_valid, input aw_ready,

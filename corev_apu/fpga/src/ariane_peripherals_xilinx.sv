@@ -849,8 +849,8 @@ module ariane_peripherals #(
     // ------------------------------------
 
     // AXI Bus between DMA-device (Mst) and IOMMU TR IF (Slv)
-    ariane_axi_soc::req_mmu_t  axi_iommu_tr_req;
-    ariane_axi_soc::resp_t axi_iommu_tr_rsp;
+    ariane_axi_soc::req_iommu_t axi_iommu_tr_req;
+    ariane_axi_soc::resp_t      axi_iommu_tr_rsp;
 
     // -----------
     //# DMA Engine
@@ -861,22 +861,8 @@ module ariane_peripherals #(
         //# DMA arbiter
         // -----------------------------------------------
 
-        localparam logic [3:0] ar_device_ids [ariane_soc::NrDmaMasters] = '{
-            4'd1,
-            4'd2,
-            4'd3,
-            4'd4
-        };
-
-        localparam logic [3:0] aw_device_ids [ariane_soc::NrDmaMasters] = '{
-            4'd1,
-            4'd2,
-            4'd3,
-            4'd4
-        };
-
         // Connections between DMA Masters and DMA arbiter
-        AXI_BUS_MMU #(
+        AXI_BUS_IOMMU #(
             .AXI_ADDR_WIDTH ( AxiAddrWidth          ),
             .AXI_DATA_WIDTH ( AxiDataWidth          ),
             .AXI_ID_WIDTH   ( ariane_soc::IdWidth   ),
@@ -884,7 +870,7 @@ module ariane_peripherals #(
         ) dma_arb_slave[ariane_soc::NrDmaMasters-1:0]();
 
         // Connection between DMA arbiter and IOMMU TR IF
-        AXI_BUS_MMU #(
+        AXI_BUS_IOMMU #(
             .AXI_ADDR_WIDTH ( AxiAddrWidth          ),
             .AXI_DATA_WIDTH ( AxiDataWidth          ),
             .AXI_ID_WIDTH   ( ariane_soc::IdWidth   ),
@@ -892,15 +878,16 @@ module ariane_peripherals #(
         ) dma_arb_master ();
 
         dma_arb_intf #(
-            .aw_chan_t  (ariane_axi_soc::aw_chan_mmu_t),
-            .w_chan_t   (ariane_axi_soc::w_chan_t),
-            .b_chan_t   (ariane_axi_soc::b_chan_t),
-            .ar_chan_t  (ariane_axi_soc::ar_chan_mmu_t),
-            .r_chan_t   (ariane_axi_soc::r_chan_t),
-            .axi_req_t  (ariane_axi_soc::req_mmu_t),
-            .axi_rsp_t  (ariane_axi_soc::resp_t),
+            .AxiIdWidth ( ariane_soc::IdWidth             ),
+            .aw_chan_t  ( ariane_axi_soc::aw_chan_iommu_t ),
+            .w_chan_t   ( ariane_axi_soc::w_chan_t        ),
+            .b_chan_t   ( ariane_axi_soc::b_chan_t        ),
+            .ar_chan_t  ( ariane_axi_soc::ar_chan_iommu_t ),
+            .r_chan_t   ( ariane_axi_soc::r_chan_t        ),
+            .axi_req_t  ( ariane_axi_soc::req_iommu_t     ),
+            .axi_rsp_t  ( ariane_axi_soc::resp_t          ),
 
-            .NrDMAs     (ariane_soc::NrDmaMasters)
+            .NrDMAs     ( ariane_soc::NrDmaMasters        )
         ) i_dma_arb_intf (
             .clk_i      (clk_i),
             .rst_ni     (rst_ni),
@@ -911,88 +898,104 @@ module ariane_peripherals #(
 
         // Generate iDMA modules
         // iDMA at 0x5000_3000
-        dma_core_wrap #(
-            .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
-            .AXI_DATA_WIDTH		( AxiDataWidth           	),
-            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
-            .AXI_USER_WIDTH		( AxiUserWidth           	),
-            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .AR_DEVICE_ID       ( ar_device_ids[3]          ),  // 4
-            .AW_DEVICE_ID       ( aw_device_ids[3]          )   
-        ) i_idma_0 (
-            .clk_i      			( clk_i            ),
-            .rst_ni     			( rst_ni           ),
-            .testmode_i 			( 1'b0             ),
-            // slave port
-            .axi_slave  			( dma_cfg_0        ),
-            // master port
-            .axi_master 			( dma_arb_slave[3]),
+        dma_core_wrap_intf #(
+            .AXI_ADDR_WIDTH     ( AxiAddrWidth               ),
+            .AXI_DATA_WIDTH     ( AxiDataWidth               ),
+            .AXI_USER_WIDTH     ( AxiUserWidth               ),
+            .AXI_ID_WIDTH       ( ariane_soc::IdWidth        ),
+            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave   ),
+            .JOB_FIFO_DEPTH     ( 2                          ),
+            .NUM_AX_IN_FLIGHT   ( 2                          ),
+            .MEM_SYS_DEPTH      ( 0                          ),
+            .RAW_COUPLING_AVAIL ( 1                          ),
+            .IS_TWO_D           ( 0                          ),
 
-            .irq_o                  ( irq_sources[8:7] )
-        );
+            .DEVICE_ID          ( 24'd2            ),
+            .AxID               ( 4'd0             )
+		) i_dma_0 (
+			.clk_i      		( clk_i            ),
+			.rst_ni     		( rst_ni           ),
+			.testmode_i 		( 1'b0             ),
+			// slave port
+			.axi_slave  		( dma_cfg_0        ),
+			// master port
+			.axi_master 		( dma_arb_slave[0] )
+		);
 
         // iDMA at 0x5000_2000
-        dma_core_wrap #(
-            .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
-            .AXI_DATA_WIDTH		( AxiDataWidth           	),
-            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
-            .AXI_USER_WIDTH		( AxiUserWidth           	),
-            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .AR_DEVICE_ID       ( ar_device_ids[2]          ),  // 3
-            .AW_DEVICE_ID       ( aw_device_ids[2]          )   
-        ) i_idma_1 (
-            .clk_i      			( clk_i            ),
-            .rst_ni     			( rst_ni           ),
-            .testmode_i 			( 1'b0             ),
-            // slave port
-            .axi_slave  			( dma_cfg_1        ),
-            // master port
-            .axi_master 			( dma_arb_slave[2]),
+        dma_core_wrap_intf #(
+            .AXI_ADDR_WIDTH     ( AxiAddrWidth               ),
+            .AXI_DATA_WIDTH     ( AxiDataWidth               ),
+            .AXI_USER_WIDTH     ( AxiUserWidth               ),
+            .AXI_ID_WIDTH       ( ariane_soc::IdWidth        ),
+            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave   ),
+            .JOB_FIFO_DEPTH     ( 2                          ),
+            .NUM_AX_IN_FLIGHT   ( 2                          ),
+            .MEM_SYS_DEPTH      ( 0                          ),
+            .RAW_COUPLING_AVAIL ( 1                          ),
+            .IS_TWO_D           ( 0                          ),
 
-            .irq_o                  ( irq_sources[10:9] )
-        );
+            .DEVICE_ID          ( 24'd5            ),
+            .AxID               ( 4'd1             )
+		) i_dma_1 (
+			.clk_i      		( clk_i            ),
+			.rst_ni     		( rst_ni           ),
+			.testmode_i 		( 1'b0             ),
+			// slave port
+			.axi_slave  		( dma_cfg_1        ),
+			// master port
+			.axi_master 		( dma_arb_slave[1] )
+		);
 
         // iDMA at 0x5000_1000
-        dma_core_wrap #(
-            .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
-            .AXI_DATA_WIDTH		( AxiDataWidth           	),
-            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
-            .AXI_USER_WIDTH		( AxiUserWidth           	),
-            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .AR_DEVICE_ID       ( ar_device_ids[1]          ),  // 2
-            .AW_DEVICE_ID       ( aw_device_ids[1]          )   
-        ) i_idma_2 (
-            .clk_i      			( clk_i            ),
-            .rst_ni     			( rst_ni           ),
-            .testmode_i 			( 1'b0             ),
-            // slave port
-            .axi_slave  			( dma_cfg_2        ),
-            // master port
-            .axi_master 			( dma_arb_slave[1]),
+        dma_core_wrap_intf #(
+            .AXI_ADDR_WIDTH     ( AxiAddrWidth               ),
+            .AXI_DATA_WIDTH     ( AxiDataWidth               ),
+            .AXI_USER_WIDTH     ( AxiUserWidth               ),
+            .AXI_ID_WIDTH       ( ariane_soc::IdWidth        ),
+            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave   ),
+            .JOB_FIFO_DEPTH     ( 2                          ),
+            .NUM_AX_IN_FLIGHT   ( 2                          ),
+            .MEM_SYS_DEPTH      ( 0                          ),
+            .RAW_COUPLING_AVAIL ( 1                          ),
+            .IS_TWO_D           ( 0                          ),
 
-            .irq_o                  ( irq_sources[12:11])
-        );
+            .DEVICE_ID          ( 24'd9            ),
+            .AxID               ( 4'd2             )
+		) i_dma_2 (
+			.clk_i      		( clk_i            ),
+			.rst_ni     		( rst_ni           ),
+			.testmode_i 		( 1'b0             ),
+			// slave port
+			.axi_slave  		( dma_cfg_2        ),
+			// master port
+			.axi_master 		( dma_arb_slave[2] )
+		);
 
         // iDMA at 0x5000_0000
-        dma_core_wrap #(
-            .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
-            .AXI_DATA_WIDTH		( AxiDataWidth           	),
-            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
-            .AXI_USER_WIDTH		( AxiUserWidth           	),
-            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave  ),
-            .AR_DEVICE_ID       ( ar_device_ids[0]          ),  // 1
-            .AW_DEVICE_ID       ( aw_device_ids[0]          )
-        ) i_idma_3 (
-            .clk_i      			( clk_i            ),
-            .rst_ni     			( rst_ni           ),
-            .testmode_i 			( 1'b0             ),
-            // slave port
-            .axi_slave  			( dma_cfg_3        ),
-            // master port
-            .axi_master 			( dma_arb_slave[0]),
+        dma_core_wrap_intf #(
+            .AXI_ADDR_WIDTH     ( AxiAddrWidth               ),
+            .AXI_DATA_WIDTH     ( AxiDataWidth               ),
+            .AXI_USER_WIDTH     ( AxiUserWidth               ),
+            .AXI_ID_WIDTH       ( ariane_soc::IdWidth        ),
+            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave   ),
+            .JOB_FIFO_DEPTH     ( 2                          ),
+            .NUM_AX_IN_FLIGHT   ( 2                          ),
+            .MEM_SYS_DEPTH      ( 0                          ),
+            .RAW_COUPLING_AVAIL ( 1                          ),
+            .IS_TWO_D           ( 0                          ),
 
-            .irq_o                  ( irq_sources[14:13])
-        );
+            .DEVICE_ID          ( 24'd13           ),
+            .AxID               ( 4'd3             )
+		) i_dma_3 (
+			.clk_i      		( clk_i            ),
+			.rst_ni     		( rst_ni           ),
+			.testmode_i 		( 1'b0             ),
+			// slave port
+			.axi_slave  		( dma_cfg_3        ),
+			// master port
+			.axi_master 		( dma_arb_slave[3] )
+		);
         
         `AXI_ASSIGN_TO_REQ(axi_iommu_tr_req, dma_arb_master)
         `AXI_ASSIGN_FROM_RESP(dma_arb_master, axi_iommu_tr_rsp)
@@ -1117,58 +1120,60 @@ module ariane_peripherals #(
 		`REG_BUS_TYPEDEF_ALL(iommu_reg, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
   
         riscv_iommu #(
-			.IOTLB_ENTRIES	    ( 8                 		),
-            .DDTC_ENTRIES		( 4							),
-            .PDTC_ENTRIES		( 4							),
+            .IOTLB_ENTRIES	    ( 8	    					  ),
+            .DDTC_ENTRIES		( 4							  ),
+            .PDTC_ENTRIES		( 4							  ),
+            .MRIFC_ENTRIES		( 4							  ),
 
-            .InclPC             ( 1'b0						),
-            .InclMSITrans       ( 1'b1                      ),
-            .InclBC             ( 1'b1                      ),
+            .MSITrans			( rv_iommu::MSI_FLAT_MRIF	  ),
+            .InclPC             ( 1'b0						  ),
+            .InclBC             ( 1'b1                        ),
+            .InclDBG			( 1'b1						  ),
             
-            .IGS                ( rv_iommu::BOTH            ),
-            .N_INT_VEC          ( ariane_soc::IOMMUNumWires ),
-            .N_IOHPMCTR         ( 8                         ),
+            .IGS                ( rv_iommu::BOTH              ),
+            .N_INT_VEC          ( ariane_soc::IOMMUNumWires   ),
+            .N_IOHPMCTR         ( 8                           ),
 
-			.ADDR_WIDTH			( AxiAddrWidth				),
-			.DATA_WIDTH			( AxiDataWidth				),
-			.ID_WIDTH			( ariane_soc::IdWidth		),
-			.ID_SLV_WIDTH		( ariane_soc::IdWidthSlave	),
-			.USER_WIDTH			( AxiUserWidth				),
-			.aw_chan_t			( ariane_axi_soc::aw_chan_t ),
-			.w_chan_t			( ariane_axi_soc::w_chan_t	),
-			.b_chan_t			( ariane_axi_soc::b_chan_t	),
-			.ar_chan_t			( ariane_axi_soc::ar_chan_t ),
-			.r_chan_t			( ariane_axi_soc::r_chan_t	),
-			.axi_req_t			( ariane_axi_soc::req_t		),
-			.axi_rsp_t			( ariane_axi_soc::resp_t	),
-			.axi_req_slv_t		( ariane_axi_soc::req_slv_t	),
-			.axi_rsp_slv_t		( ariane_axi_soc::resp_slv_t),
-            .axi_req_mmu_t      ( ariane_axi_soc::req_mmu_t ),
-			.reg_req_t			( iommu_reg_req_t			),
-			.reg_rsp_t			( iommu_reg_rsp_t			)
-		) i_riscv_iommu (
+            .ADDR_WIDTH			( AxiAddrWidth				  ),
+            .DATA_WIDTH			( AxiDataWidth				  ),
+            .ID_WIDTH			( ariane_soc::IdWidth		  ),
+            .ID_SLV_WIDTH		( ariane_soc::IdWidthSlave	  ),
+            .USER_WIDTH			( AxiUserWidth				  ),
+            .aw_chan_t			( ariane_axi_soc::aw_chan_t   ),
+            .w_chan_t			( ariane_axi_soc::w_chan_t	  ),
+            .b_chan_t			( ariane_axi_soc::b_chan_t	  ),
+            .ar_chan_t			( ariane_axi_soc::ar_chan_t   ),
+            .r_chan_t			( ariane_axi_soc::r_chan_t	  ),
+            .axi_req_t			( ariane_axi_soc::req_t		  ),
+            .axi_rsp_t			( ariane_axi_soc::resp_t	  ),
+            .axi_req_slv_t		( ariane_axi_soc::req_slv_t	  ),
+            .axi_rsp_slv_t		( ariane_axi_soc::resp_slv_t  ),
+            .axi_req_iommu_t    ( ariane_axi_soc::req_iommu_t ),
+            .reg_req_t		    ( iommu_reg_req_t			  ),
+            .reg_rsp_t		    ( iommu_reg_rsp_t			  )
+        ) i_riscv_iommu (
 
-			.clk_i				( clk_i					),
-			.rst_ni				( rst_ni				),
+            .clk_i				( clk_i						  ),
+            .rst_ni				( rst_ni					  ),
 
-			// Translation Request Interface (Slave)
-			.dev_tr_req_i		( axi_iommu_tr_req		),
-			.dev_tr_resp_o		( axi_iommu_tr_rsp		),
+            // Translation Request Interface (Slave)
+            .dev_tr_req_i		( axi_iommu_tr_req		      ),
+            .dev_tr_resp_o		( axi_iommu_tr_rsp		      ),
 
-			// Translation Completion Interface (Master)
-			.dev_comp_resp_i	( axi_iommu_comp_rsp	),
-			.dev_comp_req_o		( axi_iommu_comp_req	),
+            // Translation Completion Interface (Master)
+            .dev_comp_resp_i	( axi_iommu_comp_rsp	      ),
+            .dev_comp_req_o		( axi_iommu_comp_req	      ),
 
-			// Implicit Memory Accesses Interface (Master)
-			.ds_resp_i			( axi_iommu_ds_rsp		),
-			.ds_req_o			( axi_iommu_ds_req		),
+            // Implicit Memory Accesses Interface (Master)
+            .ds_resp_i			( axi_iommu_ds_rsp		      ),
+            .ds_req_o			( axi_iommu_ds_req		      ),
 
-			// Programming Interface (Slave) (AXI4 Full -> AXI4-Lite -> Reg IF)
-			.prog_req_i			( axi_iommu_cfg_req		),
-			.prog_resp_o		( axi_iommu_cfg_rsp		),
+            // Programming Interface (Slave) (AXI4 Full -> AXI4-Lite -> Reg IF)
+            .prog_req_i			( axi_iommu_cfg_req		      ),
+            .prog_resp_o		( axi_iommu_cfg_rsp		      ),
 
-			.wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+15:15] )
-		);
+            .wsi_wires_o 		( irq_sources[(ariane_soc::IOMMUNumWires-1)+7:7] )
+        );
   
 	//-----------
 	//# No IOMMU:
