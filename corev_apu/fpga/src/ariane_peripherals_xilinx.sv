@@ -971,7 +971,7 @@ module ariane_peripherals #(
 
 		// Memory-mapped Register IF types
 		// name, addr_t, data_t, strb_t
-		`REG_BUS_TYPEDEF_ALL(iommu_reg, ariane_axi_soc::addr_t, ariane_axi_soc::data_t, ariane_axi_soc::strb_t)
+		`REG_BUS_TYPEDEF_ALL(iommu_reg, ariane_axi_soc::addr_t, logic [31:0], logic[3:0])
   
         riscv_iommu #(
             .IOTLB_ENTRIES	    ( 8	    					  ),
