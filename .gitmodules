@@ -40,3 +40,6 @@
 [submodule "corev_apu/riscv-iopmp"]
 	path = corev_apu/riscv-iopmp
 	url = git@github.com:zero-day-labs/riscv-iopmp.git
+[submodule "corev_apu/iDMA"]
+	path = corev_apu/iDMA
+	url = git@github.com:luisccc/iDMA.git
