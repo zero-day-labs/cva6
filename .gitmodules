@@ -37,3 +37,6 @@
 [submodule "corev_apu/tb/common_verification"]
 	path = corev_apu/tb/common_verification
 	url = https://github.com/pulp-platform/common_verification.git
+[submodule "corev_apu/riscv-iopmp"]
+	path = corev_apu/riscv-iopmp
+	url = git@github.com:zero-day-labs/riscv-iopmp.git
