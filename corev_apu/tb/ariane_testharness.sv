@@ -35,6 +35,7 @@ module ariane_testharness #(
   output logic [31:0]                    exit_o
 );
 
+  /*verilator tracing_off*/
   localparam [7:0] hart_id = '0;
 
   // disable test-enable
@@ -279,8 +280,8 @@ module ariane_testharness #(
     .data_i     ( dm_slave_rdata            )
   );
 
-  `AXI_ASSIGN_FROM_REQ(slave[1], dm_axi_m_req)
-  `AXI_ASSIGN_TO_RESP(dm_axi_m_resp, slave[1])
+  `AXI_ASSIGN_FROM_REQ(slave[ariane_soc::DEBUG], dm_axi_m_req)
+  `AXI_ASSIGN_TO_RESP(dm_axi_m_resp, slave[ariane_soc::DEBUG])
 
   axi_adapter #(
     .DATA_WIDTH            ( AXI_DATA_WIDTH            ),
@@ -477,7 +478,7 @@ module ariane_testharness #(
     .ruser_o    ( ruser                                                                       ),
     .rdata_o    ( rdata                                                                       )
   );
-
+/*verilator tracing_on*/
   // ---------------
   // AXI Xbar
   // ---------------
@@ -494,6 +495,8 @@ module ariane_testharness #(
     '{ idx: ariane_soc::SPI,      start_addr: ariane_soc::SPIBase,      end_addr: ariane_soc::SPIBase + ariane_soc::SPILength           },
     '{ idx: ariane_soc::Ethernet, start_addr: ariane_soc::EthernetBase, end_addr: ariane_soc::EthernetBase + ariane_soc::EthernetLength },
     '{ idx: ariane_soc::GPIO,     start_addr: ariane_soc::GPIOBase,     end_addr: ariane_soc::GPIOBase + ariane_soc::GPIOLength         },
+    '{ idx: ariane_soc::DMA_CFG,    start_addr: ariane_soc::DMABase,      end_addr: ariane_soc::DMABase + ariane_soc::DMALength         },
+    '{ idx: ariane_soc::IOPMP_CP,   start_addr: ariane_soc::IOPMPBase,    end_addr: ariane_soc::IOPMPBase + ariane_soc::IOPMPLength     },
     '{ idx: ariane_soc::DRAM,     start_addr: ariane_soc::DRAMBase,     end_addr: ariane_soc::DRAMBase + ariane_soc::DRAMLength         }
   };
 
@@ -527,6 +530,7 @@ module ariane_testharness #(
     .default_mst_port_i    ( '0         )
   );
 
+  /*verilator tracing_off*/
   // ---------------
   // CLINT
   // ---------------
@@ -557,6 +561,7 @@ module ariane_testharness #(
   `AXI_ASSIGN_TO_REQ(axi_clint_req, master[ariane_soc::CLINT])
   `AXI_ASSIGN_FROM_RESP(master[ariane_soc::CLINT], axi_clint_resp)
 
+  /*verilator tracing_on*/
   // ---------------
   // Peripherals
   // ---------------
@@ -588,6 +593,9 @@ module ariane_testharness #(
     .spi       ( master[ariane_soc::SPI]      ),
     .ethernet  ( master[ariane_soc::Ethernet] ),
     .timer     ( master[ariane_soc::Timer]    ),
+    .dma_cfg    ( master[ariane_soc::DMA_CFG] ),
+    .iopmp_cp   ( master[ariane_soc::IOPMP_CP]),
+    .iopmp_ip   ( slave [ariane_soc::IOPMP_IP]),
     .irq_o     ( irqs                         ),
     .rx_i      ( rx                           ),
     .tx_o      ( tx                           ),
@@ -610,6 +618,7 @@ module ariane_testharness #(
 
   uart_bus #(.BAUD_RATE(115200), .PARITY_EN(0)) i_uart_bus (.rx(tx), .tx(rx), .rx_en(1'b1));
 
+  /*verilator tracing_off*/
   // ---------------
   // Core
   // ---------------
@@ -640,8 +649,8 @@ module ariane_testharness #(
     .axi_resp_i           ( axi_ariane_resp     )
   );
 
-  `AXI_ASSIGN_FROM_REQ(slave[0], axi_ariane_req)
-  `AXI_ASSIGN_TO_RESP(axi_ariane_resp, slave[0])
+  `AXI_ASSIGN_FROM_REQ(slave[ariane_soc::CVA6], axi_ariane_req)
+  `AXI_ASSIGN_TO_RESP(axi_ariane_resp, slave[ariane_soc::CVA6])
 
   // -------------
   // Simulation Helper Functions
@@ -735,4 +744,6 @@ module ariane_testharness #(
     .CSYSACK('0)
   );
 `endif
+
+  /*verilator tracing_on*/
 endmodule

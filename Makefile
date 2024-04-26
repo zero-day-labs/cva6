@@ -98,7 +98,10 @@ ariane_pkg := \
               corev_apu/tb/rvfi_pkg.sv                               \
               corev_apu/tb/ariane_soc_pkg.sv                         \
               corev_apu/riscv-dbg/src/dm_pkg.sv                      \
-              corev_apu/tb/ariane_axi_soc_pkg.sv
+              corev_apu/tb/ariane_axi_soc_pkg.sv					 \
+			  corev_apu/riscv-iopmp/packages/rv_iopmp/rv_iopmp_reg_pkg.sv   \
+			  corev_apu/riscv-iopmp/packages/rv_iopmp/rv_iopmp_pkg.sv
+
 ariane_pkg := $(addprefix $(root-dir), $(ariane_pkg))
 
 # Test packages
@@ -147,6 +150,15 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         $(wildcard corev_apu/fpga/src/axi_slice/src/*.sv)                            \
         $(wildcard corev_apu/src/axi_riscv_atomics/src/*.sv)                         \
         $(wildcard corev_apu/axi_mem_if/src/*.sv)                                    \
+		$(wildcard corev_apu/iDMA/src/*.sv)                                          \
+        $(wildcard corev_apu/iDMA/src/frontends/register_64bit/*.sv)                 \
+        $(wildcard corev_apu/register_interface/vendor/lowrisc_opentitan/src/*.sv)   \
+        $(wildcard corev_apu/riscv-iopmp/packages/*.sv)                                 \
+        $(wildcard corev_apu/riscv-iopmp/rtl/*.sv)                                      \
+		$(wildcard corev_apu/riscv-iopmp/rtl/interfaces/*.sv)                           \
+		$(wildcard corev_apu/riscv-iopmp/rtl/interfaces/axi_support/*.sv)               \
+		$(wildcard corev_apu/riscv-iopmp/rtl/interfaces/regmap/*.sv)               	 \
+		$(wildcard corev_apu/riscv-iopmp/rtl/matching_logic/*.sv)                       \
         corev_apu/rv_plic/rtl/rv_plic_target.sv                                      \
         corev_apu/rv_plic/rtl/rv_plic_gateway.sv                                     \
         corev_apu/rv_plic/rtl/plic_regmap.sv                                         \
@@ -195,7 +207,12 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         corev_apu/tb/rvfi_tracer.sv                                                  \
         corev_apu/tb/common/uart.sv                                                  \
         corev_apu/tb/common/SimDTM.sv                                                \
-        corev_apu/tb/common/SimJTAG.sv
+        corev_apu/tb/common/SimJTAG.sv												 \
+		corev_apu/iDMA/src/systems/cva6_reg/dma_core_wrap.sv                         \
+        corev_apu/iDMA/src/frontends/idma_transfer_id_gen.sv                         \
+        corev_apu/register_interface/src/axi_to_reg.sv                               \
+        corev_apu/register_interface/src/axi_lite_to_reg.sv                          \
+        vendor/pulp-platform/axi/src/axi_burst_splitter.sv
 
 # SV32 MMU for CV32, SV39 MMU for CV64
 ifeq ($(findstring 32, $(target)),32)
@@ -237,7 +254,7 @@ riscv-fp-tests            := $(shell xargs printf '\n%s' < $(riscv-fp-tests-list
 riscv-benchmarks          := $(shell xargs printf '\n%s' < $(riscv-benchmarks-list) | cut -b 1-)
 
 # Search here for include files (e.g.: non-standalone components)
-incdir := vendor/pulp-platform/common_cells/include/ vendor/pulp-platform/axi/include/ corev_apu/register_interface/include/
+incdir := vendor/pulp-platform/common_cells/include/ vendor/pulp-platform/axi/include/ corev_apu/register_interface/include/ corev_apu/iDMA/src/include/
 
 # Compile and sim flags
 compile_flag     += +cover=bcfst+/dut -incr -64 -nologo -quiet -suppress 13262 -permissive +define+$(defines)

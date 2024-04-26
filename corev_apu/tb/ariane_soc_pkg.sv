@@ -17,7 +17,18 @@ package ariane_soc;
   localparam int unsigned NumSources = 30;
   localparam int unsigned MaxPriority = 7;
 
-  localparam NrSlaves = 2; // actually masters, but slaves on the crossbar
+  // Number of interrupt wires used by IOPMP are 3 DMA + IOPMP
+  localparam int unsigned IOPMPNumWires = 3;
+  // Last used interrupt wire index
+  localparam int unsigned LastIntIndex = 6 + IOPMPNumWires;
+
+  typedef enum int unsigned {
+    CVA6        = 0,
+    DEBUG       = 1,
+    IOPMP_IP    = 2  // IOPMP Master IF - Initiator Port
+  } axi_master_t;
+
+  localparam NrSlaves = 3; // actually masters, but slaves on the crossbar
 
   // 4 is recommended by AXI standard, so lets stick to it, do not change
   localparam IdWidth   = 4;
@@ -25,15 +36,17 @@ package ariane_soc;
 
   typedef enum int unsigned {
     DRAM     = 0,
-    GPIO     = 1,
-    Ethernet = 2,
-    SPI      = 3,
-    Timer    = 4,
-    UART     = 5,
-    PLIC     = 6,
-    CLINT    = 7,
-    ROM      = 8,
-    Debug    = 9
+    IOPMP_CP = 1,
+    DMA_CFG  = 2, // DMA slave port for configuration of the engine
+    GPIO     = 3,
+    Ethernet = 4,
+    SPI      = 5,
+    Timer    = 6,
+    UART     = 7,
+    PLIC     = 8,
+    CLINT    = 9,
+    ROM      = 10,
+    Debug    = 11
   } axi_slaves_t;
 
   localparam NB_PERIPHERALS = Debug + 1;
@@ -48,6 +61,8 @@ package ariane_soc;
   localparam logic[63:0] SPILength      = 64'h800000;
   localparam logic[63:0] EthernetLength = 64'h10000;
   localparam logic[63:0] GPIOLength     = 64'h1000;
+  localparam logic[63:0] DMALength      = 64'h1000;
+  localparam logic[63:0] IOPMPLength    = 64'h4000;     // 16kiB of memory address space for now
   localparam logic[63:0] DRAMLength     = 64'h40000000; // 1GByte of DDR (split between two chips on Genesys2)
   localparam logic[63:0] SRAMLength     = 64'h1800000;  // 24 MByte of SRAM
   // Instantiate AXI protocol checkers
@@ -63,6 +78,8 @@ package ariane_soc;
     SPIBase      = 64'h2000_0000,
     EthernetBase = 64'h3000_0000,
     GPIOBase     = 64'h4000_0000,
+    DMABase      = 64'h5000_0000,
+    IOPMPBase    = 64'h5002_0000,
     DRAMBase     = 64'h8000_0000
   } soc_bus_start_t;
 
