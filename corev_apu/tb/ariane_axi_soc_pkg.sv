@@ -25,17 +25,20 @@ package ariane_axi_soc;
     localparam DataWidth = 64;
     localparam StrbWidth = DataWidth / 8;
 
-    typedef logic [ariane_soc::IdWidth-1:0]      id_t;
-    typedef logic [ariane_soc::IdWidthSlave-1:0] id_slv_t;
-    typedef logic [AddrWidth-1:0] addr_t;
-    typedef logic [DataWidth-1:0] data_t;
-    typedef logic [StrbWidth-1:0] strb_t;
-    typedef logic [UserWidth-1:0] user_t;
+    typedef logic [ariane_soc::IdWidth-1:0]         id_t;
+    typedef logic [ariane_soc::IdWidthSlave-1:0]    id_slv_t;
+    typedef logic [AddrWidth-1:0]                   addr_t;
+    typedef logic [DataWidth-1:0]                   data_t;
+    typedef logic [StrbWidth-1:0]                   strb_t;
+    typedef logic [UserWidth-1:0]                   user_t;
 
-    // AXI DVM extension
-    typedef logic [23:0] iommu_sid_t;
-    typedef logic        iommu_ssidv_t;
-    typedef logic [19:0] iommu_ssid_t;
+    // AXI extension for untranslated transactions - IOMMU (Chapter A14)
+    typedef logic [23:0]                            sid_t;
+    typedef logic                                   ssidv_t;
+    typedef logic [19:0]                            ssid_t;
+
+    // AXI Aditional Request Qualifiers - IOPMP (Chapter A11)
+    typedef logic [3:0]                             nsaid_t;
 
     // AW Channel
     typedef struct packed {
@@ -69,7 +72,7 @@ package ariane_axi_soc;
         user_t            user;
     } aw_chan_slv_t;
 
-    // AW Channel - AXI DVM extension for SMMU
+    // AW Channel - AXI Standard Extensions
     typedef struct packed {
         id_t              id;
         addr_t            addr;
@@ -83,10 +86,11 @@ package ariane_axi_soc;
         axi_pkg::region_t region;
         axi_pkg::atop_t   atop;
         user_t            user;
-        iommu_sid_t         stream_id;
-        iommu_ssidv_t       ss_id_valid;
-        iommu_ssid_t        substream_id;
-    } aw_chan_iommu_t;
+        sid_t             stream_id;
+        ssidv_t           ss_id_valid;
+        ssid_t            substream_id;
+        nsaid_t           nsaid;
+    } aw_chan_ext_t;
 
     // W Channel - AXI4 doesn't define a wid
     typedef struct packed {
@@ -140,7 +144,7 @@ package ariane_axi_soc;
         user_t            user;
     } ar_chan_slv_t;
 
-    // AR Channel - AXI DVM extension for SMMU
+    // AR Channel - AXI Standard Extensions
     typedef struct packed {
         id_t              id;
         addr_t            addr;
@@ -153,10 +157,11 @@ package ariane_axi_soc;
         axi_pkg::qos_t    qos;
         axi_pkg::region_t region;
         user_t            user;
-        iommu_sid_t         stream_id;
-        iommu_ssidv_t       ss_id_valid;
-        iommu_ssid_t        substream_id;
-    } ar_chan_iommu_t;
+        sid_t             stream_id;
+        ssidv_t           ss_id_valid;
+        ssid_t            substream_id;
+        nsaid_t           nsaid;
+    } ar_chan_ext_t;
 
     // R Channel
     typedef struct packed {
@@ -219,16 +224,16 @@ package ariane_axi_soc;
         r_chan_slv_t  r;
     } resp_slv_t;
 
-    // AXI DVM extension for SMMU
+    // AXI Request struct with standard extensions
     typedef struct packed {
-        aw_chan_iommu_t   aw;
+        aw_chan_ext_t   aw;
         logic           aw_valid;
         w_chan_t        w;
         logic           w_valid;
         logic           b_ready;
-        ar_chan_iommu_t   ar;
+        ar_chan_ext_t   ar;
         logic           ar_valid;
         logic           r_ready;
-    } req_iommu_t;
+    } req_ext_t;
 
 endpackage

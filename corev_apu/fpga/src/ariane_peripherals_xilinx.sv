@@ -856,7 +856,7 @@ module ariane_peripherals #(
 
     // AXI Bus between DMA-device (Mst) and IOMMU TR IF (Slv)
     // Extended with IOMMU-specific signals
-    ariane_axi_soc::req_iommu_t axi_iommu_tr_req;
+    ariane_axi_soc::req_ext_t   axi_iommu_tr_req;
     ariane_axi_soc::resp_t      axi_iommu_tr_rsp;
 
     // AXI Bus between System Interconnect (Mst) and IOMMU Programming IF (Slv)
@@ -872,7 +872,7 @@ module ariane_peripherals #(
 
 		// AXI Bus between iDMA (Mst) and IOMMU TR IF (Slv)
         // Extended with IOMMU-specific signals
-		AXI_BUS_IOMMU #(
+		AXI_BUS_EXT #(
 			.AXI_ADDR_WIDTH ( AxiAddrWidth  ),
 			.AXI_DATA_WIDTH ( AxiDataWidth  ),
 			.AXI_ID_WIDTH   ( AxiIdWidth    ),
@@ -882,15 +882,18 @@ module ariane_peripherals #(
         `AXI_ASSIGN_TO_REQ(axi_iommu_tr_req, idma_axi_master)
         `AXI_ASSIGN_FROM_RESP(idma_axi_master, axi_iommu_tr_rsp)
 
-        // Manually assign IOMMU-specific signals
+        // Manually assign extension signals
         // AW
         assign axi_iommu_tr_req.aw.stream_id    = idma_axi_master.aw_stream_id;
         assign axi_iommu_tr_req.aw.ss_id_valid  = idma_axi_master.aw_ss_id_valid;
         assign axi_iommu_tr_req.aw.substream_id = idma_axi_master.aw_substream_id;
+        assign axi_iommu_tr_req.aw.nsaid        = idma_axi_master.aw_nsaid;
+
         // AR
         assign axi_iommu_tr_req.ar.stream_id    = idma_axi_master.ar_stream_id;
         assign axi_iommu_tr_req.ar.ss_id_valid  = idma_axi_master.ar_ss_id_valid;
         assign axi_iommu_tr_req.ar.substream_id = idma_axi_master.ar_substream_id;
+        assign axi_iommu_tr_req.ar.nsaid        = idma_axi_master.ar_nsaid;
   
         dma_core_wrap_intf #(
             .AXI_ADDR_WIDTH     ( AxiAddrWidth               ),
@@ -904,7 +907,7 @@ module ariane_peripherals #(
             .RAW_COUPLING_AVAIL ( 1                          ),
             .IS_TWO_D           ( 0                          ),
 
-            .DEVICE_ID          ( 24'd10           ),
+            .STREAM_ID          ( 24'd10           ),
             .AxID               ( 4'd0             )
 		) i_dma (
 			.clk_i      		( clk_i            ),

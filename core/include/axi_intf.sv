@@ -184,8 +184,8 @@ interface AXI_BUS_ASYNC
 
 endinterface
 
-/// An AXI4 interface.
-interface AXI_BUS_IOMMU #(
+/// An AXI4 interface with standard extensions
+interface AXI_BUS_EXT #(
   parameter AXI_ADDR_WIDTH = -1,
   parameter AXI_DATA_WIDTH = -1,
   parameter AXI_ID_WIDTH   = -1,
@@ -203,10 +203,13 @@ interface AXI_BUS_IOMMU #(
   typedef logic [AXI_USER_WIDTH-1:0] user_t;
   typedef logic [5:0] atop_t;
 
-  // AXI DVM extension
-  typedef logic [23:0] mmu_sid_t;
-  typedef logic        mmu_ssidv_t;
-  typedef logic [19:0] mmu_ssid_t;
+  // AXI extension for untranslated transactions - IOMMU (Chapter A14)
+  typedef logic [23:0]                            sid_t;
+  typedef logic                                   ssidv_t;
+  typedef logic [19:0]                            ssid_t;
+
+  // AXI Aditional Request Qualifiers - IOPMP (Chapter A11)
+  typedef logic [3:0]                             nsaid_t;
 
   id_t        aw_id;
   addr_t      aw_addr;
@@ -220,9 +223,10 @@ interface AXI_BUS_IOMMU #(
   atop_t      aw_atop;
   region_t    aw_region;
   user_t      aw_user;
-  mmu_sid_t   aw_stream_id;
-  mmu_ssidv_t aw_ss_id_valid;
-  mmu_ssid_t  aw_substream_id;
+  sid_t       aw_stream_id;
+  ssidv_t     aw_ss_id_valid;
+  ssid_t      aw_substream_id;
+  nsaid_t     aw_nsaid;
   logic       aw_valid;
   logic       aw_ready;
 
@@ -250,9 +254,10 @@ interface AXI_BUS_IOMMU #(
   qos_t       ar_qos;
   region_t    ar_region;
   user_t      ar_user;
-  mmu_sid_t   ar_stream_id;
-  mmu_ssidv_t ar_ss_id_valid;
-  mmu_ssid_t  ar_substream_id;
+  sid_t       ar_stream_id;
+  ssidv_t     ar_ss_id_valid;
+  ssid_t      ar_substream_id;
+  nsaid_t     ar_nsaid;
   logic       ar_valid;
   logic       ar_ready;
 
@@ -265,18 +270,18 @@ interface AXI_BUS_IOMMU #(
   logic       r_ready;
 
   modport Master (
-    output aw_id, aw_addr, aw_len, aw_size, aw_burst, aw_lock, aw_cache, aw_prot, aw_qos, aw_atop, aw_region, aw_user, aw_stream_id, aw_ss_id_valid, aw_substream_id, aw_valid, input aw_ready,
+    output aw_id, aw_addr, aw_len, aw_size, aw_burst, aw_lock, aw_cache, aw_prot, aw_qos, aw_atop, aw_region, aw_user, aw_stream_id, aw_ss_id_valid, aw_substream_id, aw_nsaid, aw_valid, input aw_ready,
     output w_data, w_strb, w_last, w_user, w_valid, input w_ready,
     input b_id, b_resp, b_user, b_valid, output b_ready,
-    output ar_id, ar_addr, ar_len, ar_size, ar_burst, ar_lock, ar_cache, ar_prot, ar_qos, ar_region, ar_user, ar_stream_id, ar_ss_id_valid, ar_substream_id, ar_valid, input ar_ready,
+    output ar_id, ar_addr, ar_len, ar_size, ar_burst, ar_lock, ar_cache, ar_prot, ar_qos, ar_region, ar_user, ar_stream_id, ar_ss_id_valid, ar_substream_id, ar_nsaid, ar_valid, input ar_ready,
     input r_id, r_data, r_resp, r_last, r_user, r_valid, output r_ready
   );
 
   modport Slave (
-    input aw_id, aw_addr, aw_len, aw_size, aw_burst, aw_lock, aw_cache, aw_prot, aw_qos, aw_atop, aw_region, aw_user, aw_stream_id, aw_ss_id_valid, aw_substream_id, aw_valid, output aw_ready,
+    input aw_id, aw_addr, aw_len, aw_size, aw_burst, aw_lock, aw_cache, aw_prot, aw_qos, aw_atop, aw_region, aw_user, aw_stream_id, aw_ss_id_valid, aw_substream_id, aw_nsaid, aw_valid, output aw_ready,
     input w_data, w_strb, w_last, w_user, w_valid, output w_ready,
     output b_id, b_resp, b_user, b_valid, input b_ready,
-    input ar_id, ar_addr, ar_len, ar_size, ar_burst, ar_lock, ar_cache, ar_prot, ar_qos, ar_region, ar_user, ar_stream_id, ar_ss_id_valid, ar_substream_id, ar_valid, output ar_ready,
+    input ar_id, ar_addr, ar_len, ar_size, ar_burst, ar_lock, ar_cache, ar_prot, ar_qos, ar_region, ar_user, ar_stream_id, ar_ss_id_valid, ar_substream_id, ar_nsaid, ar_valid, output ar_ready,
     output r_id, r_data, r_resp, r_last, r_user, r_valid, input r_ready
   );
 
