@@ -629,7 +629,7 @@ module ariane_peripherals #(
     `REG_BUS_TYPEDEF_ALL(iopmp_reg, logic[13:0], logic[31:0], logic[3:0])
 
     // AXI Bus between IOPMP Memory IF (Mst) and System Interconnect (Slv)
-    ariane_axi_soc::req_nsaid_t  axi_iopmp_ip_req;
+    ariane_axi_soc::req_t        axi_iopmp_ip_req;
     ariane_axi_soc::resp_t       axi_iopmp_ip_rsp;
     `AXI_ASSIGN_FROM_REQ(iopmp_ip, axi_iopmp_ip_req)
     `AXI_ASSIGN_TO_RESP(axi_iopmp_ip_rsp, iopmp_ip)
@@ -642,7 +642,7 @@ module ariane_peripherals #(
 
     // AXI Bus between DMA-device (Mst) and iopmp rp IF (Slv)
     // Extended with iopmp-specific signals
-    ariane_axi_soc::req_nsaid_t axi_iopmp_rp_req;
+    ariane_axi_soc::req_ext_t   axi_iopmp_rp_req;
     ariane_axi_soc::resp_t      axi_iopmp_rp_rsp;
 
 
@@ -658,15 +658,16 @@ module ariane_peripherals #(
             .USER_WIDTH			( AxiUserWidth				),
 
             // AXI request/response
-            .axi_req_nsaid_t    ( ariane_axi_soc::req_nsaid_t     ),
+            .axi_req_nsaid_t    ( ariane_axi_soc::req_ext_t ),
+            .axi_req_t          ( ariane_axi_soc::req_t     ),
             .axi_rsp_t			( ariane_axi_soc::resp_t	),
             .axi_req_slv_t		( ariane_axi_soc::req_slv_t	),
             .axi_rsp_slv_t		( ariane_axi_soc::resp_slv_t),
             // AXI channel structs
-            .axi_aw_chan_t      (ariane_axi_soc::aw_chan_nsaid_t  ),
+            .axi_aw_chan_t      (ariane_axi_soc::aw_chan_t  ),
             .axi_w_chan_t       (ariane_axi_soc::w_chan_t	),
             .axi_b_chan_t       (ariane_axi_soc::b_chan_t	),
-            .axi_ar_chan_t      (ariane_axi_soc::ar_chan_nsaid_t  ),
+            .axi_ar_chan_t      (ariane_axi_soc::ar_chan_t  ),
             .axi_r_chan_t       (ariane_axi_soc::r_chan_t	),
 
             // Register Interface parameters
@@ -691,9 +692,9 @@ module ariane_peripherals #(
 
             // AXI Bus Master port
             .initiator_req_o    ( axi_iopmp_ip_req          ),
-            .initiator_rsp_i    ( axi_iopmp_ip_rsp          ),
+            .initiator_rsp_i    ( axi_iopmp_ip_rsp          )
 
-            .wsi_wire_o         ( irq_sources[9:9]          )
+            //.wsi_wire_o         ( irq_sources[9:9]          )
         );
     end
 
@@ -731,10 +732,9 @@ module ariane_peripherals #(
     //# DMA Engine
     // -----------
     if (InclDMA) begin : gen_dma
-
         // AXI Bus between iDMA (Mst) and IOPMP TR IF (Slv)
         // Extended with IOPMP-specific signals
-        AXI_BUS_NSAID #(
+        AXI_BUS_EXT #(
             .AXI_ADDR_WIDTH ( AxiAddrWidth  ),
             .AXI_DATA_WIDTH ( AxiDataWidth  ),
             .AXI_ID_WIDTH   ( AxiIdWidth    ),
@@ -744,25 +744,34 @@ module ariane_peripherals #(
         `AXI_ASSIGN_TO_REQ(axi_iopmp_rp_req, idma_axi_master)
         `AXI_ASSIGN_FROM_RESP(idma_axi_master, axi_iopmp_rp_rsp)
 
-        // Manually assign IOPMP-specific signals
+        // Manually assign extension signals
         // AW
-        assign axi_iopmp_rp_req.aw.nsaid = idma_axi_master.aw_nsaid;
+        assign axi_iopmp_rp_req.aw.stream_id    = idma_axi_master.aw_stream_id;
+        assign axi_iopmp_rp_req.aw.ss_id_valid  = idma_axi_master.aw_ss_id_valid;
+        assign axi_iopmp_rp_req.aw.substream_id = idma_axi_master.aw_substream_id;
+        assign axi_iopmp_rp_req.aw.nsaid        = idma_axi_master.aw_nsaid;
+
         // AR
-        assign axi_iopmp_rp_req.ar.nsaid = idma_axi_master.ar_nsaid;
+        assign axi_iopmp_rp_req.ar.stream_id    = idma_axi_master.ar_stream_id;
+        assign axi_iopmp_rp_req.ar.ss_id_valid  = idma_axi_master.ar_ss_id_valid;
+        assign axi_iopmp_rp_req.ar.substream_id = idma_axi_master.ar_substream_id;
+        assign axi_iopmp_rp_req.ar.nsaid        = idma_axi_master.ar_nsaid;
 
-        dma_core_wrap #(
-            .BufferDepth        ( 256                       ), // Allows for the maximum allowed burst of length 256 - 2KiB
-            .AXI_ADDR_WIDTH		( AxiAddrWidth           	),
-            .AXI_DATA_WIDTH		( AxiDataWidth           	),
-            .AXI_ID_WIDTH  		( ariane_soc::IdWidth       ),
-            .AXI_USER_WIDTH		( AxiUserWidth           	),
-            .AXI_SLV_ID_WIDTH   ( AxiIdWidth                ),
+        dma_core_wrap_intf #(
+            .AXI_ADDR_WIDTH     ( AxiAddrWidth               ),
+            .AXI_DATA_WIDTH     ( AxiDataWidth               ),
+            .AXI_USER_WIDTH     ( ariane_soc::IdWidth        ),
+            .AXI_ID_WIDTH       ( AxiUserWidth               ),
+            .AXI_SLV_ID_WIDTH   ( ariane_soc::IdWidthSlave   ),
+            .JOB_FIFO_DEPTH     ( 2                          ),
+            .NUM_AX_IN_FLIGHT   ( 2                          ),
+            .MEM_SYS_DEPTH      ( 0                          ),
+            .RAW_COUPLING_AVAIL ( 1                          ),
+            .IS_TWO_D           ( 0                          ),
+            .BUFFER_DEPTH       ( 64                         ),
 
-            .AR_DEVICE_ID       ( 24'd10                    ),
-            .AW_DEVICE_ID       ( 24'd10                    ),
-
-            .AR_NSAID           ( 0 ),
-            .AW_NSAID           ( 0 )
+            .STREAM_ID          ( 24'd10           ),
+            .AxID               ( 4'd0             )
         ) i_dma (
             .clk_i      		( clk_i            ),
             .rst_ni     		( rst_ni           ),
@@ -770,10 +779,7 @@ module ariane_peripherals #(
             // slave port
             .axi_slave  		( dma_cfg          ),
             // master port
-            .axi_master 		( idma_axi_master  ),
-
-            // IRQ
-            .irq_o              ( irq_sources[8:7] )
+            .axi_master 		( idma_axi_master  )
         );
     end
 
@@ -808,8 +814,6 @@ module ariane_peripherals #(
         assign axi_iopmp_rp_req.w_valid  = 1'b0;
         assign axi_iopmp_rp_req.b_ready  = 1'b0;
         assign axi_iopmp_rp_req.r_ready  = 1'b0;
-
-        assign irq_sources[8:7]          = '0;
     end
 
 endmodule

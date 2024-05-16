@@ -150,15 +150,15 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         $(wildcard corev_apu/fpga/src/axi_slice/src/*.sv)                            \
         $(wildcard corev_apu/src/axi_riscv_atomics/src/*.sv)                         \
         $(wildcard corev_apu/axi_mem_if/src/*.sv)                                    \
-		$(wildcard corev_apu/iDMA/src/*.sv)                                          \
+	$(wildcard corev_apu/iDMA/src/*.sv)                                          \
         $(wildcard corev_apu/iDMA/src/frontends/register_64bit/*.sv)                 \
         $(wildcard corev_apu/register_interface/vendor/lowrisc_opentitan/src/*.sv)   \
         $(wildcard corev_apu/riscv-iopmp/packages/*.sv)                                 \
         $(wildcard corev_apu/riscv-iopmp/rtl/*.sv)                                      \
-		$(wildcard corev_apu/riscv-iopmp/rtl/interfaces/*.sv)                           \
-		$(wildcard corev_apu/riscv-iopmp/rtl/interfaces/axi_support/*.sv)               \
-		$(wildcard corev_apu/riscv-iopmp/rtl/interfaces/regmap/*.sv)               	 \
-		$(wildcard corev_apu/riscv-iopmp/rtl/matching_logic/*.sv)                       \
+	$(wildcard corev_apu/riscv-iopmp/rtl/interfaces/*.sv)                           \
+	$(wildcard corev_apu/riscv-iopmp/rtl/interfaces/axi_support/*.sv)               \
+	$(wildcard corev_apu/riscv-iopmp/rtl/interfaces/regmap/*.sv)               	\
+	$(wildcard corev_apu/riscv-iopmp/rtl/matching_logic/*.sv)                       \
         corev_apu/rv_plic/rtl/rv_plic_target.sv                                      \
         corev_apu/rv_plic/rtl/rv_plic_gateway.sv                                     \
         corev_apu/rv_plic/rtl/plic_regmap.sv                                         \
@@ -180,6 +180,8 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         vendor/pulp-platform/common_cells/src/exp_backoff.sv                            \
         vendor/pulp-platform/common_cells/src/addr_decode.sv                            \
         vendor/pulp-platform/common_cells/src/stream_register.sv                        \
+	vendor/pulp-platform/common_cells/src/stream_fifo.sv                            \
+        vendor/pulp-platform/common_cells/src/fall_through_register.sv                  \
         vendor/pulp-platform/axi/src/axi_cut.sv                                                 \
         vendor/pulp-platform/axi/src/axi_join.sv                                                \
         vendor/pulp-platform/axi/src/axi_delayer.sv                                             \
@@ -190,6 +192,8 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         vendor/pulp-platform/axi/src/axi_mux.sv                                                 \
         vendor/pulp-platform/axi/src/axi_demux.sv                                               \
         vendor/pulp-platform/axi/src/axi_xbar.sv                                                \
+	vendor/pulp-platform/common_cells/src/onehot_to_bin.sv  						\
+	vendor/pulp-platform/common_cells/src/id_queue.sv  								\
         vendor/pulp-platform/common_cells/src/cdc_2phase.sv                             \
         vendor/pulp-platform/common_cells/src/spill_register_flushable.sv               \
         vendor/pulp-platform/common_cells/src/spill_register.sv                         \
@@ -202,13 +206,14 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         vendor/pulp-platform/tech_cells_generic/src/deprecated/cluster_clk_cells.sv         \
         vendor/pulp-platform/tech_cells_generic/src/deprecated/pulp_clk_cells.sv            \
         vendor/pulp-platform/tech_cells_generic/src/rtl/tc_clk.sv                           \
+	vendor/pulp-platform/tech_cells_generic/src/rtl/tc_sram.sv                           \
         corev_apu/tb/ariane_testharness.sv                                           \
         corev_apu/tb/ariane_peripherals.sv                                           \
         corev_apu/tb/rvfi_tracer.sv                                                  \
         corev_apu/tb/common/uart.sv                                                  \
         corev_apu/tb/common/SimDTM.sv                                                \
         corev_apu/tb/common/SimJTAG.sv												 \
-		corev_apu/iDMA/src/systems/cva6_reg/dma_core_wrap.sv                         \
+	corev_apu/iDMA/src/systems/cva6_reg/dma_core_wrap.sv                         \
         corev_apu/iDMA/src/frontends/idma_transfer_id_gen.sv                         \
         corev_apu/register_interface/src/axi_to_reg.sv                               \
         corev_apu/register_interface/src/axi_lite_to_reg.sv                          \
@@ -231,7 +236,7 @@ copro_src := $(addprefix $(root-dir), $(copro_src))
 uart_src := $(wildcard corev_apu/fpga/src/apb_uart/src/*.vhd)
 uart_src := $(addprefix $(root-dir), $(uart_src))
 
-fpga_src :=  $(wildcard corev_apu/fpga/src/*.sv) $(wildcard corev_apu/fpga/src/bootrom/*.sv) $(wildcard corev_apu/fpga/src/ariane-ethernet/*.sv) common/local/util/tc_sram_fpga_wrapper.sv vendor/pulp-platform/fpga-support/rtl/SyncSpRamBeNx64.sv
+fpga_src :=  $(wildcard corev_apu/fpga/src/*.sv) $(wildcard corev_apu/fpga/src/bootrom/*.sv) $(wildcard corev_apu/fpga/src/ariane-ethernet/*.sv) common/local/util/tc_sram_fpga_wrapper.sv vendor/pulp-platform/fpga-support/rtl/SyncSpRamBeNx64.sv vendor/pulp-platform/tech_cells_generic/src/fpga/tc_sram_xilinx.sv
 fpga_src := $(addprefix $(root-dir), $(fpga_src))
 
 # look for testbenches
@@ -578,9 +583,9 @@ verilate_command := $(verilator)                                                
                     $(if ($(PRELOAD)!=""), -DPRELOAD=1,)                                                         \
                     $(if $(DROMAJO), -DDROMAJO=1,)                                                               \
                     $(if $(PROFILE),--stats --stats-vars --profile-cfuncs,)                                      \
-                    $(if $(DEBUG), --trace-structs,)                                                             \
-                    $(if $(TRACE_COMPACT), --trace-fst $(VERILATOR_ROOT)/include/verilated_fst_c.cpp)            \
-                    $(if $(TRACE_FAST), --trace $(VERILATOR_ROOT)/include/verilated_vcd_c.cpp,)                  \
+                    $(if $(DEBUG), --trace-structs,)             \
+                    $(if $(TRACE_COMPACT), --trace-fst --no-trace-params $(VERILATOR_ROOT)/include/verilated_fst_c.cpp)            \
+                    $(if $(TRACE_FAST), --trace --no-trace-params $(VERILATOR_ROOT)/include/verilated_vcd_c.cpp,)                  \
                     -LDFLAGS "-L$(RISCV)/lib -L$(SPIKE_ROOT)/lib -Wl,-rpath,$(RISCV)/lib -Wl,-rpath,$(SPIKE_ROOT)/lib -lfesvr$(if $(PROFILE), -g -pg,) $(if $(DROMAJO), -L../corev_apu/tb/dromajo/src -ldromajo_cosim,) -lpthread $(if $(TRACE_COMPACT), -lz,)" \
                     -CFLAGS "$(CFLAGS)$(if $(PROFILE), -g -pg,) $(if $(DROMAJO), -DDROMAJO=1,) -DVL_DEBUG"       \
                     -Wall --cc  --vpi                                                                            \

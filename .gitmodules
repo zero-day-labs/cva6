@@ -42,4 +42,5 @@
 	url = git@github.com:zero-day-labs/riscv-iopmp.git
 [submodule "corev_apu/iDMA"]
 	path = corev_apu/iDMA
-	url = git@github.com:luisccc/iDMA.git
+	url = https://github.com/malejo97/iDMA.git
+    branch = zdl/iommu-iopmp
