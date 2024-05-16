@@ -10,7 +10,7 @@ create_ip -name axi_protocol_checker -vendor xilinx.com -library ip -version 2.0
 
 set_property -dict [list  CONFIG.ADDR_WIDTH {64} \
                           CONFIG.DATA_WIDTH {64} \
-                          CONFIG.ID_WIDTH {5} \
+                          CONFIG.ID_WIDTH {6} \
                           CONFIG.AWUSER_WIDTH {1} \
                           CONFIG.ARUSER_WIDTH {1} \
                           CONFIG.RUSER_WIDTH {1} \
