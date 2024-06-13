@@ -40,3 +40,6 @@
 [submodule "corev_apu/iDMA"]
 	path = corev_apu/iDMA
 	url = https://github.com/malejo97/iDMA.git
+[submodule "corev_apu/riscv-iommu"]
+	path = corev_apu/riscv-iommu
+	url = https://github.com/zero-day-labs/riscv-iommu.git
