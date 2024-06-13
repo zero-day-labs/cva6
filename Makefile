@@ -94,6 +94,21 @@ endif
 # Sources
 # Package files -> compile first
 ariane_pkg := \
+			  core/include/${target}_config_pkg.sv                       \
+              core/include/riscv_pkg.sv                                  \
+              core/include/ariane_dm_pkg.sv                              \
+              core/include/ariane_pkg.sv                                 \
+              vendor/pulp-platform/axi/src/axi_pkg.sv                    \
+              core/include/ariane_rvfi_pkg.sv                            \
+              core/include/ariane_axi_pkg.sv                             \
+              core/include/wt_cache_pkg.sv                               \
+              core/include/std_cache_pkg.sv                              \
+              core/include/axi_intf.sv                                   \
+              core/include/instr_tracer_pkg.sv                           \
+              core/include/cvxif_pkg.sv                                  \
+              core/cvxif_example/include/cvxif_instr_pkg.sv              \
+              vendor/pulp-platform/common_cells/src/cf_math_pkg.sv       \
+              vendor/pulp-platform/fpnew/src/fpnew_pkg.sv                \
               corev_apu/register_interface/src/reg_intf.sv           \
               corev_apu/tb/rvfi_pkg.sv                               \
               corev_apu/tb/ariane_soc_pkg.sv                         \
@@ -540,8 +555,8 @@ xrun-ci: xrun-asm-tests xrun-amo-tests xrun-mul-tests xrun-fp-tests xrun-benchma
 
 # verilator-specific
 verilate_command := $(verilator)                                                                                 \
-                    -f core/Flist.cva6                                                                           \
                     $(filter-out %.vhd, $(ariane_pkg))                                                           \
+                    -f core/Flist.cva6                                                                           \
                     $(filter-out core/fpu_wrap.sv, $(filter-out %.vhd, $(src)))                                  \
                     +define+$(defines)$(if $(TRACE_FAST),+VM_TRACE)$(if $(TRACE_COMPACT),+VM_TRACE+VM_TRACE_FST) \
                     corev_apu/tb/common/mock_uart.sv                                                             \
