@@ -14,6 +14,7 @@
 //              Instantiates an AXI-Bus and memories
 
 `include "axi/assign.svh"
+`include "register_interface/typedef.svh"
 
 module ariane_testharness #(
   parameter int unsigned AXI_USER_WIDTH    = ariane_pkg::AXI_USER_WIDTH,
@@ -25,7 +26,7 @@ module ariane_testharness #(
 `else
   parameter bit          InclSimDTM        = 1'b1,
 `endif
-  parameter int unsigned NUM_WORDS         = 2**25,         // memory size
+  parameter int unsigned NUM_WORDS         = 2**25,         // memory size (32MiB)
   parameter bit          StallRandomOutput = 1'b0,
   parameter bit          StallRandomInput  = 1'b0
 ) (
@@ -34,6 +35,8 @@ module ariane_testharness #(
   input  logic                           rst_ni,
   output logic [31:0]                    exit_o
 );
+
+/*verilator tracing_off*/
 
   localparam [7:0] hart_id = '0;
 
@@ -78,6 +81,8 @@ module ariane_testharness #(
 
   assign test_en = 1'b0;
 
+  /* tracing_on*/
+
   AXI_BUS #(
     .AXI_ADDR_WIDTH ( AXI_ADDRESS_WIDTH   ),
     .AXI_DATA_WIDTH ( AXI_DATA_WIDTH      ),
@@ -99,6 +104,8 @@ module ariane_testharness #(
     .rst_no       ( ndmreset_n           ),
     .init_no      (                      ) // keep open
   );
+
+  /* tracing_off*/
 
   // ---------------
   // Debug
@@ -279,8 +286,8 @@ module ariane_testharness #(
     .data_i     ( dm_slave_rdata            )
   );
 
-  `AXI_ASSIGN_FROM_REQ(slave[1], dm_axi_m_req)
-  `AXI_ASSIGN_TO_RESP(dm_axi_m_resp, slave[1])
+  `AXI_ASSIGN_FROM_REQ(slave[ariane_soc::DEBUG], dm_axi_m_req)
+  `AXI_ASSIGN_TO_RESP(dm_axi_m_resp, slave[ariane_soc::DEBUG])
 
   axi_adapter #(
     .DATA_WIDTH            ( AXI_DATA_WIDTH            ),
@@ -452,6 +459,8 @@ module ariane_testharness #(
     .data_i ( rdata        )
   );
 
+/*verilator tracing_on*/
+
   sram #(
     .DATA_WIDTH ( AXI_DATA_WIDTH ),
     .USER_WIDTH ( AXI_USER_WIDTH ),
@@ -500,8 +509,8 @@ module ariane_testharness #(
   localparam axi_pkg::xbar_cfg_t AXI_XBAR_CFG = '{
     NoSlvPorts: ariane_soc::NrSlaves,
     NoMstPorts: ariane_soc::NB_PERIPHERALS,
-    MaxMstTrans: 1, // Probably requires update
-    MaxSlvTrans: 1, // Probably requires update
+    MaxMstTrans: 8, // Probably requires update
+    MaxSlvTrans: 8, // Probably requires update
     FallThrough: 1'b0,
     LatencyMode: axi_pkg::NO_LATENCY,
     AxiIdWidthSlvPorts: ariane_soc::IdWidth,
@@ -526,6 +535,8 @@ module ariane_testharness #(
     .en_default_mst_port_i ( '0         ),
     .default_mst_port_i    ( '0         )
   );
+
+  /*verilator tracing_off*/
 
   // ---------------
   // CLINT
@@ -556,6 +567,8 @@ module ariane_testharness #(
 
   `AXI_ASSIGN_TO_REQ(axi_clint_req, master[ariane_soc::CLINT])
   `AXI_ASSIGN_FROM_RESP(master[ariane_soc::CLINT], axi_clint_resp)
+
+  /*verilator tracing_on*/
 
   // ---------------
   // Peripherals
@@ -610,6 +623,8 @@ module ariane_testharness #(
 
   uart_bus #(.BAUD_RATE(115200), .PARITY_EN(0)) i_uart_bus (.rx(tx), .tx(rx), .rx_en(1'b1));
 
+  /*verilator tracing_off*/
+
   // ---------------
   // Core
   // ---------------
@@ -640,8 +655,10 @@ module ariane_testharness #(
     .axi_resp_i           ( axi_ariane_resp     )
   );
 
-  `AXI_ASSIGN_FROM_REQ(slave[0], axi_ariane_req)
-  `AXI_ASSIGN_TO_RESP(axi_ariane_resp, slave[0])
+  `AXI_ASSIGN_FROM_REQ(slave[ariane_soc::CVA6], axi_ariane_req)
+  `AXI_ASSIGN_TO_RESP(axi_ariane_resp, slave[ariane_soc::CVA6])
+
+  /* tracing_off*/
 
   // -------------
   // Simulation Helper Functions
@@ -735,4 +752,6 @@ module ariane_testharness #(
     .CSYSACK('0)
   );
 `endif
+
+  /*verilator tracing_on*/
 endmodule

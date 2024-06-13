@@ -57,6 +57,7 @@ $(error RISCV not set - please point your RISCV variable to your RISCV installat
 endif
 
 # By default assume spike resides at the RISCV prefix.
+VERILATOR_ROOT ?= /opt/verilator
 SPIKE_ROOT     ?= $(RISCV)
 
 # setting additional xilinx board parameters for the selected board

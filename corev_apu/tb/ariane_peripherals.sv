@@ -16,12 +16,12 @@ module ariane_peripherals #(
     parameter int AxiAddrWidth = -1,
     parameter int AxiDataWidth = -1,
     parameter int AxiIdWidth   = -1,
-    parameter int AxiUserWidth = 1,
-    parameter bit InclUART     = 1,
-    parameter bit InclSPI      = 0,
-    parameter bit InclEthernet = 0,
-    parameter bit InclGPIO     = 0,
-    parameter bit InclTimer    = 1
+    parameter int AxiUserWidth =  1,
+    parameter bit InclUART     =  1,
+    parameter bit InclSPI      =  0,
+    parameter bit InclEthernet =  0,
+    parameter bit InclGPIO     =  0,
+    parameter bit InclTimer    =  1,
 ) (
     input  logic       clk_i           , // Clock
     input  logic       rst_ni          , // Asynchronous reset active low

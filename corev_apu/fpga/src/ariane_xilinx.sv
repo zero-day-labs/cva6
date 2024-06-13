@@ -158,7 +158,7 @@ localparam NBSlave = 2; // debug, ariane
 localparam AxiAddrWidth = 64;
 localparam AxiDataWidth = 64;
 localparam AxiIdWidthMaster = 4;
-localparam AxiIdWidthSlaves = AxiIdWidthMaster + $clog2(NBSlave); // 5
+localparam AxiIdWidthSlaves = AxiIdWidthMaster + $clog2(NBSlave);
 localparam AxiUserWidth = ariane_pkg::AXI_USER_WIDTH;
 
 `AXI_TYPEDEF_ALL(axi_slave,
@@ -279,8 +279,8 @@ assign addr_map = '{
 localparam axi_pkg::xbar_cfg_t AXI_XBAR_CFG = '{
   NoSlvPorts:         ariane_soc::NrSlaves,
   NoMstPorts:         ariane_soc::NB_PERIPHERALS,
-  MaxMstTrans:        1, // Probably requires update
-  MaxSlvTrans:        1, // Probably requires update
+  MaxMstTrans:        8, // Modified to 8
+  MaxSlvTrans:        8, // Modified to 8
   FallThrough:        1'b0,
   LatencyMode:        axi_pkg::CUT_ALL_PORTS,
   AxiIdWidthSlvPorts: AxiIdWidthMaster,
