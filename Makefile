@@ -114,6 +114,8 @@ ariane_pkg := \
               corev_apu/tb/ariane_soc_pkg.sv                         \
               corev_apu/riscv-dbg/src/dm_pkg.sv                      \
               corev_apu/tb/ariane_axi_soc_pkg.sv
+			  corev_apu/iDMA/src/idma_pkg.sv                             \
+			  corev_apu/iDMA/src/frontends/register_64bit/idma_reg64_frontend_reg_pkg.sv
 ariane_pkg := $(addprefix $(root-dir), $(ariane_pkg))
 
 # Test packages
@@ -162,7 +164,21 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         $(wildcard corev_apu/fpga/src/axi_slice/src/*.sv)                            \
         $(wildcard corev_apu/src/axi_riscv_atomics/src/*.sv)                         \
         $(wildcard corev_apu/axi_mem_if/src/*.sv)                                    \
-        corev_apu/rv_plic/rtl/rv_plic_target.sv                                      \
+        corev_apu/iDMA/src/frontends/register_64bit/idma_reg64_frontend_reg_top.sv   \
+        corev_apu/iDMA/src/frontends/register_64bit/idma_reg64_frontend.sv           \
+        corev_apu/iDMA/src/frontends/idma_transfer_id_gen.sv                         \
+        corev_apu/iDMA/src/idma_stream_fifo.sv                                       \
+        corev_apu/iDMA/src/idma_buffer.sv                                            \
+        corev_apu/iDMA/src/idma_error_handler.sv                                     \
+        corev_apu/iDMA/src/idma_channel_coupler.sv                                   \
+        corev_apu/iDMA/src/idma_axi_transport_layer.sv                               \
+        corev_apu/iDMA/src/idma_axi_lite_transport_layer.sv                          \
+        corev_apu/iDMA/src/idma_obi_transport_layer.sv                               \
+        corev_apu/iDMA/src/idma_legalizer.sv                                         \
+        corev_apu/iDMA/src/idma_backend.sv                                           \
+        corev_apu/iDMA/src/midends/idma_nd_midend.sv                                 \
+		corev_apu/iDMA/src/systems/cva6_reg/dma_core_wrap.sv                         \
+		corev_apu/rv_plic/rtl/rv_plic_target.sv                                      \
         corev_apu/rv_plic/rtl/rv_plic_gateway.sv                                     \
         corev_apu/rv_plic/rtl/plic_regmap.sv                                         \
         corev_apu/rv_plic/rtl/plic_top.sv                                            \
@@ -252,7 +268,11 @@ riscv-fp-tests            := $(shell xargs printf '\n%s' < $(riscv-fp-tests-list
 riscv-benchmarks          := $(shell xargs printf '\n%s' < $(riscv-benchmarks-list) | cut -b 1-)
 
 # Search here for include files (e.g.: non-standalone components)
-incdir := vendor/pulp-platform/common_cells/include/ vendor/pulp-platform/axi/include/ corev_apu/register_interface/include/
+incdir := \
+		vendor/pulp-platform/common_cells/include/ \
+		vendor/pulp-platform/axi/include/ \
+		corev_apu/register_interface/include/ \
+		corev_apu/iDMA/src/include
 
 # Compile and sim flags
 compile_flag     += +cover=bcfst+/dut -incr -64 -nologo -quiet -suppress 13262 -permissive +define+$(defines)
