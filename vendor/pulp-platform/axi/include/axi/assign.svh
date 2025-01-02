@@ -82,6 +82,53 @@
   `__AXI_TO_R(__opt_as, __lhs.r, __lhs_sep, __rhs.r, __rhs_sep)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Internal implementation for assigning one extended AXI struct or interface to another struct or interface.
+// The path to the signals on each side is defined by the `__sep*` arguments.  The `__opt_as`
+// argument allows to use this standalone (with `__opt_as = assign`) or in assignments inside
+// processes (with `__opt_as` void).
+`define __AXI_TO_AW_EXT(__opt_as, __lhs, __lhs_sep, __rhs, __rhs_sep)       \
+  __opt_as __lhs``__lhs_sep``id           = __rhs``__rhs_sep``id;           \
+  __opt_as __lhs``__lhs_sep``addr         = __rhs``__rhs_sep``addr;         \
+  __opt_as __lhs``__lhs_sep``len          = __rhs``__rhs_sep``len;          \
+  __opt_as __lhs``__lhs_sep``size         = __rhs``__rhs_sep``size;         \
+  __opt_as __lhs``__lhs_sep``burst        = __rhs``__rhs_sep``burst;        \
+  __opt_as __lhs``__lhs_sep``lock         = __rhs``__rhs_sep``lock;         \
+  __opt_as __lhs``__lhs_sep``cache        = __rhs``__rhs_sep``cache;        \
+  __opt_as __lhs``__lhs_sep``prot         = __rhs``__rhs_sep``prot;         \
+  __opt_as __lhs``__lhs_sep``qos          = __rhs``__rhs_sep``qos;          \
+  __opt_as __lhs``__lhs_sep``region       = __rhs``__rhs_sep``region;       \
+  __opt_as __lhs``__lhs_sep``atop         = __rhs``__rhs_sep``atop;         \
+  __opt_as __lhs``__lhs_sep``user         = __rhs``__rhs_sep``user;         \
+  __opt_as __lhs``__lhs_sep``stream_id    = __rhs``__rhs_sep``stream_id;    \
+  __opt_as __lhs``__lhs_sep``ss_id_valid  = __rhs``__rhs_sep``ss_id_valid;  \
+  __opt_as __lhs``__lhs_sep``substream_id = __rhs``__rhs_sep``substream_id;
+`define __AXI_TO_AR_EXT(__opt_as, __lhs, __lhs_sep, __rhs, __rhs_sep)       \
+  __opt_as __lhs``__lhs_sep``id           = __rhs``__rhs_sep``id;           \
+  __opt_as __lhs``__lhs_sep``addr         = __rhs``__rhs_sep``addr;         \
+  __opt_as __lhs``__lhs_sep``len          = __rhs``__rhs_sep``len;          \
+  __opt_as __lhs``__lhs_sep``size         = __rhs``__rhs_sep``size;         \
+  __opt_as __lhs``__lhs_sep``burst        = __rhs``__rhs_sep``burst;        \
+  __opt_as __lhs``__lhs_sep``lock         = __rhs``__rhs_sep``lock;         \
+  __opt_as __lhs``__lhs_sep``cache        = __rhs``__rhs_sep``cache;        \
+  __opt_as __lhs``__lhs_sep``prot         = __rhs``__rhs_sep``prot;         \
+  __opt_as __lhs``__lhs_sep``qos          = __rhs``__rhs_sep``qos;          \
+  __opt_as __lhs``__lhs_sep``region       = __rhs``__rhs_sep``region;       \
+  __opt_as __lhs``__lhs_sep``user         = __rhs``__rhs_sep``user;         \
+  __opt_as __lhs``__lhs_sep``stream_id    = __rhs``__rhs_sep``stream_id;    \
+  __opt_as __lhs``__lhs_sep``ss_id_valid  = __rhs``__rhs_sep``ss_id_valid;  \
+  __opt_as __lhs``__lhs_sep``substream_id = __rhs``__rhs_sep``substream_id;
+`define __AXI_TO_REQ_EXT(__opt_as, __lhs, __lhs_sep, __rhs, __rhs_sep)  \
+  `__AXI_TO_AW_EXT(__opt_as, __lhs.aw, __lhs_sep, __rhs.aw, __rhs_sep)  \
+  __opt_as __lhs.aw_valid = __rhs.aw_valid;                             \
+  `__AXI_TO_W(__opt_as, __lhs.w, __lhs_sep, __rhs.w, __rhs_sep)         \
+  __opt_as __lhs.w_valid = __rhs.w_valid;                               \
+  __opt_as __lhs.b_ready = __rhs.b_ready;                               \
+  `__AXI_TO_AR_EXT(__opt_as, __lhs.ar, __lhs_sep, __rhs.ar, __rhs_sep)  \
+  __opt_as __lhs.ar_valid = __rhs.ar_valid;                             \
+  __opt_as __lhs.r_ready = __rhs.r_ready;
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Assigning one AXI4+ATOP interface to another, as if you would do `assign slv = mst;`
@@ -192,13 +239,14 @@
 //
 // Usage Example:
 // `AXI_ASSIGN_FROM_REQ(my_if, my_req_struct)
-`define AXI_ASSIGN_FROM_AW(axi_if, aw_struct)     `__AXI_TO_AW(assign, axi_if.aw, _, aw_struct, .)
-`define AXI_ASSIGN_FROM_W(axi_if, w_struct)       `__AXI_TO_W(assign, axi_if.w, _, w_struct, .)
-`define AXI_ASSIGN_FROM_B(axi_if, b_struct)       `__AXI_TO_B(assign, axi_if.b, _, b_struct, .)
-`define AXI_ASSIGN_FROM_AR(axi_if, ar_struct)     `__AXI_TO_AR(assign, axi_if.ar, _, ar_struct, .)
-`define AXI_ASSIGN_FROM_R(axi_if, r_struct)       `__AXI_TO_R(assign, axi_if.r, _, r_struct, .)
-`define AXI_ASSIGN_FROM_REQ(axi_if, req_struct)   `__AXI_TO_REQ(assign, axi_if, _, req_struct, .)
-`define AXI_ASSIGN_FROM_RESP(axi_if, resp_struct) `__AXI_TO_RESP(assign, axi_if, _, resp_struct, .)
+`define AXI_ASSIGN_FROM_AW(axi_if, aw_struct)         `__AXI_TO_AW(assign, axi_if.aw, _, aw_struct, .)
+`define AXI_ASSIGN_FROM_W(axi_if, w_struct)           `__AXI_TO_W(assign, axi_if.w, _, w_struct, .)
+`define AXI_ASSIGN_FROM_B(axi_if, b_struct)           `__AXI_TO_B(assign, axi_if.b, _, b_struct, .)
+`define AXI_ASSIGN_FROM_AR(axi_if, ar_struct)         `__AXI_TO_AR(assign, axi_if.ar, _, ar_struct, .)
+`define AXI_ASSIGN_FROM_R(axi_if, r_struct)           `__AXI_TO_R(assign, axi_if.r, _, r_struct, .)
+`define AXI_ASSIGN_FROM_REQ(axi_if, req_struct)       `__AXI_TO_REQ(assign, axi_if, _, req_struct, .)
+`define AXI_ASSIGN_FROM_REQ_EXT(axi_if, req_struct)   `__AXI_TO_REQ_EXT(assign, axi_if, _, req_struct, .)
+`define AXI_ASSIGN_FROM_RESP(axi_if, resp_struct)     `__AXI_TO_RESP(assign, axi_if, _, resp_struct, .)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -244,13 +292,14 @@
 //
 // Usage Example:
 // `AXI_ASSIGN_TO_REQ(my_req_struct, my_if)
-`define AXI_ASSIGN_TO_AW(aw_struct, axi_if)     `__AXI_TO_AW(assign, aw_struct, ., axi_if.aw, _)
-`define AXI_ASSIGN_TO_W(w_struct, axi_if)       `__AXI_TO_W(assign, w_struct, ., axi_if.w, _)
-`define AXI_ASSIGN_TO_B(b_struct, axi_if)       `__AXI_TO_B(assign, b_struct, ., axi_if.b, _)
-`define AXI_ASSIGN_TO_AR(ar_struct, axi_if)     `__AXI_TO_AR(assign, ar_struct, ., axi_if.ar, _)
-`define AXI_ASSIGN_TO_R(r_struct, axi_if)       `__AXI_TO_R(assign, r_struct, ., axi_if.r, _)
-`define AXI_ASSIGN_TO_REQ(req_struct, axi_if)   `__AXI_TO_REQ(assign, req_struct, ., axi_if, _)
-`define AXI_ASSIGN_TO_RESP(resp_struct, axi_if) `__AXI_TO_RESP(assign, resp_struct, ., axi_if, _)
+`define AXI_ASSIGN_TO_AW(aw_struct, axi_if)         `__AXI_TO_AW(assign, aw_struct, ., axi_if.aw, _)
+`define AXI_ASSIGN_TO_W(w_struct, axi_if)           `__AXI_TO_W(assign, w_struct, ., axi_if.w, _)
+`define AXI_ASSIGN_TO_B(b_struct, axi_if)           `__AXI_TO_B(assign, b_struct, ., axi_if.b, _)
+`define AXI_ASSIGN_TO_AR(ar_struct, axi_if)         `__AXI_TO_AR(assign, ar_struct, ., axi_if.ar, _)
+`define AXI_ASSIGN_TO_R(r_struct, axi_if)           `__AXI_TO_R(assign, r_struct, ., axi_if.r, _)
+`define AXI_ASSIGN_TO_REQ(req_struct, axi_if)       `__AXI_TO_REQ(assign, req_struct, ., axi_if, _)
+`define AXI_ASSIGN_TO_REQ_EXT(req_struct, axi_if)   `__AXI_TO_REQ_EXT(assign, req_struct, ., axi_if, _)
+`define AXI_ASSIGN_TO_RESP(resp_struct, axi_if)     `__AXI_TO_RESP(assign, resp_struct, ., axi_if, _)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
