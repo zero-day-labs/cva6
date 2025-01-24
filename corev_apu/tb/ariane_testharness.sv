@@ -81,8 +81,6 @@ module ariane_testharness #(
 
   assign test_en = 1'b0;
 
-  /* tracing_on*/
-
   AXI_BUS #(
     .AXI_ADDR_WIDTH ( AXI_ADDRESS_WIDTH   ),
     .AXI_DATA_WIDTH ( AXI_DATA_WIDTH      ),
@@ -104,8 +102,6 @@ module ariane_testharness #(
     .rst_no       ( ndmreset_n           ),
     .init_no      (                      ) // keep open
   );
-
-  /* tracing_off*/
 
   // ---------------
   // Debug
@@ -373,8 +369,8 @@ module ariane_testharness #(
   `AXI_ASSIGN_FROM_RESP(master[ariane_soc::GPIO], gpio_resp)
   axi_err_slv #(
     .AxiIdWidth ( ariane_soc::IdWidthSlave   ),
-    .req_t      ( ariane_axi_soc::req_slv_t  ),
-    .resp_t     ( ariane_axi_soc::resp_slv_t )
+    .axi_req_t  ( ariane_axi_soc::req_slv_t  ),
+    .axi_resp_t ( ariane_axi_soc::resp_slv_t )
   ) i_gpio_err_slv (
     .clk_i      ( clk_i      ),
     .rst_ni     ( ndmreset_n ),
@@ -459,8 +455,6 @@ module ariane_testharness #(
     .data_i ( rdata        )
   );
 
-/*verilator tracing_on*/
-
   sram #(
     .DATA_WIDTH ( AXI_DATA_WIDTH ),
     .USER_WIDTH ( AXI_USER_WIDTH ),
@@ -515,6 +509,7 @@ module ariane_testharness #(
     MaxSlvTrans: 8, // Probably requires update
     FallThrough: 1'b0,
     LatencyMode: axi_pkg::NO_LATENCY,
+    PipelineStages: 32'd1,
     AxiIdWidthSlvPorts: ariane_soc::IdWidth,
     AxiIdUsedSlvPorts: ariane_soc::IdWidth,
     UniqueIds: 1'b0,
@@ -537,8 +532,6 @@ module ariane_testharness #(
     .en_default_mst_port_i ( '0         ),
     .default_mst_port_i    ( '0         )
   );
-
-  /*verilator tracing_off*/
 
   // ---------------
   // CLINT
@@ -608,7 +601,7 @@ module ariane_testharness #(
     .dma_cfg    ( master[ariane_soc::DMA_CFG]   ),   
     .iommu_comp ( slave[ariane_soc::IOMMU_COMP] ),   
     .iommu_ds   ( slave[ariane_soc::IOMMU_MEM]  ),   
-    .iommu_cfg  ( master[ariane_soc::IOMMU_CFG] ),
+    .iommu_prog ( master[ariane_soc::IOMMU_CFG] ),
     .irq_o      ( irqs                          ),
     .rx_i       ( rx                            ),
     .tx_o       ( tx                            ),

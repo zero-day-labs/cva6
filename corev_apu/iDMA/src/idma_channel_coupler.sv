@@ -6,6 +6,7 @@
 
 `include "common_cells/registers.svh"
 `include "axi/typedef.svh"
+`include "axi-iommu/typedef.svh"
 
 /// Couples the `R` to the `AW` channel by keeping writes back until the corresponding
 /// reads arrive at the DMA. This reduces the congestion in the memory system.

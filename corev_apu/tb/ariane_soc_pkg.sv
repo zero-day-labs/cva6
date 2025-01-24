@@ -17,11 +17,6 @@ package ariane_soc;
   localparam int unsigned NumSources = 30;
   localparam int unsigned MaxPriority = 7;
 
-  // Number of interrupt wires used by IOMMU (1, 2, 4, 8, 16)
-  localparam int unsigned IOMMUNumWires = 4;
-  // Last used interrupt wire index
-  localparam int unsigned LastIntIndex = 6 + IOMMUNumWires;
-
   typedef enum int unsigned {
     CVA6        = 0,
     DEBUG       = 1,   
@@ -110,6 +105,30 @@ package ariane_soc;
     // debug
     DmBaseAddress:          DebugBase,
     NrPMPEntries:           cva6_config_pkg::CVA6ConfigNrPMPEntries
+  };
+
+  localparam rv_iommu_cfg::rv_iommu_cfg_t RVIOMMUCfg = rv_iommu_cfg::rv_iommu_cfg_t'{
+    NumOutstandingTrans : 32'd8,
+    WFifoDepth          : 32'd32,
+    MrifFifoDepth       : 32'd8,
+    FaultFifoDepth      : 32'd8,
+    NumIotlbEntries     : 32'd16,
+    NumDdtcEntries      : 32'd8,
+    NumPdtcEntries      : 32'd8,
+    NumMrifcEntries     : 32'd8,
+    InclPC              : 1'b1,
+    InclAxiBC           : 1'b1,
+    InclDbg             : 1'b1,
+    MSITrans            : rv_iommu_cfg::MSI_BT_MRIF,
+    IGS                 : rv_iommu_cfg::BOTH,
+    NumIntVec           : 32'd16,
+    NumHpmCounters      : 32'd31,
+    PAddrWidth          : 32'd56,
+    AxiAddrWidth        : 32'd64,
+    AxiDataWidth        : 32'd64,
+    AxiIdWidth          : IdWidth,
+    AxiProgIdWidth      : IdWidthSlave,
+    AxiUserWidth        : ariane_pkg::AXI_USER_WIDTH
   };
 
 endpackage

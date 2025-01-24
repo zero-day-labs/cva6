@@ -112,14 +112,15 @@ ariane_pkg := \
               vendor/pulp-platform/fpnew/src/fpnew_pkg.sv                                \
               corev_apu/register_interface/src/reg_intf.sv                               \
               corev_apu/tb/rvfi_pkg.sv                                                   \
+			  corev_apu/riscv-iommu/packages/rv_iommu_cfg_pkg.sv                         \
               corev_apu/tb/ariane_soc_pkg.sv                                             \
               corev_apu/riscv-dbg/src/dm_pkg.sv                                          \
               corev_apu/tb/ariane_axi_soc_pkg.sv                                         \
               corev_apu/iDMA/src/idma_pkg.sv                                             \
 			  corev_apu/iDMA/src/frontends/register_64bit/idma_reg64_frontend_reg_pkg.sv \
-              corev_apu/riscv-iommu/packages/rv_iommu/rv_iommu_pkg.sv                    \
-              corev_apu/riscv-iommu/packages/rv_iommu/rv_iommu_field_pkg.sv              \
-              corev_apu/riscv-iommu/packages/rv_iommu/rv_iommu_reg_pkg.sv
+              corev_apu/riscv-iommu/packages/rv_iommu_pkg.sv                             \
+              corev_apu/riscv-iommu/packages/rv_iommu_field_pkg.sv                       \
+              corev_apu/riscv-iommu/packages/rv_iommu_reg_pkg.sv
               
 ariane_pkg := $(addprefix $(root-dir), $(ariane_pkg))
 
@@ -170,14 +171,12 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         $(wildcard corev_apu/src/axi_riscv_atomics/src/*.sv)                         \
         $(wildcard corev_apu/axi_mem_if/src/*.sv)                                    \
         $(wildcard corev_apu/register_interface/vendor/lowrisc_opentitan/src/*.sv)   \
-        $(wildcard corev_apu/riscv-iommu/rtl/ext_interfaces/*.sv)                       \
-        $(wildcard corev_apu/riscv-iommu/rtl/software_interface/*.sv)                   \
-        $(wildcard corev_apu/riscv-iommu/rtl/software_interface/regmap/*.sv)            \
-        $(wildcard corev_apu/riscv-iommu/rtl/software_interface/wrapper/*.sv)           \
-        $(wildcard corev_apu/riscv-iommu/rtl/translation_logic/*.sv)                    \
-        $(wildcard corev_apu/riscv-iommu/rtl/translation_logic/cdw/*.sv)                \
-        $(wildcard corev_apu/riscv-iommu/rtl/translation_logic/ptw/*.sv)                \
-        $(wildcard corev_apu/riscv-iommu/rtl/translation_logic/wrapper/*.sv)            \
+        $(wildcard corev_apu/riscv-iommu/rtl/ext_interfaces/*.sv)                    \
+        $(wildcard corev_apu/riscv-iommu/rtl/software_interface/*.sv)                \
+        $(wildcard corev_apu/riscv-iommu/rtl/software_interface/regmap/*.sv)         \
+        $(wildcard corev_apu/riscv-iommu/rtl/translation_logic/*.sv)                 \
+        $(wildcard corev_apu/riscv-iommu/rtl/transaction_controller/*.sv)            \
+        corev_apu/riscv-iommu/vendor/modified/rv_iommu_axi2apb_64_32.sv              \
         corev_apu/iDMA/src/frontends/register_64bit/idma_reg64_frontend_reg_top.sv   \
         corev_apu/iDMA/src/frontends/register_64bit/idma_reg64_frontend.sv           \
         corev_apu/iDMA/src/frontends/idma_transfer_id_gen.sv                         \
@@ -225,7 +224,9 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         vendor/pulp-platform/axi/src/axi_atop_filter.sv                              \
         vendor/pulp-platform/axi/src/axi_err_slv.sv                                  \
         vendor/pulp-platform/axi/src/axi_mux.sv                                      \
+        vendor/pulp-platform/axi/src/axi_demux_simple.sv                             \
         vendor/pulp-platform/axi/src/axi_demux.sv                                    \
+        vendor/pulp-platform/axi/src/axi_xbar_unmuxed.sv                             \
         vendor/pulp-platform/axi/src/axi_xbar.sv                                     \
         vendor/pulp-platform/common_cells/src/cdc_2phase.sv                          \
         vendor/pulp-platform/common_cells/src/spill_register_flushable.sv            \
@@ -245,7 +246,7 @@ src :=  corev_apu/tb/axi_adapter.sv                                             
         corev_apu/tb/common/uart.sv                                                  \
         corev_apu/tb/common/SimDTM.sv                                                \
         corev_apu/tb/common/SimJTAG.sv                                               \
-        corev_apu/riscv-iommu/rtl/riscv_iommu.sv                                        \
+        corev_apu/riscv-iommu/rtl/rv_iommu_top.sv                                    \
         corev_apu/register_interface/src/axi_to_reg.sv                               \
         corev_apu/register_interface/src/axi_lite_to_reg.sv                          \
         vendor/pulp-platform/axi/src/axi_burst_splitter.sv
@@ -294,7 +295,8 @@ incdir := \
             vendor/pulp-platform/common_cells/include \
             vendor/pulp-platform/axi/include \
             corev_apu/register_interface/include \
-            corev_apu/iDMA/src/include
+            corev_apu/iDMA/src/include \
+            corev_apu/riscv-iommu/include
 
 # Compile and sim flags
 compile_flag     += +cover=bcfst+/dut -incr -64 -nologo -quiet -suppress 13262 -permissive +define+$(defines)

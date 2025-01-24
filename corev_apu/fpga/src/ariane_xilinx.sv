@@ -285,6 +285,7 @@ localparam axi_pkg::xbar_cfg_t AXI_XBAR_CFG = '{
   MaxSlvTrans:        8, // Modified to 8
   FallThrough:        1'b0,
   LatencyMode:        axi_pkg::CUT_ALL_PORTS,
+  PipelineStages:     32'd1,
   AxiIdWidthSlvPorts: AxiIdWidthMaster,
   AxiIdUsedSlvPorts:  AxiIdWidthMaster,
   UniqueIds:          1'b0,
@@ -832,7 +833,7 @@ ariane_peripherals #(
     .dma_cfg      ( master[ariane_soc::DMA_CFG]  ),   
     .iommu_comp   ( slave[ariane_soc::IOMMU_COMP]),   
     .iommu_ds     ( slave[ariane_soc::IOMMU_MEM] ),   
-    .iommu_cfg    ( master[ariane_soc::IOMMU_CFG]),
+    .iommu_prog   ( master[ariane_soc::IOMMU_CFG]),
     .irq_o        ( irq                          ),
     .rx_i         ( rx                           ),
     .tx_o         ( tx                           ),

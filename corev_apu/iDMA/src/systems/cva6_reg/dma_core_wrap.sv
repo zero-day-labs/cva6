@@ -10,6 +10,8 @@
 
 `include "axi/assign.svh"
 `include "axi/typedef.svh"
+`include "axi-iommu/assign.svh"
+`include "axi-iommu/typedef.svh"
 `include "idma/typedef.svh"
 `include "register_interface/typedef.svh"
 
@@ -329,7 +331,7 @@ module dma_core_wrap_intf #(
   typedef logic [20-1:0]  iommu_ssid_t;
 
   `AXI_TYPEDEF_EXT_ALL(axi_mst, addr_t, axi_id_t, data_t, strb_t, user_t, iommu_sid_t, iommu_ssidv_t, iommu_ssid_t)
-  axi_mst_req_ext_t axi_mst_req;
+  axi_mst_req_t axi_mst_req;
   axi_mst_resp_t axi_mst_resp;
   `AXI_ASSIGN_FROM_REQ_EXT(axi_master, axi_mst_req)
   `AXI_ASSIGN_TO_RESP(axi_mst_resp, axi_master)
@@ -352,7 +354,7 @@ module dma_core_wrap_intf #(
     .MemSysDepth      ( MEM_SYS_DEPTH      ),
     .RAWCouplingAvail ( RAW_COUPLING_AVAIL ),
     .IsTwoD           ( IS_TWO_D           ),
-    .axi_mst_req_t    ( axi_mst_req_ext_t  ),
+    .axi_mst_req_t    ( axi_mst_req_t      ),
     .axi_mst_rsp_t    ( axi_mst_resp_t     ),
     .axi_slv_req_t    ( axi_slv_req_t      ),
     .axi_slv_rsp_t    ( axi_slv_resp_t     ),
