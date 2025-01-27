@@ -34,11 +34,7 @@ module id_stage (
     input  riscv::xs_t                    fs_i,                // floating point extension status
     input  riscv::xs_t                    vfs_i,               // floating point extension virtual status
     input  logic [2:0]                    frm_i,               // floating-point dynamic rounding mode
-`ifndef MSI_MODE
-    input  logic [1:0]                    irq_i,        // level sensitive IR lines, mip & sip (async)
-`else
-    input  logic [ariane_pkg::NrIntpFiles-1:0] irq_i,  // level sensitive IR lines, mip & sip & vsip (async)
-`endif
+    input  logic [ariane_pkg::NrIntpFiles-1:0] irq_i,          // level sensitive IR lines, mip & sip & vsip (async)
     input  ariane_pkg::irq_ctrl_t         irq_ctrl_i,
     input  logic                          debug_mode_i,        // we are in debug mode
     input  logic                          tvm_i,

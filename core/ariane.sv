@@ -26,32 +26,21 @@ module ariane import ariane_pkg::*; #(
 ) (
   input  logic                         clk_i,
   input  logic                         rst_ni,
-  // Core ID, Cluster ID and boot address are considered more or less static
-  input  logic [riscv::VLEN-1:0]       boot_addr_i,  // reset boot address
-  input  logic [riscv::XLEN-1:0]       hart_id_i,    // hart id in a multicore environment (reflected in a CSR)
-
-  // Interrupt inputs
-`ifndef MSI_MODE
-  input  logic [1:0]                   irq_i,        // level sensitive IR lines, mip & sip (async)
-`else
-  input  logic [ariane_pkg::NrIntpFiles-1:0] irq_i,  // level sensitive IR lines, mip & sip & vsip (async)
-`endif
-  input  logic                         ipi_i,        // inter-processor interrupts (async)
-  // Timer facilities
-  input  logic                         time_irq_i,   // timer interrupt in (async)
-  input  logic                         debug_req_i,  // debug request (async)
+  // Reset boot address
+  input  logic [riscv::VLEN-1:0]       boot_addr_i,
+  // Hard ID reflected as CSR
+  input  logic [riscv::XLEN-1:0]       hart_id_i,
   // IMSIC
-`ifdef MSI_MODE
-  output  logic [1:0]                                                     imsic_priv_lvl_o    ,
-  output  logic [ariane_pkg::NrVSIntpFilesW:0]                            imsic_vgein_o       ,
-  output  logic [riscv::XLEN-1:0]                                         imsic_addr_o        ,
-  output  logic [riscv::XLEN-1:0]                                         imsic_data_o        ,
-  output  logic                                                           imsic_we_o          ,
-  output  logic                                                           imsic_claim_o       ,
-  input   logic [riscv::XLEN-1:0]                                         imsic_data_i        ,
-  input   logic                                                           imsic_exception_i   ,
-  input   logic [ariane_pkg::NrIntpFiles-1:0][ariane_pkg::NrSourcesW-1:0] imsic_xtopei_i      ,
-`endif
+  output imsic_pkg::csr_channel_to_imsic_t    imsic_csr_o, 
+  input  imsic_pkg::csr_channel_from_imsic_t  imsic_csr_i,
+  // Level sensitive (async) interrupts
+  input  logic [ariane_pkg::NrIntpFiles-1:0] irq_i,
+  // Inter-processor (async) interrupt
+  input  logic                         ipi_i,
+  // Timer (async) interrupt
+  input  logic                         time_irq_i,
+  // Debug (async) request
+  input  logic                         debug_req_i,
 `ifdef FIRESIM_TRACE
   // firesim trace port
   output traced_instr_pkg::trace_port_t trace_o,
@@ -90,21 +79,12 @@ module ariane import ariane_pkg::*; #(
     .rst_ni               ( rst_ni                    ),
     .boot_addr_i          ( boot_addr_i               ),
     .hart_id_i            ( hart_id_i                 ),
+    .imsic_csr_i          ( imsic_csr_i               ),
+    .imsic_csr_o          ( imsic_csr_o               ),
     .irq_i                ( irq_i                     ),
     .ipi_i                ( ipi_i                     ),
     .time_irq_i           ( time_irq_i                ),
-    .debug_req_i          ( debug_req_i               ),
-`ifdef MSI_MODE
-    .imsic_priv_lvl_o     ( imsic_priv_lvl_o          ),         
-    .imsic_vgein_o        ( imsic_vgein_o             ),       
-    .imsic_addr_o         ( imsic_addr_o              ),     
-    .imsic_data_o         ( imsic_data_o              ),     
-    .imsic_we_o           ( imsic_we_o                ),   
-    .imsic_claim_o        ( imsic_claim_o             ),       
-    .imsic_data_i         ( imsic_data_i              ),     
-    .imsic_exception_i    ( imsic_exception_i         ),           
-    .imsic_xtopei_i       ( imsic_xtopei_i            ),   
-`endif    
+    .debug_req_i          ( debug_req_i               ),   
 `ifdef FIRESIME_TRACE
     .trace_o              ( trace_o                   ),
 `endif

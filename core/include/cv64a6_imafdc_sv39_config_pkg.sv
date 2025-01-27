@@ -54,11 +54,13 @@ package cva6_config_pkg;
 
     localparam CVA6ConfigNrPMPEntries = 8;
 
-    // CVA6 Config AIA
-    localparam CVA6ConfigNrVSIntpFiles      = 1;
+    // AIA Config
+    localparam CVA6ConfigNrVSIntpFiles      = aia_pkg::UserNrVSIntpFiles;
     localparam CVA6ConfigNrVSIntpFilesW     = $clog2(CVA6ConfigNrVSIntpFiles);
     localparam CVA6ConfigNrIntpFiles        = 2 + CVA6ConfigNrVSIntpFiles;
-    localparam CVA6ConfigNrSourcesW         = $clog2(30);
+    // multiple of 64, and may be a minimum of 64 and a maximum of 2048
+    localparam CVA6ConfigNrSourcesImsic    = aia_pkg::UserNrSourcesImsic;
+    localparam CVA6ConfigNrSourcesW       = $clog2(CVA6ConfigNrSourcesImsic);
 
 
 endpackage

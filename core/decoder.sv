@@ -28,11 +28,7 @@ module decoder import ariane_pkg::*; (
     input  logic [31:0]        instruction_i,           // instruction from IF
     input  branchpredict_sbe_t branch_predict_i,
     input  exception_t         ex_i,                    // if an exception occured in if
-`ifndef MSI_MODE
-    input  logic [1:0]         irq_i,                   // level sensitive IR lines, mip & sip (async)
-`else
     input  logic [ariane_pkg::NrIntpFiles-1:0] irq_i,   // level sensitive IR lines, mip & sip | vsip (async)
-`endif
     input  irq_ctrl_t          irq_ctrl_i,              // interrupt control and status information from CSRs
     // From CSR
     input  riscv::priv_lvl_t   priv_lvl_i,              // current privilege level
@@ -1329,9 +1325,9 @@ module decoder import ariane_pkg::*; (
     // Exception handling
     // ---------------------
     riscv::xlen_t interrupt_cause;
-    riscv::xlen_t   m_interrupt_topi;
-    riscv::xlen_t   s_interrupt_topi;
-    riscv::xlen_t   vs_interrupt_topi;
+    riscv::xlen_t m_interrupt_topi;
+    riscv::xlen_t s_interrupt_topi;
+    riscv::xlen_t vs_interrupt_topi;
 
 
     // this instruction has already executed if the exception is valid
@@ -1454,7 +1450,7 @@ module decoder import ariane_pkg::*; (
             end
 
             /** AIA: TOPI logic; It is not affected by the global enable */
-             if(ariane_pkg::RVH) begin
+            if(ariane_pkg::RVH) begin
                 if (irq_ctrl_i.mideleg[vs_interrupt_topi[$clog2(riscv::XLEN)-1:0]] &&
                     irq_ctrl_i.hideleg[vs_interrupt_topi[$clog2(riscv::XLEN)-1:0]]) begin
                     vstopi_o = vs_interrupt_topi;
@@ -1468,7 +1464,6 @@ module decoder import ariane_pkg::*; (
                     stopi_o = s_interrupt_topi;
                 end
             end
-            
             if (!irq_ctrl_i.mideleg[m_interrupt_topi[$clog2(riscv::XLEN)-1:0]]) begin
                 mtopi_o = m_interrupt_topi;
             end
