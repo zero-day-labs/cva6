@@ -23,9 +23,8 @@
   `include "l15.tmp.h"
 `endif
 
-`define APLIC
-// `define DIRECT_MODE
 `define MSI_MODE
+`define AIA_EMBEDDED
 
 package ariane_pkg;
 
