@@ -118,7 +118,12 @@ module csr_regfile import ariane_pkg::*; #(
     logic [1:0]                             rimsic_priv_lvl, wimsic_priv_lvl;
     logic [32-1:0]                          rimsic_addr, wimsic_addr;
     logic [ariane_pkg::NrVSIntpFilesW:0]    rimsic_vgein, wimsic_vgein;
-    
+
+    // UPM Extensions
+    riscv::xlen_t                           sminueithreshold_d, sminueithreshold_q;
+    riscv::xlen_t                           ueithreshold_d, ueithreshold_q;
+    riscv::xlen_t                           fueithreshold_d, fueithreshold_q;
+
     // internal signal to keep track of access exceptions
     logic        read_access_exception, update_access_exception, privilege_violation;
     logic        virtual_read_access_exception, virtual_update_access_exception, virtual_privilege_violation;
@@ -540,6 +545,13 @@ module csr_regfile import ariane_pkg::*; #(
                                     (((vstopi_i-1) << 16) | AIA_CSR_DEF_PRIO);
                     end
                 end
+                // AIA UPM Extension
+                riscv::CSR_UEITHRESHOLD: begin
+                    csr_rdata = ueithreshold_q[riscv::XLEN-1:0];
+                end
+                riscv::CSR_SMINUEITHRESHOLD: begin
+                    csr_rdata = sminueithreshold_q[riscv::XLEN-1:0];
+                end
                 // Counters and Timers
                 riscv::CSR_MCYCLE:             csr_rdata = cycle_q[riscv::XLEN-1:0];
                 riscv::CSR_MCYCLEH:            if (riscv::XLEN == 32) csr_rdata = cycle_q[63:32]; else read_access_exception = 1'b1;
@@ -758,6 +770,11 @@ module csr_regfile import ariane_pkg::*; #(
         imsic_csr_o.imsic_data  = '0; 
         imsic_csr_o.imsic_we    = '0;
         imsic_csr_o.imsic_claim = '0;
+
+        // AIA UPM Extensions
+        sminueithreshold_d      = sminueithreshold_q;
+        ueithreshold_d          = ueithreshold_q;
+        fueithreshold_d         = fueithreshold_q;
 
         // check for correct access rights and that we are writing
         if (csr_we) begin
@@ -1285,6 +1302,22 @@ module csr_regfile import ariane_pkg::*; #(
                         imsic_csr_o.imsic_claim = 1'b1; 
                     end
                 end
+                // AIA UPM Extension
+                riscv::CSR_UEITHRESHOLD: begin
+                    ueithreshold_d = csr_wdata;  
+                    if ((sminueithreshold_q > csr_wdata) && (csr_wdata != '0)) begin
+                        fueithreshold_d = sminueithreshold_q;    
+                    end
+                    else begin
+                        fueithreshold_d = csr_wdata;
+                    end
+                end
+                riscv::CSR_SMINUEITHRESHOLD: begin
+                    sminueithreshold_d = csr_wdata;
+                    if ((ueithreshold_q < csr_wdata) && (ueithreshold_q != '0)) begin
+                        fueithreshold_d = csr_wdata;
+                    end
+                end
                 // performance counters
                 riscv::CSR_MCYCLE:             cycle_d[riscv::XLEN-1:0] = csr_wdata;
                 riscv::CSR_MCYCLEH:            if (riscv::XLEN == 32) cycle_d[63:32] = csr_wdata; else update_access_exception = 1'b1;
@@ -1761,6 +1794,7 @@ module csr_regfile import ariane_pkg::*; #(
     assign imsic_csr_o.imsic_addr  = ((imsic_csr_o.imsic_we == 1'b1) || (imsic_csr_o.imsic_claim == 1'b1) ) ? wimsic_addr    : rimsic_addr;
     assign imsic_csr_o.priv_lvl    = ((imsic_csr_o.imsic_we == 1'b1) || (imsic_csr_o.imsic_claim == 1'b1) ) ? wimsic_priv_lvl: rimsic_priv_lvl;
     assign imsic_csr_o.vgein       = ((imsic_csr_o.imsic_we == 1'b1) || (imsic_csr_o.imsic_claim == 1'b1) ) ? wimsic_vgein   : rimsic_vgein;
+    assign imsic_csr_o.ueithreshold = imsic_pkg::imsic_ueithreshold_t'(fueithreshold_q);
 
     // ---------------------------
     // CSR OP Select Logic
@@ -2099,6 +2133,10 @@ module csr_regfile import ariane_pkg::*; #(
             miselect_q             <= '0;
             siselect_q             <= '0;
             vsiselect_q            <= '0;
+            // AIA UPM Extensions
+            ueithreshold_q         <= '0;
+            sminueithreshold_q     <= '0;
+            fueithreshold_q        <= '0;
             // supervisor mode registers
             sepc_q                 <= {riscv::XLEN{1'b0}};
             scause_q               <= {riscv::XLEN{1'b0}};
@@ -2169,6 +2207,10 @@ module csr_regfile import ariane_pkg::*; #(
             miselect_q             <= miselect_d;
             siselect_q             <= siselect_d;
             vsiselect_q            <= vsiselect_d;
+            // AIA UPM Extensions
+            ueithreshold_q         <= ueithreshold_d;
+            sminueithreshold_q     <= sminueithreshold_d;
+            fueithreshold_q        <= fueithreshold_d;
             // supervisor mode registers
             sepc_q                 <= sepc_d;
             scause_q               <= scause_d;

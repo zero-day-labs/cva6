@@ -525,6 +525,9 @@ package riscv;
         CSR_VSIREG          = 12'h251,
         CSR_VSTOPEI         = 12'h25C,
         CSR_VSTOPI          = 12'hEB0,
+        // AIA UPM extension
+        CSR_UEITHRESHOLD     = 12'h004,
+        CSR_SMINUEITHRESHOLD = 12'h152,
         // Performance counters (Machine Mode)
         CSR_ML1_ICACHE_MISS = 12'hB03,  // L1 Instr Cache Miss
         CSR_ML1_DCACHE_MISS = 12'hB04,  // L1 Data Cache Miss
