@@ -42,8 +42,9 @@ module perf_counters import ariane_pkg::*; (
   input  bp_resolve_t                             resolved_branch_i
 );
   localparam logic [6:0] RegOffset = riscv::CSR_ML1_ICACHE_MISS >> 5;
+  localparam logic [6:0] U_RegOffset = riscv::CSR_L1_ICACHE_MISS >> 5;
 
-  logic [riscv::CSR_MIF_EMPTY : riscv::CSR_ML1_ICACHE_MISS][riscv::XLEN-1:0] perf_counter_d, perf_counter_q;
+  logic [riscv::CSR_IF_EMPTY : riscv::CSR_ML1_ICACHE_MISS][riscv::XLEN-1:0] perf_counter_d, perf_counter_q;
 
   always_comb begin : perf_counters
     perf_counter_d = perf_counter_q;
@@ -54,11 +55,15 @@ module perf_counters import ariane_pkg::*; (
       // ------------------------------
       // Update Performance Counters
       // ------------------------------
-      if (l1_icache_miss_i)
+      if (l1_icache_miss_i) begin
         perf_counter_d[riscv::CSR_ML1_ICACHE_MISS] = perf_counter_q[riscv::CSR_ML1_ICACHE_MISS] + 1'b1;
+        perf_counter_d[riscv::CSR_L1_ICACHE_MISS] = perf_counter_q[riscv::CSR_L1_ICACHE_MISS] + 1'b1;
+      end
 
-      if (l1_dcache_miss_i)
+      if (l1_dcache_miss_i) begin
         perf_counter_d[riscv::CSR_ML1_DCACHE_MISS] = perf_counter_q[riscv::CSR_ML1_DCACHE_MISS] + 1'b1;
+        perf_counter_d[riscv::CSR_L1_DCACHE_MISS] = perf_counter_q[riscv::CSR_L1_DCACHE_MISS] + 1'b1;
+      end
 
       if (itlb_miss_i)
         perf_counter_d[riscv::CSR_MITLB_MISS] = perf_counter_q[riscv::CSR_MITLB_MISS] + 1'b1;
@@ -110,12 +115,15 @@ module perf_counters import ariane_pkg::*; (
     // write after read
     if (riscv::csr_reg_t'({RegOffset,addr_i}) >= riscv::CSR_ML1_ICACHE_MISS && riscv::csr_reg_t'({RegOffset,addr_i}) <= riscv::CSR_MIF_EMPTY) begin
       data_o = perf_counter_q[{RegOffset,addr_i}];
+    end else if(riscv::csr_reg_t'({U_RegOffset,addr_i}) >= riscv::CSR_L1_ICACHE_MISS && riscv::csr_reg_t'({U_RegOffset,addr_i}) <= riscv::CSR_IF_EMPTY) begin
+      data_o = perf_counter_q[{U_RegOffset,addr_i}];
     end else begin
       // unimplemented counters are read-only 0
       data_o = '0;
     end
     if (we_i) begin
       perf_counter_d[{RegOffset,addr_i}] = data_i;
+      perf_counter_d[{U_RegOffset,addr_i}] = data_i;
     end
   end
 

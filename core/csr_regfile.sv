@@ -562,7 +562,9 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_INSTRET:            csr_rdata = instret_q[riscv::XLEN-1:0];
                 riscv::CSR_INSTRETH:           if (riscv::XLEN == 32) csr_rdata = instret_q[63:32]; else read_access_exception = 1'b1;
                 riscv::CSR_ML1_ICACHE_MISS,
+                riscv::CSR_L1_ICACHE_MISS,
                 riscv::CSR_ML1_DCACHE_MISS,
+                riscv::CSR_L1_DCACHE_MISS,
                 riscv::CSR_MITLB_MISS,
                 riscv::CSR_MDTLB_MISS,
                 riscv::CSR_MLOAD,
